@@ -1,0 +1,8 @@
+fastapi==0.142.2
+uvicorn==0.54.0
+psycopg[binary]==3.3.6
+httpx==0.28.1
+pydantic==2.13.5
+numpy==2.5.3
+python-dotenv==1.2.4
+pypdf==6.19.0
