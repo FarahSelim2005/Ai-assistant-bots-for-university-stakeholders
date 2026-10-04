@@ -7,6 +7,7 @@ Run from the backend folder:
 Re-running is safe: chunks of a file are deleted before that file is ingested again.
 """
 import argparse
+import re
 from pathlib import Path
 
 from pypdf import PdfReader
@@ -26,15 +27,42 @@ def read_file(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def split_into_chunks(text: str, size: int, overlap: int) -> list[str]:
-    """Split text into chunks of `size` words; consecutive chunks share `overlap` words."""
-    words = text.split()
+def split_words(words: list[str], size: int, overlap: int) -> list[str]:
+    """Cut a long list of words into windows of `size` words that share `overlap` words."""
     chunks = []
-    step = size - overlap
-    for start in range(0, len(words), step):
+    for start in range(0, len(words), size - overlap):
         chunks.append(" ".join(words[start:start + size]))
         if start + size >= len(words):
             break
+    return chunks
+
+
+def split_into_chunks(text: str, size: int, overlap: int) -> list[str]:
+    """Split text into chunks of at most `size` words without mixing sections.
+
+    Paragraphs (separated by blank lines) are kept together, and a Markdown
+    heading ("#") always starts a new chunk, so one chunk covers one topic.
+    A paragraph longer than `size` (common in PDFs) is cut with `split_words`.
+    """
+    chunks: list[str] = []
+    current: list[str] = []
+    for paragraph in re.split(r"\n\s*\n", text):
+        words = paragraph.split()
+        if not words:
+            continue
+        if current and paragraph.lstrip().startswith("#"):
+            chunks.append(" ".join(current))
+            current = []
+        if len(current) + len(words) <= size:
+            current.extend(words)
+        elif len(words) <= size:
+            chunks.append(" ".join(current))
+            current = words
+        else:
+            chunks.extend(split_words(current + words, size, overlap))
+            current = []
+    if current:
+        chunks.append(" ".join(current))
     return chunks
 
 
