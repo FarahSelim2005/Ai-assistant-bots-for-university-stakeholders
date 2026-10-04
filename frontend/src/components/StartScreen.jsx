@@ -1,7 +1,7 @@
 // First screen: the user says whether they are a student or staff member.
 const USER_TYPES = [
-  { value: "student", title: "Student", text: "Lab access, equipment, bookings and thesis support" },
-  { value: "staff", title: "Staff", text: "Research facilities, funding, grants and publications" },
+  { value: "student", title: "Student", text: "Labs, offices, rooms, equipment and thesis support" },
+  { value: "staff", title: "Staff", text: "Research facilities, funding, grants and campus offices" },
 ];
 
 export default function StartScreen({ onChoose, loading, error }) {
@@ -12,8 +12,9 @@ export default function StartScreen({ onChoose, loading, error }) {
         <p className="eyebrow">AI Assistant</p>
         <h1>Labs &amp; Research</h1>
         <p>
-          Ask about GIU labs, rooms, opening hours, equipment, research funding and thesis
-          support. Answers come only from official university documents.
+          Ask about GIU labs, campus buildings and offices, rooms, opening hours, equipment,
+          research funding and thesis support. Answers come only from official university
+          documents.
         </p>
       </section>
 

@@ -5,9 +5,9 @@ import StartScreen from "./components/StartScreen.jsx";
 
 const EXAMPLE_QUESTIONS = [
   "Where is the AI lab?",
-  "Can I borrow an Arduino kit?",
+  "Where is the Admission Office?",
+  "How do I pay my tuition fees?",
   "When are research grant proposals due?",
-  "Which digital libraries can I access?",
 ];
 
 export default function App() {
@@ -131,7 +131,7 @@ export default function App() {
           <input
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder="Ask about labs, rooms, equipment, research funding..."
+            placeholder="Ask about labs, offices, rooms, research funding..."
             maxLength={1000}
             autoFocus
           />
