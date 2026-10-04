@@ -1,4 +1,6 @@
 """POST /chat: answer a question in a conversation and store both messages."""
+from dataclasses import asdict
+
 import httpx
 from fastapi import APIRouter, HTTPException
 
@@ -58,4 +60,9 @@ def chat(body: ChatRequest) -> ChatResponse:
             (body.conversation_id, result.answer),
         ).fetchone()[0]
 
-    return ChatResponse(answer=result.answer, sources=result.sources, message_id=message_id)
+    return ChatResponse(
+        answer=result.answer,
+        sources=result.sources,
+        locations=[asdict(location) for location in result.locations],
+        message_id=message_id,
+    )

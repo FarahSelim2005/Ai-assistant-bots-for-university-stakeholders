@@ -179,6 +179,14 @@ npm run dev
 Open http://localhost:5173, choose **Student** or **Staff**, and start asking.
 Each answer shows its source files and a 1–5 rating.
 
+**Campus map:** when an answer mentions a room such as `M005` or `A312`, a map card
+appears under it: a schematic campus map with the building highlighted, the floor
+marked, step-by-step directions from the main gate, and a Google Maps link to the
+campus. The rooms are found by code (`backend/app/campus.py`), not by the language
+model, and only codes that follow the numbering rules are shown. The layout in
+`frontend/src/components/CampusMap.jsx` matches the "Campus Layout and Directions"
+section of `campus_buildings.md`; replace both with the official GIU campus map.
+
 **Attachments:** the 📎 button lets students and staff attach one file to a question
 (PDF, TXT, MD, PNG, JPG or WEBP, up to 5 MB) and ask about it. Documents are converted
 to text (first 12,000 characters) and sent to `LABS_MODEL`; images are sent to
@@ -234,6 +242,7 @@ backend/
     main.py              FastAPI app, CORS, routers
     config.py            all settings (reads .env)
     attachments.py       reads files attached to a chat message
+    campus.py            finds room codes in answers for the campus map
     db.py                PostgreSQL connection
     schemas.py           request/response models
     routers/             session.py, chat.py, feedback.py
@@ -252,7 +261,7 @@ frontend/
   src/
     api.js               all backend calls (API URL)
     App.jsx              chat state and flow
-    components/          StartScreen.jsx, Message.jsx
+    components/          StartScreen.jsx, Message.jsx, CampusMap.jsx
     App.css              styles
 ```
 

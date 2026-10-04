@@ -3,10 +3,11 @@
 Each concrete agent only sets its name, allowed user types, prompt, models and
 fallback message. No HTTP code here: routers call `run()` and save the result.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from app import config
 from app.attachments import Attachment
+from app.campus import Location, find_locations
 from app.llm.openrouter import chat
 from app.rag.prompts import build_messages
 from app.rag.retriever import RetrievedChunk, retrieve
@@ -18,6 +19,7 @@ MAX_QUESTION_LENGTH = 1000
 class AgentResponse:
     answer: str
     sources: list[str]  # file names of the chunks used; empty for the fallback
+    locations: list[Location] = field(default_factory=list)  # rooms in the answer, for the map
 
 
 class BaseAgent:
@@ -44,7 +46,8 @@ class BaseAgent:
             return AgentResponse(answer=self.fallback_message, sources=[])
         # 4. Generate
         answer = self.generate(question, relevant, history, attachment)
-        return AgentResponse(answer=answer, sources=unique_sources(relevant))
+        return AgentResponse(answer=answer, sources=unique_sources(relevant),
+                             locations=find_locations(answer))
 
     def check_rules(self, question: str, user_type: str,
                     attachment: Attachment | None = None) -> None:

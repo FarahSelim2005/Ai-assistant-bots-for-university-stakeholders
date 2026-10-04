@@ -26,9 +26,18 @@ class ChatRequest(BaseModel):
     attachment: AttachmentIn | None = None
 
 
+class LocationOut(BaseModel):
+    room: str           # e.g. "M005"
+    building: str       # "A", "M" or "S"
+    building_name: str  # e.g. "Main Administration Building"
+    floor: int          # 0 = ground floor
+    floor_name: str     # e.g. "Ground floor"
+
+
 class ChatResponse(BaseModel):
     answer: str
     sources: list[str]
+    locations: list[LocationOut] = []  # rooms mentioned in the answer, shown on a map
     message_id: int  # id of the saved assistant message, used for feedback
 
 

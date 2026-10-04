@@ -17,7 +17,7 @@ const MAX_UPLOAD_MB = 5;
 export default function App() {
   const [userType, setUserType] = useState(null);
   const [conversationId, setConversationId] = useState(null);
-  // Each message: { role, content, attachment?, sources?, messageId?, rating? }
+  // Each message: { role, content, attachment?, sources?, locations?, messageId?, rating? }
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   // File chosen for the next message: { filename, dataUrl, isImage }
@@ -82,7 +82,13 @@ export default function App() {
       const data = await sendMessage(conversationId, query, file);
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: data.answer, sources: data.sources, messageId: data.message_id },
+        {
+          role: "assistant",
+          content: data.answer,
+          sources: data.sources,
+          locations: data.locations,
+          messageId: data.message_id,
+        },
       ]);
     } catch (err) {
       setError(err.message);

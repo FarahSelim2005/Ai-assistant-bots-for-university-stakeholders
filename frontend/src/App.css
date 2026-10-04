@@ -235,6 +235,61 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
   color: var(--muted);
 }
 
+/* ================= Campus map ================= */
+.campus-map {
+  width: min(640px, 100%);
+  margin-top: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--giu-red);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.map-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.map-header .muted { font-weight: 400; font-size: 12px; }
+.map-body { display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; padding: 14px; }
+
+.map-svg { width: 100%; height: auto; background: #f0f4ec; border-radius: 10px; }
+.map-square { fill: #e3e8dc; stroke: #cfd6c6; }
+.map-path { fill: #e3e8dc; }
+.map-building { fill: #d6d7da; stroke: #b9bbbf; }
+.map-building.active { fill: var(--giu-red); stroke: var(--giu-red-dark); }
+.map-letter { font-size: 22px; font-weight: 800; fill: #8a8d93; }
+.map-letter.active { fill: #fff; }
+.map-label-small { font-size: 10px; fill: var(--muted); }
+.map-pin { fill: var(--giu-gold); stroke: #9c7410; stroke-width: 1; }
+
+.map-details { display: flex; flex-direction: column; gap: 12px; font-size: 14px; }
+.map-building-info { display: flex; gap: 12px; align-items: flex-start; }
+.directions { margin: 6px 0 0; padding-left: 18px; line-height: 1.5; }
+
+/* Floors of the building, 4th floor at the top; the target floor is gold */
+.floor-stack { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+.floor {
+  width: 34px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.floor.active { background: var(--giu-gold); color: #fff; border-color: #b8860b; }
+
+.maps-link { font-size: 13px; color: var(--giu-red); text-decoration: none; font-weight: 600; }
+.maps-link:hover { text-decoration: underline; }
+
 /* Star rating: buttons are in order 5..1 and shown reversed, so "hover ~ button"
    highlights the hovered star and every star to its left. */
 .rating { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 13px; }
@@ -340,4 +395,5 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
   .composer-area { padding: 12px 16px; }
   .suggestions { grid-template-columns: 1fr; }
   .assistant-body, .user-body { max-width: 88%; }
+  .map-body { grid-template-columns: 1fr; }
 }

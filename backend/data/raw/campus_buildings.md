@@ -16,6 +16,16 @@ floor rooms 301 to 320 and fourth floor rooms 401 to 420. For example, room S214
 is on the second floor of Building S, and room A312 is on the third floor of
 Building A.
 
+## Campus Layout and Directions
+
+The main gate opens onto the central square. Building M (Main Administration
+Building) is straight ahead of the main gate, on the far side of the central
+square. Building A (Academic Building) is on the left side of the square and
+Building S (Student Services Building) is on the right side of the square.
+Every building has stairs and an elevator next to its entrance. To reach a room,
+go to the building shown by the letter of the room number, then take the stairs
+or the elevator to the floor shown by the first digit (0 means the ground floor).
+
 ## Building A (Academic Building)
 
 Building A is the Academic Building. The ground floor (A001 to A030) has lecture

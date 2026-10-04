@@ -24,7 +24,9 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
         )
         response.raise_for_status()
         data = sorted(response.json()["data"], key=lambda item: item["index"])
-        vectors.extend(item["embedding"] for item in data)
+        # float(): the API sometimes sends whole numbers like 0, and PostgreSQL arrays
+        # (via psycopg) need every value to have the same type.
+        vectors.extend([float(x) for x in item["embedding"]] for item in data)
     return vectors
 
 
