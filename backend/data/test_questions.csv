@@ -1,0 +1,11 @@
+question,expected_keywords,agent
+Where is the AI lab located?,B2.14,labs_research
+What are the opening hours of the Artificial Intelligence Lab?,9:00;5:00,labs_research
+When is the safety training for the electronics lab?,Monday;10:00,labs_research
+How long can I borrow components from the electronics lab?,14 days,labs_research
+What do I need to wear in the biotechnology lab?,lab coat;goggles;closed shoes,labs_research
+How much money does an internal research grant provide?,"50,000",labs_research
+When are internal research grant proposals due?,November,labs_research
+Which digital libraries can I access from campus?,IEEE;ScienceDirect;ACM,labs_research
+How do I pay my tuition fees?,don't have,labs_research
+What is the phone number of the AI lab?,don't have,labs_research
