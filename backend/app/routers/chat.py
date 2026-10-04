@@ -3,6 +3,7 @@ import httpx
 from fastapi import APIRouter, HTTPException
 
 from app.agents import AGENTS
+from app.attachments import read_attachment
 from app.db import get_connection
 from app.llm.openrouter import LLMError
 from app.schemas import ChatRequest, ChatResponse
@@ -32,16 +33,24 @@ def chat(body: ChatRequest) -> ChatResponse:
     history = [{"role": role, "content": content} for role, content in reversed(rows)]
 
     try:
-        result = AGENTS[agent_name].run(body.query, user_type, history)
-    except ValueError as error:  # an agent rule was broken
+        attachment = None
+        if body.attachment:
+            attachment = read_attachment(body.attachment.filename, body.attachment.data_base64)
+        result = AGENTS[agent_name].run(body.query, user_type, history, attachment)
+    except ValueError as error:  # a bad attachment or a broken agent rule
         raise HTTPException(400, str(error))
     except (httpx.HTTPError, LLMError):  # OpenRouter unreachable, an error, or no answer
         raise HTTPException(502, "The assistant is temporarily unavailable. Please try again.")
 
+    # The file itself is not stored; the message only records its name.
+    user_message = body.query
+    if body.attachment:
+        user_message += f"\n[Attached file: {body.attachment.filename}]"
+
     with get_connection() as conn:
         conn.execute(
             "INSERT INTO messages (conversation_id, role, content) VALUES (%s, 'user', %s)",
-            (body.conversation_id, body.query),
+            (body.conversation_id, user_message),
         )
         message_id = conn.execute(
             "INSERT INTO messages (conversation_id, role, content) "

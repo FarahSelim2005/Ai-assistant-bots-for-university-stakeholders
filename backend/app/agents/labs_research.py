@@ -9,6 +9,7 @@ class LabsResearchAgent(BaseAgent):
     allowed_user_types = ("student", "staff")
     system_prompt = LABS_SYSTEM_PROMPT
     model = config.LABS_MODEL
+    vision_model = config.VISION_MODEL
     fallback_message = (
         "Sorry, I don't have information about that. "
         "Please contact the relevant office or department for help."

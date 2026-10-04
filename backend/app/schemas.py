@@ -13,9 +13,17 @@ class SessionResponse(BaseModel):
     conversation_id: int
 
 
+class AttachmentIn(BaseModel):
+    filename: str = Field(min_length=1, max_length=255)
+    # File content as base64 text (a 5 MB file is about 7 million characters). The exact
+    # size limit is checked in attachments.py; this is only a hard upper bound.
+    data_base64: str = Field(min_length=1, max_length=10_000_000)
+
+
 class ChatRequest(BaseModel):
     conversation_id: int
     query: str = Field(min_length=1, max_length=1000)
+    attachment: AttachmentIn | None = None
 
 
 class ChatResponse(BaseModel):

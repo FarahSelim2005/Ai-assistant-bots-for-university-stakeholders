@@ -1,9 +1,17 @@
 // One chat message. Assistant messages also show their sources and a 1-5 star rating.
 export default function Message({ message, onRate }) {
   if (message.role === "user") {
+    const file = message.attachment;
     return (
       <div className="message user">
-        <div className="bubble">{message.content}</div>
+        <div className="user-body">
+          {file && (file.isImage ? (
+            <img className="attached-image" src={file.dataUrl} alt={file.filename} />
+          ) : (
+            <span className="attached-file">📄 {file.filename}</span>
+          ))}
+          <div className="bubble">{message.content}</div>
+        </div>
       </div>
     );
   }

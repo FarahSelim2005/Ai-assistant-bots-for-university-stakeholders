@@ -10,15 +10,22 @@ const EXAMPLE_QUESTIONS = [
   "When are research grant proposals due?",
 ];
 
+// Must match the backend (app/attachments.py and MAX_UPLOAD_MB in config.py).
+const ACCEPTED_FILES = ".pdf,.txt,.md,.png,.jpg,.jpeg,.webp";
+const MAX_UPLOAD_MB = 5;
+
 export default function App() {
   const [userType, setUserType] = useState(null);
   const [conversationId, setConversationId] = useState(null);
-  // Each message: { role, content, sources?, messageId?, rating? }
+  // Each message: { role, content, attachment?, sources?, messageId?, rating? }
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  // File chosen for the next message: { filename, dataUrl, isImage }
+  const [attachment, setAttachment] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const bottomRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // Keep the newest message in view.
   useEffect(() => {
@@ -39,20 +46,40 @@ export default function App() {
     }
   }
 
-  function handleSubmit(event) {
-    event.preventDefault();
-    send(input.trim());
+  function handleFileChosen(event) {
+    const file = event.target.files[0];
+    event.target.value = ""; // so choosing the same file again still triggers onChange
+    if (!file) return;
+    if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      setError(`The file is larger than ${MAX_UPLOAD_MB} MB.`);
+      return;
+    }
+    // Read the file as a data URL ("data:<type>;base64,<content>") to send it as JSON.
+    const reader = new FileReader();
+    reader.onload = () =>
+      setAttachment({ filename: file.name, dataUrl: reader.result, isImage: file.type.startsWith("image/") });
+    reader.onerror = () => setError("The file could not be read.");
+    reader.readAsDataURL(file);
+    setError("");
   }
 
-  async function send(query) {
+  function handleSubmit(event) {
+    event.preventDefault();
+    // A file can be sent without typing; then the agent is asked to explain it.
+    const query = input.trim() || (attachment ? "Please explain this file." : "");
+    send(query, attachment);
+  }
+
+  async function send(query, file = null) {
     if (!query || loading) return;
 
-    setMessages((prev) => [...prev, { role: "user", content: query }]);
+    setMessages((prev) => [...prev, { role: "user", content: query, attachment: file }]);
     setInput("");
+    setAttachment(null);
     setLoading(true);
     setError("");
     try {
-      const data = await sendMessage(conversationId, query);
+      const data = await sendMessage(conversationId, query, file);
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: data.answer, sources: data.sources, messageId: data.message_id },
@@ -77,6 +104,7 @@ export default function App() {
     setUserType(null);
     setConversationId(null);
     setMessages([]);
+    setAttachment(null);
     setError("");
   }
 
@@ -127,15 +155,42 @@ export default function App() {
 
       <footer className="composer-area">
         {error && <p className="error">{error}</p>}
+        {attachment && (
+          <div className="pending-file">
+            {attachment.isImage ? (
+              <img src={attachment.dataUrl} alt="" />
+            ) : (
+              <span className="file-icon">📄</span>
+            )}
+            <span className="pending-name">{attachment.filename}</span>
+            <button type="button" onClick={() => setAttachment(null)} aria-label="Remove file">×</button>
+          </div>
+        )}
         <form className="composer" onSubmit={handleSubmit}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPTED_FILES}
+            onChange={handleFileChosen}
+            hidden
+          />
+          <button
+            type="button"
+            className="attach"
+            onClick={() => fileInputRef.current.click()}
+            title="Attach a picture or document (PDF, TXT, MD, PNG, JPG, WEBP)"
+            aria-label="Attach file"
+          >
+            📎
+          </button>
           <input
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder="Ask about labs, offices, rooms, research funding..."
+            placeholder={attachment ? "Ask about your file..." : "Ask about labs, offices, rooms, research funding..."}
             maxLength={1000}
             autoFocus
           />
-          <button type="submit" disabled={loading || !input.trim()}>Send</button>
+          <button type="submit" disabled={loading || (!input.trim() && !attachment)}>Send</button>
         </form>
       </footer>
     </div>
