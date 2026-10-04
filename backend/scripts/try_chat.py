@@ -1,34 +1,29 @@
-"""Try retrieval + prompt + LLM from the terminal (no agent logic yet).
+"""Ask the Labs & Research agent a question from the terminal.
 
 Run from the backend folder:
     python -m scripts.try_chat "where is the AI lab?"
+    python -m scripts.try_chat "who can access the biotech lab?" --user-type staff
 """
 import argparse
 import time
 
-from app import config
-from app.llm.openrouter import chat
-from app.rag.prompts import LABS_SYSTEM_PROMPT, build_messages
-from app.rag.retriever import retrieve
+from app.agents.labs_research import LabsResearchAgent
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Ask the LLM a question using retrieved context.")
+    parser = argparse.ArgumentParser(description="Ask the Labs & Research agent a question.")
     parser.add_argument("question")
-    parser.add_argument("--user-type", default="student", choices=["student", "staff"])
+    parser.add_argument("--user-type", default="student")
     args = parser.parse_args()
 
+    agent = LabsResearchAgent()
     start = time.perf_counter()
-    chunks = retrieve(args.question, "labs_research", args.user_type)
-    retrieved = time.perf_counter()
-    messages = build_messages(LABS_SYSTEM_PROMPT, args.question, chunks)
-    answer = chat(messages, model=config.LABS_MODEL)
-    done = time.perf_counter()
+    response = agent.run(args.question, args.user_type)
+    elapsed = time.perf_counter() - start
 
-    print(f"Model: {config.LABS_MODEL}")
-    print(f"Retrieval {retrieved - start:.2f}s + LLM {done - retrieved:.2f}s "
-          f"= {done - start:.2f}s\n")
-    print(answer)
+    print(f"Model: {agent.model}  |  took {elapsed:.2f}s")
+    print(f"Sources: {response.sources or 'none (fallback, model not called)'}\n")
+    print(response.answer)
 
 
 if __name__ == "__main__":
