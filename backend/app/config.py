@@ -20,6 +20,9 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 EMBEDDING_MODEL = "openai/text-embedding-3-small"  # 1536 dimensions
 LABS_MODEL = os.getenv("LABS_MODEL", "")
 
+# API
+FRONTEND_ORIGIN = "http://localhost:5173"  # the Vite dev server, allowed by CORS
+
 # Retrieval
 TOP_K = 4                    # how many chunks the retriever returns
 SIMILARITY_THRESHOLD = 0.35  # chunks scoring below this are not used to answer
