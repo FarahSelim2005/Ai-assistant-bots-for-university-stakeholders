@@ -13,8 +13,11 @@ import argparse
 import csv
 import time
 
+import httpx
+
 from app import config
 from app.agents import AGENTS
+from app.llm.openrouter import LLMError
 
 DEFAULT_CSV = config.BACKEND_DIR / "data" / "test_questions.csv"
 
@@ -43,22 +46,25 @@ def main() -> None:
     for number, row in enumerate(rows, start=1):
         keywords = [k.strip() for k in row["expected_keywords"].split(";") if k.strip()]
         start = time.perf_counter()
-        response = AGENTS[row["agent"]].run(row["question"], args.user_type)
+        try:
+            answer = AGENTS[row["agent"]].run(row["question"], args.user_type).answer
+        except (httpx.HTTPError, LLMError) as error:  # count a failed model call as wrong
+            answer = f"ERROR: {error}"
         seconds = time.perf_counter() - start
 
-        missing = missing_keywords(response.answer, keywords)
+        missing = missing_keywords(answer, keywords)
         results.append({
             "question": row["question"],
             "agent": row["agent"],
             "correct": not missing,
             "seconds": round(seconds, 2),
             "missing_keywords": ";".join(missing),
-            "answer": response.answer,
+            "answer": answer,
         })
         status = "PASS" if not missing else f"FAIL (missing: {', '.join(missing)})"
         print(f"{number:2}. [{seconds:.2f}s] {status}  {row['question']}")
         if missing:
-            print(f"      answer: {response.answer}")
+            print(f"      answer: {answer}")
 
     times = [r["seconds"] for r in results]
     correct = sum(r["correct"] for r in results)

@@ -7,6 +7,10 @@ from app import config
 _client = httpx.Client(base_url=config.OPENROUTER_BASE_URL, timeout=30.0)
 
 
+class LLMError(Exception):
+    """The model returned no usable answer."""
+
+
 def chat(messages: list[dict], model: str,
          temperature: float = 0.1, max_tokens: int = 400) -> str:
     """Send chat messages to `model` and return the reply text.
@@ -30,4 +34,8 @@ def chat(messages: list[dict], model: str,
         },
     )
     response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"].strip()
+    # Content can be empty, e.g. when a reasoning model spends all tokens on thinking.
+    content = response.json()["choices"][0]["message"].get("content")
+    if not content or not content.strip():
+        raise LLMError(f"Model '{model}' returned an empty answer.")
+    return content.strip()

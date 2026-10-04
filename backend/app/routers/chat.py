@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.agents import AGENTS
 from app.db import get_connection
+from app.llm.openrouter import LLMError
 from app.schemas import ChatRequest, ChatResponse
 
 router = APIRouter()
@@ -34,7 +35,7 @@ def chat(body: ChatRequest) -> ChatResponse:
         result = AGENTS[agent_name].run(body.query, user_type, history)
     except ValueError as error:  # an agent rule was broken
         raise HTTPException(400, str(error))
-    except httpx.HTTPError:  # OpenRouter unreachable or returned an error
+    except (httpx.HTTPError, LLMError):  # OpenRouter unreachable, an error, or no answer
         raise HTTPException(502, "The assistant is temporarily unavailable. Please try again.")
 
     with get_connection() as conn:

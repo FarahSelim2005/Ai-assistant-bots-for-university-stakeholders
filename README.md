@@ -107,6 +107,13 @@ cheap, *non-reasoning* model ("flash-lite", "nano", "mini"). Reasoning/"thinking
 models add several seconds. Copy the exact ID shown under the model's name on its
 OpenRouter page and avoid IDs starting with `~` (they change over time).
 
+**Free option:** `nvidia/nemotron-3-super-120b-a12b:free` scored 18/18 on the test set
+(average 1.5 s). Avoid the `openrouter/free` router: it picks a random free model per
+request, including a safety classifier that replies "User Safety: safe", and scored
+13/18 with answers up to 16 s. Free models have daily rate limits (`429 Too Many
+Requests`) and may log prompts, so use a paid model for the final evaluation if
+possible, and always report which model ID you used.
+
 > Every new Git Bash terminal needs `cd backend` and `source .venv/Scripts/activate`
 > before the Python commands below.
 
