@@ -388,6 +388,96 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
 }
 .pending-file button:hover:not(:disabled) { background: none; color: var(--giu-red); }
 
+/* ================= Voice call ================= */
+.call-start { background: var(--giu-black); }
+.call-start:hover:not(:disabled) { background: #000; }
+
+.call {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 24px 48px;
+  background: radial-gradient(circle at 50% 35%, #2b2b2b, var(--giu-black) 70%);
+  color: #fff;
+}
+.call-top { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+.call-logo { height: 40px; background: #fff; padding: 6px 10px; border-radius: 10px; }
+.call-time { font-variant-numeric: tabular-nums; color: #c9cacc; font-size: 15px; }
+
+.call-center { display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 640px; }
+.call-center h2 { margin: 28px 0 4px; font-size: 22px; }
+.call-status { margin: 0; color: var(--giu-gold); font-size: 15px; min-height: 22px; }
+
+/* The big round avatar; its glow shows what the assistant is doing */
+.call-avatar {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: var(--giu-red);
+  color: #fff;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  border: 4px solid var(--giu-gold);
+  box-shadow: 0 0 0 0 rgba(196, 22, 28, 0.6);
+}
+.call-avatar:hover:not(:disabled) { background: var(--giu-red); }
+.call-avatar.listening { animation: pulse-red 1.6s infinite; }
+.call-avatar.speaking { animation: pulse-gold 1.2s infinite; }
+.call-avatar.thinking { animation: spin-glow 1.4s linear infinite; }
+.call-avatar.muted { background: #4a4a4a; border-color: #777; }
+@keyframes pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(196, 22, 28, 0.6); }
+  100% { box-shadow: 0 0 0 36px rgba(196, 22, 28, 0); }
+}
+@keyframes pulse-gold {
+  0% { box-shadow: 0 0 0 0 rgba(217, 162, 27, 0.6); }
+  100% { box-shadow: 0 0 0 28px rgba(217, 162, 27, 0); }
+}
+@keyframes spin-glow {
+  0% { box-shadow: -10px 0 24px rgba(217, 162, 27, 0.7); }
+  25% { box-shadow: 0 -10px 24px rgba(217, 162, 27, 0.7); }
+  50% { box-shadow: 10px 0 24px rgba(217, 162, 27, 0.7); }
+  75% { box-shadow: 0 10px 24px rgba(217, 162, 27, 0.7); }
+  100% { box-shadow: -10px 0 24px rgba(217, 162, 27, 0.7); }
+}
+
+.call-text { margin-top: 28px; min-height: 90px; max-height: 30vh; overflow-y: auto; }
+.call-heard { font-size: 22px; color: #fff; margin: 0; }
+.call-reply { font-size: 17px; color: #d8d9db; line-height: 1.6; margin: 0; white-space: pre-wrap; }
+
+.call-buttons { display: flex; gap: 48px; }
+.call-round {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  padding: 0;
+  position: relative;
+}
+.call-label {
+  position: absolute;
+  top: 80px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #c9cacc;
+  white-space: nowrap;
+}
+.call-round.secondary { background: #3a3a3a; border: none; color: #fff; }
+.call-round.secondary:hover:not(:disabled) { background: #4a4a4a; }
+.call-round.secondary.on { background: #fff; }
+.call-round.hang-up { background: #d92d2d; }
+.call-round.hang-up .call-icon { transform: rotate(135deg); }  /* phone "put down" */
+.call-round.hang-up:hover:not(:disabled) { background: #b81f1f; }
+
 /* ================= Small screens ================= */
 @media (max-width: 760px) {
   .start { grid-template-columns: 1fr; }
