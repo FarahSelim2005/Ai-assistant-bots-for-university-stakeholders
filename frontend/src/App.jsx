@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { sendFeedback, sendMessage, startSession } from "./api.js";
+import CallScreen, { callSupported } from "./components/CallScreen.jsx";
 import Message from "./components/Message.jsx";
 import StartScreen from "./components/StartScreen.jsx";
 
@@ -24,6 +25,7 @@ export default function App() {
   const [attachment, setAttachment] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [calling, setCalling] = useState(false);
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -70,8 +72,9 @@ export default function App() {
     send(query, attachment);
   }
 
+  // Sends a question and returns the answer text (or null), so the call screen can speak it.
   async function send(query, file = null) {
-    if (!query || loading) return;
+    if (!query || loading) return null;
 
     setMessages((prev) => [...prev, { role: "user", content: query, attachment: file }]);
     setInput("");
@@ -90,8 +93,10 @@ export default function App() {
           messageId: data.message_id,
         },
       ]);
+      return data.answer;
     } catch (err) {
       setError(err.message);
+      return null;
     } finally {
       setLoading(false);
     }
@@ -127,9 +132,16 @@ export default function App() {
           <span>Answers from official GIU documents</span>
         </div>
         <span className="badge">{userType === "staff" ? "Staff" : "Student"}</span>
+        {callSupported && (
+          <button className="call-start" onClick={() => setCalling(true)} title="Talk to the assistant by voice">
+            📞 Call
+          </button>
+        )}
         <button className="secondary" onClick={newChat}>New chat</button>
       </header>
       <div className="flag-stripe" />
+
+      {calling && <CallScreen onAsk={(question) => send(question)} onHangUp={() => setCalling(false)} />}
 
       <main className="messages">
         <div className="messages-inner">

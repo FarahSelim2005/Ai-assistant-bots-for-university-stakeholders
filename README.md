@@ -188,6 +188,15 @@ model, and only codes that follow the numbering rules are shown. The layout in
 `frontend/src/components/CampusMap.jsx` matches the "Campus Layout and Directions"
 section of `campus_buildings.md`; keep the two in sync.
 
+**Voice call:** the 📞 Call button (Edge and Chrome) opens a hands-free call: the
+assistant greets you, listens, sends what you said as a normal chat question, reads
+the answer aloud and listens again, until you hang up. Speech recognition and the
+voice are the browser's own (Web Speech API), so no extra service or dependency is
+needed; the browser sends the audio to its speech service (Microsoft or Google) to
+turn it into text. Each spoken question is one normal chat request, and the whole
+call appears in the chat afterwards (including maps). Tap the circle to interrupt
+the assistant. Code: `frontend/src/components/CallScreen.jsx`.
+
 **Attachments:** the 📎 button lets students and staff attach one file to a question
 (PDF, TXT, MD, PNG, JPG or WEBP, up to 5 MB) and ask about it. Documents are converted
 to text (first 12,000 characters) and sent to `LABS_MODEL`; images are sent to
@@ -262,7 +271,7 @@ frontend/
   src/
     api.js               all backend calls (API URL)
     App.jsx              chat state and flow
-    components/          StartScreen.jsx, Message.jsx, CampusMap.jsx
+    components/          StartScreen.jsx, Message.jsx, CampusMap.jsx, CallScreen.jsx
     App.css              styles
 ```
 
