@@ -19,6 +19,7 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 EMBEDDING_MODEL = "openai/text-embedding-3-small"  # 1536 dimensions
 LABS_MODEL = os.getenv("LABS_MODEL", "")
+LABS_BACKUP_MODEL = os.getenv("LABS_BACKUP_MODEL", "")  # tried when LABS_MODEL fails (optional)
 VISION_MODEL = os.getenv("VISION_MODEL", "")  # must accept images; used only when an image is attached
 
 # Chat attachments

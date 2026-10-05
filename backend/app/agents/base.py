@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from app import config
 from app.attachments import Attachment
 from app.campus import Location, find_locations
-from app.llm.openrouter import chat
+from app.llm.openrouter import chat_with_backup
 from app.rag.prompts import build_messages
 from app.rag.retriever import RetrievedChunk, retrieve
 
@@ -27,6 +27,7 @@ class BaseAgent:
     allowed_user_types: tuple[str, ...]
     system_prompt: str
     model: str
+    backup_model: str  # tried when `model` fails, e.g. when a free model is rate-limited
     vision_model: str  # used instead of `model` when the user attaches an image
     fallback_message: str
 
@@ -77,8 +78,9 @@ class BaseAgent:
                  history: list[dict] | None, attachment: Attachment | None = None) -> str:
         """Ask the model to answer from the relevant chunks and the attachment only."""
         messages = build_messages(self.system_prompt, question, chunks, history, attachment)
-        model = self.vision_model if attachment and attachment.is_image else self.model
-        return chat(messages, model=model)
+        if attachment and attachment.is_image:
+            return chat_with_backup(messages, [self.vision_model])
+        return chat_with_backup(messages, [self.model, self.backup_model])
 
 
 def unique_sources(chunks: list[RetrievedChunk]) -> list[str]:
