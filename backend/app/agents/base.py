@@ -27,7 +27,7 @@ class BaseAgent:
     allowed_user_types: tuple[str, ...]
     system_prompt: str
     model: str
-    backup_model: str  # tried when `model` fails, e.g. when a free model is rate-limited
+    backup_models: list[str]  # tried in order when `model` fails, e.g. a free model is rate-limited
     vision_model: str  # used instead of `model` when the user attaches an image
     fallback_message: str
 
@@ -80,7 +80,7 @@ class BaseAgent:
         messages = build_messages(self.system_prompt, question, chunks, history, attachment)
         if attachment and attachment.is_image:
             return chat_with_backup(messages, [self.vision_model])
-        return chat_with_backup(messages, [self.model, self.backup_model])
+        return chat_with_backup(messages, [self.model, *self.backup_models])
 
 
 def unique_sources(chunks: list[RetrievedChunk]) -> list[str]:
