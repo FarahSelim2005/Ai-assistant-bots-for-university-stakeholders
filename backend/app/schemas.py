@@ -13,14 +13,31 @@ class SessionResponse(BaseModel):
     conversation_id: int
 
 
+class AttachmentIn(BaseModel):
+    filename: str = Field(min_length=1, max_length=255)
+    # File content as base64 text (a 5 MB file is about 7 million characters). The exact
+    # size limit is checked in attachments.py; this is only a hard upper bound.
+    data_base64: str = Field(min_length=1, max_length=10_000_000)
+
+
 class ChatRequest(BaseModel):
     conversation_id: int
     query: str = Field(min_length=1, max_length=1000)
+    attachment: AttachmentIn | None = None
+
+
+class LocationOut(BaseModel):
+    room: str           # e.g. "M005"
+    building: str       # "A", "M" or "S"
+    building_name: str  # e.g. "Main Administration Building"
+    floor: int          # 0 = ground floor
+    floor_name: str     # e.g. "Ground floor"
 
 
 class ChatResponse(BaseModel):
     answer: str
     sources: list[str]
+    locations: list[LocationOut] = []  # rooms mentioned in the answer, shown on a map
     message_id: int  # id of the saved assistant message, used for feedback
 
 

@@ -99,6 +99,7 @@ Open `backend/.env` and fill in:
 | `DB_PASSWORD` | your PostgreSQL password (the other `DB_` values usually stay as they are) |
 | `OPENROUTER_API_KEY` | your key from https://openrouter.ai/keys |
 | `LABS_MODEL` | a chat model ID from https://openrouter.ai/models, e.g. `google/gemini-2.5-flash-lite` |
+| `VISION_MODEL` | a model that accepts **image** input, used only when a user attaches a picture, e.g. `google/gemini-2.5-flash-lite`. Leave empty to allow documents only. |
 
 `.env` is ignored by git. Never commit it.
 
@@ -178,6 +179,24 @@ npm run dev
 Open http://localhost:5173, choose **Student** or **Staff**, and start asking.
 Each answer shows its source files and a 1–5 rating.
 
+**Campus map:** when an answer mentions a room such as `M005` or `A312`, a map card
+appears under it: a drawing of the GIU campus (traced from an aerial map: A top-left,
+S below A next to the road, M on the right) with the building highlighted, the floor
+marked, step-by-step directions from the car park, and a Google Maps link to the
+campus. The rooms are found by code (`backend/app/campus.py`), not by the language
+model, and only codes that follow the numbering rules are shown. The layout in
+`frontend/src/components/CampusMap.jsx` matches the "Campus Layout and Directions"
+section of `campus_buildings.md`; keep the two in sync.
+
+**Attachments:** the 📎 button lets students and staff attach one file to a question
+(PDF, TXT, MD, PNG, JPG or WEBP, up to 5 MB) and ask about it. Documents are converted
+to text (first 12,000 characters) and sent to `LABS_MODEL`; images are sent to
+`VISION_MODEL`. The agent answers from the attachment plus the retrieved GIU documents,
+says "According to your file..." when it uses the attachment, and ignores instructions
+written inside the file. Files are not stored: the saved message only records the file
+name, so a follow-up question about the same file needs the file attached again.
+Scanned PDFs have no text; upload them as images instead.
+
 The backend URL is set in `frontend/src/api.js`. The backend only accepts requests
 from `http://localhost:5173` (CORS, set in `backend/app/config.py`).
 
@@ -223,6 +242,8 @@ backend/
   app/
     main.py              FastAPI app, CORS, routers
     config.py            all settings (reads .env)
+    attachments.py       reads files attached to a chat message
+    campus.py            finds room codes in answers for the campus map
     db.py                PostgreSQL connection
     schemas.py           request/response models
     routers/             session.py, chat.py, feedback.py
@@ -241,7 +262,7 @@ frontend/
   src/
     api.js               all backend calls (API URL)
     App.jsx              chat state and flow
-    components/          StartScreen.jsx, Message.jsx
+    components/          StartScreen.jsx, Message.jsx, CampusMap.jsx
     App.css              styles
 ```
 

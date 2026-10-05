@@ -19,6 +19,14 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 EMBEDDING_MODEL = "openai/text-embedding-3-small"  # 1536 dimensions
 LABS_MODEL = os.getenv("LABS_MODEL", "")
+# Optional backups, tried in order when LABS_MODEL fails. Several can be given,
+# separated by commas: LABS_BACKUP_MODEL=model-one,model-two
+LABS_BACKUP_MODELS = [m.strip() for m in os.getenv("LABS_BACKUP_MODEL", "").split(",") if m.strip()]
+VISION_MODEL = os.getenv("VISION_MODEL", "")  # must accept images; used only when an image is attached
+
+# Chat attachments
+MAX_UPLOAD_MB = 5
+MAX_ATTACHMENT_CHARS = 12000  # longer documents are cut to keep answers fast
 
 # API
 FRONTEND_ORIGIN = "http://localhost:5173"  # the Vite dev server, allowed by CORS

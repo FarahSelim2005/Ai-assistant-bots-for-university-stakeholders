@@ -20,8 +20,13 @@ export function startSession(userType) {
   return post("/session", { user_type: userType }); // -> { conversation_id }
 }
 
-export function sendMessage(conversationId, query) {
-  return post("/chat", { conversation_id: conversationId, query }); // -> { answer, sources, message_id }
+// `attachment` is optional: { filename, dataUrl } where dataUrl is "data:<type>;base64,<content>".
+export function sendMessage(conversationId, query, attachment = null) {
+  const body = { conversation_id: conversationId, query };
+  if (attachment) {
+    body.attachment = { filename: attachment.filename, data_base64: attachment.dataUrl.split(",")[1] };
+  }
+  return post("/chat", body); // -> { answer, sources, message_id }
 }
 
 export function sendFeedback(messageId, rating) {

@@ -1,9 +1,20 @@
-// One chat message. Assistant messages also show their sources and a 1-5 star rating.
+import CampusMap from "./CampusMap.jsx";
+
+// One chat message. Assistant messages also show a map (if rooms are mentioned),
+// their sources and a 1-5 star rating.
 export default function Message({ message, onRate }) {
   if (message.role === "user") {
+    const file = message.attachment;
     return (
       <div className="message user">
-        <div className="bubble">{message.content}</div>
+        <div className="user-body">
+          {file && (file.isImage ? (
+            <img className="attached-image" src={file.dataUrl} alt={file.filename} />
+          ) : (
+            <span className="attached-file">📄 {file.filename}</span>
+          ))}
+          <div className="bubble">{message.content}</div>
+        </div>
       </div>
     );
   }
@@ -13,6 +24,8 @@ export default function Message({ message, onRate }) {
       <div className="avatar">GIU</div>
       <div className="assistant-body">
         <div className="bubble">{message.content}</div>
+
+        {message.locations?.length > 0 && <CampusMap locations={message.locations} />}
 
         {message.sources?.length > 0 && (
           <div className="sources">
