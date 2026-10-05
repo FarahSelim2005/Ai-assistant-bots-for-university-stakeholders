@@ -18,11 +18,14 @@ Building A.
 
 ## Campus Layout and Directions
 
-The main gate opens onto the central square. Building M (Main Administration
-Building) is straight ahead of the main gate, on the far side of the central
-square. Building A (Academic Building) is on the left side of the square and
-Building S (Student Services Building) is on the right side of the square.
-Every building has stairs and an elevator next to its entrance. To reach a room,
+The campus road and car park run along the south side of the campus. Coming from
+the car park, Building M (Main Administration Building) is the large building on
+the right; it is the main GIU building and has the CIB ATM. Building S (Student
+Services Building) is on the left, the building closest to the road, next to the
+GIU swimming pool. Building A (Academic Building) is behind Building S, further
+from the road, on the north-west side of the campus. The sports courts are north
+of Building M, between Building A and Building M, and the Essen food court is east
+of Building M. Every building has stairs and an elevator next to its entrance. To reach a room,
 go to the building shown by the letter of the room number, then take the stairs
 or the elevator to the floor shown by the first digit (0 means the ground floor).
 

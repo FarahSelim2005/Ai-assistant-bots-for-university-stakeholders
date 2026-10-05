@@ -180,12 +180,13 @@ Open http://localhost:5173, choose **Student** or **Staff**, and start asking.
 Each answer shows its source files and a 1–5 rating.
 
 **Campus map:** when an answer mentions a room such as `M005` or `A312`, a map card
-appears under it: a schematic campus map with the building highlighted, the floor
-marked, step-by-step directions from the main gate, and a Google Maps link to the
+appears under it: a drawing of the GIU campus (traced from an aerial map: A top-left,
+S below A next to the road, M on the right) with the building highlighted, the floor
+marked, step-by-step directions from the car park, and a Google Maps link to the
 campus. The rooms are found by code (`backend/app/campus.py`), not by the language
 model, and only codes that follow the numbering rules are shown. The layout in
 `frontend/src/components/CampusMap.jsx` matches the "Campus Layout and Directions"
-section of `campus_buildings.md`; replace both with the official GIU campus map.
+section of `campus_buildings.md`; keep the two in sync.
 
 **Attachments:** the 📎 button lets students and staff attach one file to a question
 (PDF, TXT, MD, PNG, JPG or WEBP, up to 5 MB) and ask about it. Documents are converted

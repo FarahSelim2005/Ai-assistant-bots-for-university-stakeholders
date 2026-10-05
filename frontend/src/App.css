@@ -257,9 +257,13 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
 .map-header .muted { font-weight: 400; font-size: 12px; }
 .map-body { display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; padding: 14px; }
 
-.map-svg { width: 100%; height: auto; background: #f0f4ec; border-radius: 10px; }
-.map-square { fill: #e3e8dc; stroke: #cfd6c6; }
-.map-path { fill: #e3e8dc; }
+.map-svg { width: 100%; height: auto; background: #efe9dc; border-radius: 10px; }
+.map-road { fill: #cfd1d4; }
+.map-court { fill: #b8473b; stroke: #8f352c; }
+.map-court.blue { fill: #4a78b5; stroke: #345a8c; }
+.map-landmark { fill: #dcd6c8; stroke: #c4bca9; }
+.map-north { fill: var(--giu-black); }
+.map-label-small.light { fill: #fff; font-weight: 600; }
 .map-building { fill: #d6d7da; stroke: #b9bbbf; }
 .map-building.active { fill: var(--giu-red); stroke: var(--giu-red-dark); }
 .map-letter { font-size: 22px; font-weight: 800; fill: #8a8d93; }
