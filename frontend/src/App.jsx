@@ -206,6 +206,7 @@ export default function App() {
             onChange={(event) => setInput(event.target.value)}
             placeholder={attachment ? "Ask about your file..." : "Ask about labs, offices, rooms, research funding..."}
             maxLength={1000}
+            dir="auto"
             autoFocus
           />
           <button type="submit" disabled={loading || (!input.trim() && !attachment)}>Send</button>

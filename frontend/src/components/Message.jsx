@@ -13,7 +13,7 @@ export default function Message({ message, onRate }) {
           ) : (
             <span className="attached-file">📄 {file.filename}</span>
           ))}
-          <div className="bubble">{message.content}</div>
+          <div className="bubble" dir="auto">{message.content}</div>
         </div>
       </div>
     );
@@ -23,7 +23,7 @@ export default function Message({ message, onRate }) {
     <div className="message assistant">
       <div className="avatar">GIU</div>
       <div className="assistant-body">
-        <div className="bubble">{message.content}</div>
+        <div className="bubble" dir="auto">{message.content}</div>
 
         {message.locations?.length > 0 && <CampusMap locations={message.locations} />}
 

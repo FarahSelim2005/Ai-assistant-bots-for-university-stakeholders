@@ -195,7 +195,11 @@ voice are the browser's own (Web Speech API), so no extra service or dependency 
 needed; the browser sends the audio to its speech service (Microsoft or Google) to
 turn it into text. Each spoken question is one normal chat request, and the whole
 call appears in the chat afterwards (including maps). Tap the circle to interrupt
-the assistant. Code: `frontend/src/components/CallScreen.jsx`.
+the assistant. A switch at the top chooses the spoken language: **English** or
+**عربي + English** (Egyptian Arabic, which also understands English words mixed into
+Arabic sentences). Answers are read with an Arabic or English voice depending on
+their text, and Arabic questions get Arabic answers (room codes stay in Latin letters
+so the map still works). Code: `frontend/src/components/CallScreen.jsx`.
 
 **Attachments:** the 📎 button lets students and staff attach one file to a question
 (PDF, TXT, MD, PNG, JPG or WEBP, up to 5 MB) and ask about it. Documents are converted

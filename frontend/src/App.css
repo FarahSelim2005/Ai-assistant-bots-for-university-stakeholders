@@ -408,6 +408,19 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
 .call-logo { height: 40px; background: #fff; padding: 6px 10px; border-radius: 10px; }
 .call-time { font-variant-numeric: tabular-nums; color: #c9cacc; font-size: 15px; }
 
+/* Language switch: which language the user speaks */
+.call-languages { display: flex; background: #2f2f2f; border-radius: 999px; padding: 4px; }
+.call-languages button {
+  background: none;
+  color: #c9cacc;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.call-languages button:hover:not(:disabled) { background: #3d3d3d; }
+.call-languages button.active { background: var(--giu-gold); color: var(--giu-black); }
+
 .call-center { display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 640px; }
 .call-center h2 { margin: 28px 0 4px; font-size: 22px; }
 .call-status { margin: 0; color: var(--giu-gold); font-size: 15px; min-height: 22px; }

@@ -3,6 +3,7 @@
 Each concrete agent only sets its name, allowed user types, prompt, models and
 fallback message. No HTTP code here: routers call `run()` and save the result.
 """
+import re
 from dataclasses import dataclass, field
 
 from app import config
@@ -13,6 +14,7 @@ from app.rag.prompts import build_messages
 from app.rag.retriever import RetrievedChunk, retrieve
 
 MAX_QUESTION_LENGTH = 1000
+ARABIC_LETTERS = re.compile(r"[؀-ۿ]")
 
 
 @dataclass
@@ -30,6 +32,7 @@ class BaseAgent:
     backup_models: list[str]  # tried in order when `model` fails, e.g. a free model is rate-limited
     vision_model: str  # used instead of `model` when the user attaches an image
     fallback_message: str
+    fallback_message_ar: str = ""  # used when the question contains Arabic
 
     def run(self, question: str, user_type: str, history: list[dict] | None = None,
             attachment: Attachment | None = None) -> AgentResponse:
@@ -44,7 +47,7 @@ class BaseAgent:
         #    and return the fallback
         relevant = self.validate(chunks)
         if not relevant and attachment is None:
-            return AgentResponse(answer=self.fallback_message, sources=[])
+            return AgentResponse(answer=self.fallback_for(question), sources=[])
         # 4. Generate
         answer = self.generate(question, relevant, history, attachment)
         return AgentResponse(answer=answer, sources=unique_sources(relevant),
@@ -73,6 +76,12 @@ class BaseAgent:
         An empty result (and no attachment) means the agent has no information
         and must not call the model."""
         return [c for c in chunks if c.score >= config.SIMILARITY_THRESHOLD]
+
+    def fallback_for(self, question: str) -> str:
+        """The "no information" message, in Arabic if the question contains Arabic."""
+        if self.fallback_message_ar and ARABIC_LETTERS.search(question):
+            return self.fallback_message_ar
+        return self.fallback_message
 
     def generate(self, question: str, chunks: list[RetrievedChunk],
                  history: list[dict] | None, attachment: Attachment | None = None) -> str:

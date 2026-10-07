@@ -15,3 +15,7 @@ class LabsResearchAgent(BaseAgent):
         "Sorry, I don't have information about that. "
         "Please contact the relevant office or department for help."
     )
+    fallback_message_ar = (
+        "آسف، معنديش معلومات عن ده. "
+        "من فضلك تواصل مع المكتب أو القسم المختص للمساعدة."
+    )
