@@ -99,7 +99,7 @@ Open `backend/.env` and fill in:
 | `DB_PASSWORD` | your PostgreSQL password (the other `DB_` values usually stay as they are) |
 | `OPENROUTER_API_KEY` | your key from https://openrouter.ai/keys |
 | `LABS_MODEL` | a chat model ID from https://openrouter.ai/models, e.g. `google/gemini-2.5-flash-lite` |
-| `VISION_MODEL` | a model that accepts **image** input, used only when a user attaches a picture, e.g. `google/gemini-2.5-flash-lite`. Leave empty to allow documents only. |
+| `VISION_MODEL` | a model that accepts **image** input, used only when a user attaches a picture, e.g. `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` (free, tested: reads English and Arabic text in images) or `google/gemini-2.5-flash-lite` (paid). Leave empty to allow documents only. |
 
 `.env` is ignored by git. Never commit it.
 
