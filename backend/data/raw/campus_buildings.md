@@ -25,7 +25,8 @@ Services Building) is on the left, the building closest to the road, next to the
 GIU swimming pool. Building A (Academic Building) is behind Building S, further
 from the road, on the north-west side of the campus. The sports courts are north
 of Building M, between Building A and Building M, and the Essen food court is east
-of Building M. Every building has stairs and an elevator next to its entrance. To reach a room,
+of Building M. Building M has two entrances, Building A has three entrances and
+Building S has one entrance. Every building has stairs and an elevator next to its entrance. To reach a room,
 go to the building shown by the letter of the room number, then take the stairs
 or the elevator to the floor shown by the first digit (0 means the ground floor).
 
