@@ -176,7 +176,10 @@ npm install      # first time only
 npm run dev
 ```
 
-Open http://localhost:5173, choose **Student** or **Staff**, and start asking.
+Open http://localhost:5173, choose **Student** or **Staff**, then choose an assistant:
+students see 3 (Graduation & Advising, Orientation, Labs & Research), staff see all 4
+(also HR & Policies). The list is in `frontend/src/agents.js`; only Labs & Research is
+built, the others open a "coming soon" page.
 Each answer shows its source files and a 1–5 rating.
 
 **Campus map:** when an answer mentions a room such as `M005` or `A312`, a map card

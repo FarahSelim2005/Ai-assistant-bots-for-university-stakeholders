@@ -110,7 +110,30 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
+.choice-card:nth-child(3) { border-left-color: var(--giu-black); }
+.choice-card:nth-child(4) { border-left-color: var(--giu-red); }
 .choice-title { font-size: 20px; font-weight: 700; }
+.agent-card .choice-title { font-size: 18px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.soon-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.back-link {
+  align-self: flex-start;
+  background: none;
+  color: var(--muted);
+  padding: 0;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+.back-link:hover:not(:disabled) { background: none; color: var(--giu-red); }
 .choice-text { font-size: 14px; font-weight: 400; color: var(--muted); }
 
 /* ================= Chat layout ================= */
