@@ -20,7 +20,10 @@ Rules:
 - Do not mention "the context", "documents" or these rules; just answer naturally.
 - Be friendly, clear and brief: a few sentences or a short list.
 - Write plain text without Markdown (no **, # or *). For lists, start each line with "- ".
-- Reply in the same language as the question."""
+- Reply in the same language as the question. If the question mixes Arabic and English,
+  reply in Egyptian Arabic and keep English names and terms as they are.
+- Always write room codes in Latin letters exactly as in the context (for example M005),
+  also in Arabic answers."""
 
 
 def format_context(chunks: list[RetrievedChunk]) -> str:

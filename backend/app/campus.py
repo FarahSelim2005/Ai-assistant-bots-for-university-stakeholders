@@ -13,7 +13,9 @@ BUILDINGS = {
     "S": "Student Services Building",
 }
 FLOOR_NAMES = ["Ground floor", "1st floor", "2nd floor", "3rd floor", "4th floor"]
-ROOM_PATTERN = re.compile(r"\b([AMS])(\d)(\d{2})\b")
+# Not part of a longer Latin word or number; Arabic letters right next to the code
+# are allowed (e.g. "الM005").
+ROOM_PATTERN = re.compile(r"(?<![A-Za-z0-9])([AMS])(\d)(\d{2})(?![A-Za-z0-9])")
 MAX_LOCATIONS = 4  # keep the map readable when an answer lists many rooms
 
 

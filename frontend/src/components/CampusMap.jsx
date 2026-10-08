@@ -3,6 +3,7 @@
 // GIU campus layout (traced from an aerial map): A top-left, S below A next to the
 // road, M on the right. Keep it in line with the "Campus Layout and Directions"
 // section of backend/data/raw/campus_buildings.md.
+import { googleMapsWalkingUrl } from "../campusGeo.js";
 
 const BUILDINGS = {
   A: {
@@ -101,6 +102,9 @@ export default function CampusMap({ locations }) {
                       </li>
                     ))}
                   </ol>
+                  <a href={googleMapsWalkingUrl(letter)} target="_blank" rel="noreferrer" className="walk-button">
+                    🚶 Walk me to Building {letter}
+                  </a>
                 </div>
               </div>
             );

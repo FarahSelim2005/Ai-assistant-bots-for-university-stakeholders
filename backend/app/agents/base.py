@@ -3,9 +3,11 @@
 Each concrete agent only sets its name, allowed user types, prompt, models and
 fallback message. No HTTP code here: routers call `run()` and save the result.
 """
+import re
 from dataclasses import dataclass, field
 
 from app import config
+from app.agents.directory import AgentLink, suggest_agent
 from app.attachments import Attachment
 from app.campus import Location, find_locations
 from app.llm.openrouter import chat_with_backup
@@ -13,6 +15,7 @@ from app.rag.prompts import build_messages
 from app.rag.retriever import RetrievedChunk, retrieve
 
 MAX_QUESTION_LENGTH = 1000
+ARABIC_LETTERS = re.compile(r"[؀-ۿ]")
 
 
 @dataclass
@@ -20,6 +23,7 @@ class AgentResponse:
     answer: str
     sources: list[str]  # file names of the chunks used; empty for the fallback
     locations: list[Location] = field(default_factory=list)  # rooms in the answer, for the map
+    redirect: AgentLink | None = None  # another agent to ask, when this one has no answer
 
 
 class BaseAgent:
@@ -30,6 +34,7 @@ class BaseAgent:
     backup_models: list[str]  # tried in order when `model` fails, e.g. a free model is rate-limited
     vision_model: str  # used instead of `model` when the user attaches an image
     fallback_message: str
+    fallback_message_ar: str = ""  # used when the question contains Arabic
 
     def run(self, question: str, user_type: str, history: list[dict] | None = None,
             attachment: Attachment | None = None) -> AgentResponse:
@@ -40,11 +45,12 @@ class BaseAgent:
         self.check_rules(question, user_type, attachment)
         # 2. Retrieve (filtered by this agent and the user's type)
         chunks = retrieve(self.search_text(question, history), self.name, user_type)
-        # 3. Validate: with no relevant chunk and no attachment, skip the model
-        #    and return the fallback
+        # 3. Validate: with no relevant chunk and no attachment, skip the model and
+        #    return the fallback, with a link to the agent that probably can answer
         relevant = self.validate(chunks)
         if not relevant and attachment is None:
-            return AgentResponse(answer=self.fallback_message, sources=[])
+            return AgentResponse(answer=self.fallback_for(question), sources=[],
+                                 redirect=suggest_agent(question, self.name, user_type))
         # 4. Generate
         answer = self.generate(question, relevant, history, attachment)
         return AgentResponse(answer=answer, sources=unique_sources(relevant),
@@ -73,6 +79,12 @@ class BaseAgent:
         An empty result (and no attachment) means the agent has no information
         and must not call the model."""
         return [c for c in chunks if c.score >= config.SIMILARITY_THRESHOLD]
+
+    def fallback_for(self, question: str) -> str:
+        """The "no information" message, in Arabic if the question contains Arabic."""
+        if self.fallback_message_ar and ARABIC_LETTERS.search(question):
+            return self.fallback_message_ar
+        return self.fallback_message
 
     def generate(self, question: str, chunks: list[RetrievedChunk],
                  history: list[dict] | None, attachment: Attachment | None = None) -> str:

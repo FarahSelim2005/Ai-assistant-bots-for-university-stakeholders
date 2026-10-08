@@ -110,7 +110,30 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
+.choice-card:nth-child(3) { border-left-color: var(--giu-black); }
+.choice-card:nth-child(4) { border-left-color: var(--giu-red); }
 .choice-title { font-size: 20px; font-weight: 700; }
+.agent-card .choice-title { font-size: 18px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.soon-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.back-link {
+  align-self: flex-start;
+  background: none;
+  color: var(--muted);
+  padding: 0;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+.back-link:hover:not(:disabled) { background: none; color: var(--giu-red); }
 .choice-text { font-size: 14px; font-weight: 400; color: var(--muted); }
 
 /* ================= Chat layout ================= */
@@ -234,6 +257,33 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
   border: 1px solid var(--border);
   color: var(--muted);
 }
+
+/* ================= Link to another agent ================= */
+.redirect-card {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 12px 14px;
+  background: #fdf3dc;
+  border: 1px solid #f1dca6;
+  border-left: 4px solid var(--giu-gold);
+  border-radius: var(--radius);
+  font-size: 14px;
+}
+.redirect-button {
+  background: var(--giu-black);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.redirect-button:hover { background: #000; }
+a.choice-card { text-decoration: none; }
+.coming-back { border-left-color: var(--giu-red); }
 
 /* ================= Campus map ================= */
 .campus-map {
@@ -388,6 +438,20 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
 }
 .pending-file button:hover:not(:disabled) { background: none; color: var(--giu-red); }
 
+/* ================= Walking directions (link to Google Maps) ================= */
+.walk-button {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--giu-red);
+  border-radius: 10px;
+  text-decoration: none;
+}
+.walk-button:hover { background: var(--giu-red-dark); }
+
 /* ================= Voice call ================= */
 .call-start { background: var(--giu-black); }
 .call-start:hover:not(:disabled) { background: #000; }
@@ -407,6 +471,19 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
 .call-top { width: 100%; display: flex; justify-content: space-between; align-items: center; }
 .call-logo { height: 40px; background: #fff; padding: 6px 10px; border-radius: 10px; }
 .call-time { font-variant-numeric: tabular-nums; color: #c9cacc; font-size: 15px; }
+
+/* Language switch: which language the user speaks */
+.call-languages { display: flex; background: #2f2f2f; border-radius: 999px; padding: 4px; }
+.call-languages button {
+  background: none;
+  color: #c9cacc;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.call-languages button:hover:not(:disabled) { background: #3d3d3d; }
+.call-languages button.active { background: var(--giu-gold); color: var(--giu-black); }
 
 .call-center { display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 640px; }
 .call-center h2 { margin: 28px 0 4px; font-size: 22px; }

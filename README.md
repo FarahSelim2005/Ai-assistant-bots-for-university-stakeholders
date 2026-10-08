@@ -99,7 +99,7 @@ Open `backend/.env` and fill in:
 | `DB_PASSWORD` | your PostgreSQL password (the other `DB_` values usually stay as they are) |
 | `OPENROUTER_API_KEY` | your key from https://openrouter.ai/keys |
 | `LABS_MODEL` | a chat model ID from https://openrouter.ai/models, e.g. `google/gemini-2.5-flash-lite` |
-| `VISION_MODEL` | a model that accepts **image** input, used only when a user attaches a picture, e.g. `google/gemini-2.5-flash-lite`. Leave empty to allow documents only. |
+| `VISION_MODEL` | a model that accepts **image** input, used only when a user attaches a picture, e.g. `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` (free, tested: reads English and Arabic text in images) or `google/gemini-2.5-flash-lite` (paid). Leave empty to allow documents only. |
 
 `.env` is ignored by git. Never commit it.
 
@@ -176,7 +176,10 @@ npm install      # first time only
 npm run dev
 ```
 
-Open http://localhost:5173, choose **Student** or **Staff**, and start asking.
+Open http://localhost:5173, choose **Student** or **Staff**, then choose an assistant:
+students see 3 (Graduation & Advising, Orientation, Labs & Research), staff see all 4
+(also HR & Policies). The list is in `frontend/src/agents.js`; only Labs & Research is
+built, the others open a "coming soon" page.
 Each answer shows its source files and a 1–5 rating.
 
 **Campus map:** when an answer mentions a room such as `M005` or `A312`, a map card
@@ -188,6 +191,20 @@ model, and only codes that follow the numbering rules are shown. The layout in
 `frontend/src/components/CampusMap.jsx` matches the "Campus Layout and Directions"
 section of `campus_buildings.md`; keep the two in sync.
 
+**Walking directions:** the map card has a "🚶 Walk me to Building …" button that opens
+Google Maps walking navigation from the user's location to the building's entrance.
+The real GPS positions of the entrances (M: 2, A: 3, S: 1) are in
+`frontend/src/campusGeo.js`; no API key is needed.
+
+**Links to the other agents:** the GIU chatbot has four agents (Graduation & Advising,
+HR & Policies, Orientation, Labs & Research). When this agent has no answer, the
+question is compared with each agent's description (`backend/app/agents/directory.py`,
+embeddings only, no chat model call) and the fallback message gets a button to the
+best-matching agent. Students can be sent to Orientation and Graduation & Advising;
+staff also to HR & Policies. Nothing is suggested when no agent matches
+(`AGENT_LINK_THRESHOLD` in `config.py`). Agents that are not built yet open a
+"coming soon" page (`/?agent=<key>`, `frontend/src/components/ComingSoon.jsx`).
+
 **Voice call:** the 📞 Call button (Edge and Chrome) opens a hands-free call: the
 assistant greets you, listens, sends what you said as a normal chat question, reads
 the answer aloud and listens again, until you hang up. Speech recognition and the
@@ -195,7 +212,11 @@ voice are the browser's own (Web Speech API), so no extra service or dependency 
 needed; the browser sends the audio to its speech service (Microsoft or Google) to
 turn it into text. Each spoken question is one normal chat request, and the whole
 call appears in the chat afterwards (including maps). Tap the circle to interrupt
-the assistant. Code: `frontend/src/components/CallScreen.jsx`.
+the assistant. A switch at the top chooses the spoken language: **English** or
+**عربي + English** (Egyptian Arabic, which also understands English words mixed into
+Arabic sentences). Answers are read with an Arabic or English voice depending on
+their text, and Arabic questions get Arabic answers (room codes stay in Latin letters
+so the map still works). Code: `frontend/src/components/CallScreen.jsx`.
 
 **Attachments:** the 📎 button lets students and staff attach one file to a question
 (PDF, TXT, MD, PNG, JPG or WEBP, up to 5 MB) and ask about it. Documents are converted
@@ -271,7 +292,7 @@ frontend/
   src/
     api.js               all backend calls (API URL)
     App.jsx              chat state and flow
-    components/          StartScreen.jsx, Message.jsx, CampusMap.jsx, CallScreen.jsx
+    components/          StartScreen.jsx, Message.jsx, CampusMap.jsx, CallScreen.jsx, ComingSoon.jsx
     App.css              styles
 ```
 

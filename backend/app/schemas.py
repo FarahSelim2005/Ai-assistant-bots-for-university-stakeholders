@@ -34,10 +34,17 @@ class LocationOut(BaseModel):
     floor_name: str     # e.g. "Ground floor"
 
 
+class AgentLinkOut(BaseModel):
+    agent: str  # e.g. "orientation"
+    name: str   # e.g. "Orientation Assistant"
+    url: str    # e.g. "/?agent=orientation"
+
+
 class ChatResponse(BaseModel):
     answer: str
     sources: list[str]
     locations: list[LocationOut] = []  # rooms mentioned in the answer, shown on a map
+    redirect: AgentLinkOut | None = None  # the agent to ask instead, when this one can't answer
     message_id: int  # id of the saved assistant message, used for feedback
 
 

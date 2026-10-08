@@ -18,7 +18,7 @@ const MAX_UPLOAD_MB = 5;
 export default function App() {
   const [userType, setUserType] = useState(null);
   const [conversationId, setConversationId] = useState(null);
-  // Each message: { role, content, attachment?, sources?, locations?, messageId?, rating? }
+  // Each message: { role, content, attachment?, sources?, locations?, redirect?, messageId?, rating? }
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   // File chosen for the next message: { filename, dataUrl, isImage }
@@ -90,6 +90,7 @@ export default function App() {
           content: data.answer,
           sources: data.sources,
           locations: data.locations,
+          redirect: data.redirect,
           messageId: data.message_id,
         },
       ]);
@@ -206,6 +207,7 @@ export default function App() {
             onChange={(event) => setInput(event.target.value)}
             placeholder={attachment ? "Ask about your file..." : "Ask about labs, offices, rooms, research funding..."}
             maxLength={1000}
+            dir="auto"
             autoFocus
           />
           <button type="submit" disabled={loading || (!input.trim() && !attachment)}>Send</button>
