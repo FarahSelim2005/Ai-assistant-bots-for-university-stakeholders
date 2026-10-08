@@ -235,6 +235,33 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
   color: var(--muted);
 }
 
+/* ================= Link to another agent ================= */
+.redirect-card {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 12px 14px;
+  background: #fdf3dc;
+  border: 1px solid #f1dca6;
+  border-left: 4px solid var(--giu-gold);
+  border-radius: var(--radius);
+  font-size: 14px;
+}
+.redirect-button {
+  background: var(--giu-black);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.redirect-button:hover { background: #000; }
+a.choice-card { text-decoration: none; }
+.coming-back { border-left-color: var(--giu-red); }
+
 /* ================= Campus map ================= */
 .campus-map {
   width: min(640px, 100%);

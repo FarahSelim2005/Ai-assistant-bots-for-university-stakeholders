@@ -188,6 +188,15 @@ model, and only codes that follow the numbering rules are shown. The layout in
 `frontend/src/components/CampusMap.jsx` matches the "Campus Layout and Directions"
 section of `campus_buildings.md`; keep the two in sync.
 
+**Links to the other agents:** the GIU chatbot has four agents (Graduation & Advising,
+HR & Policies, Orientation, Labs & Research). When this agent has no answer, the
+question is compared with each agent's description (`backend/app/agents/directory.py`,
+embeddings only, no chat model call) and the fallback message gets a button to the
+best-matching agent. Students can be sent to Orientation and Graduation & Advising;
+staff also to HR & Policies. Nothing is suggested when no agent matches
+(`AGENT_LINK_THRESHOLD` in `config.py`). Agents that are not built yet open a
+"coming soon" page (`/?agent=<key>`, `frontend/src/components/ComingSoon.jsx`).
+
 **Voice call:** the 📞 Call button (Edge and Chrome) opens a hands-free call: the
 assistant greets you, listens, sends what you said as a normal chat question, reads
 the answer aloud and listens again, until you hang up. Speech recognition and the
@@ -275,7 +284,7 @@ frontend/
   src/
     api.js               all backend calls (API URL)
     App.jsx              chat state and flow
-    components/          StartScreen.jsx, Message.jsx, CampusMap.jsx, CallScreen.jsx
+    components/          StartScreen.jsx, Message.jsx, CampusMap.jsx, CallScreen.jsx, ComingSoon.jsx
     App.css              styles
 ```
 

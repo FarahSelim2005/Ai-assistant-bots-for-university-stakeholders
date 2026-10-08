@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass, field
 
 from app import config
+from app.agents.directory import AgentLink, suggest_agent
 from app.attachments import Attachment
 from app.campus import Location, find_locations
 from app.llm.openrouter import chat_with_backup
@@ -22,6 +23,7 @@ class AgentResponse:
     answer: str
     sources: list[str]  # file names of the chunks used; empty for the fallback
     locations: list[Location] = field(default_factory=list)  # rooms in the answer, for the map
+    redirect: AgentLink | None = None  # another agent to ask, when this one has no answer
 
 
 class BaseAgent:
@@ -43,11 +45,12 @@ class BaseAgent:
         self.check_rules(question, user_type, attachment)
         # 2. Retrieve (filtered by this agent and the user's type)
         chunks = retrieve(self.search_text(question, history), self.name, user_type)
-        # 3. Validate: with no relevant chunk and no attachment, skip the model
-        #    and return the fallback
+        # 3. Validate: with no relevant chunk and no attachment, skip the model and
+        #    return the fallback, with a link to the agent that probably can answer
         relevant = self.validate(chunks)
         if not relevant and attachment is None:
-            return AgentResponse(answer=self.fallback_for(question), sources=[])
+            return AgentResponse(answer=self.fallback_for(question), sources=[],
+                                 redirect=suggest_agent(question, self.name, user_type))
         # 4. Generate
         answer = self.generate(question, relevant, history, attachment)
         return AgentResponse(answer=answer, sources=unique_sources(relevant),

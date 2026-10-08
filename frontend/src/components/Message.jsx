@@ -1,5 +1,7 @@
 import CampusMap from "./CampusMap.jsx";
 
+const ARABIC_LETTERS = /[؀-ۿ]/;
+
 // One chat message. Assistant messages also show a map (if rooms are mentioned),
 // their sources and a 1-5 star rating.
 export default function Message({ message, onRate }) {
@@ -26,6 +28,20 @@ export default function Message({ message, onRate }) {
         <div className="bubble" dir="auto">{message.content}</div>
 
         {message.locations?.length > 0 && <CampusMap locations={message.locations} />}
+
+        {message.redirect && (
+          <div className="redirect-card" dir="auto">
+            <span>
+              {ARABIC_LETTERS.test(message.content)
+                ? <>السؤال ده غالباً تبع <b>{message.redirect.name}</b></>
+                : <>This looks like a question for the <b>{message.redirect.name}</b>.</>}
+            </span>
+            {/* Opens in a new tab so this conversation stays open */}
+            <a href={message.redirect.url} target="_blank" rel="noreferrer" className="redirect-button">
+              Ask the {message.redirect.name} →
+            </a>
+          </div>
+        )}
 
         {message.sources?.length > 0 && (
           <div className="sources">

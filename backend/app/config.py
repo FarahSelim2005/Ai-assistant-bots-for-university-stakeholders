@@ -33,6 +33,7 @@ FRONTEND_ORIGIN = "http://localhost:5173"  # the Vite dev server, allowed by COR
 
 # Retrieval
 TOP_K = 4                    # how many chunks the retriever returns
+AGENT_LINK_THRESHOLD = 0.15  # min. match with another agent's description to suggest it
 SIMILARITY_THRESHOLD = 0.35  # chunks scoring below this are not used to answer
 
 # Ingestion
