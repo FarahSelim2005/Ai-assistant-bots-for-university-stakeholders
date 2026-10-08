@@ -36,8 +36,14 @@ def chat(messages: list[dict], model: str,
         },
     )
     response.raise_for_status()
+    data = response.json()
+    # OpenRouter can answer "200 OK" with an error instead of choices (e.g. the provider
+    # failed or a limit was hit mid-request).
+    if not data.get("choices"):
+        reason = (data.get("error") or {}).get("message", "no choices in the response")
+        raise LLMError(f"Model '{model}' returned no answer: {reason}")
     # Content can be empty, e.g. when a reasoning model spends all tokens on thinking.
-    content = response.json()["choices"][0]["message"].get("content")
+    content = data["choices"][0].get("message", {}).get("content")
     if not content or not content.strip():
         raise LLMError(f"Model '{model}' returned an empty answer.")
     return content.strip()
