@@ -3,8 +3,7 @@
 // GIU campus layout (traced from an aerial map): A top-left, S below A next to the
 // road, M on the right. Keep it in line with the "Campus Layout and Directions"
 // section of backend/data/raw/campus_buildings.md.
-import { useState } from "react";
-import WalkingDirections from "./WalkingDirections.jsx";
+import { googleMapsWalkingUrl } from "../campusGeo.js";
 
 const BUILDINGS = {
   A: {
@@ -27,7 +26,6 @@ const GOOGLE_MAPS_URL =
 
 export default function CampusMap({ locations }) {
   const buildings = [...new Set(locations.map((l) => l.building))];
-  const [walkTo, setWalkTo] = useState(null); // building letter while walking directions are open
 
   return (
     <div className="campus-map">
@@ -104,9 +102,9 @@ export default function CampusMap({ locations }) {
                       </li>
                     ))}
                   </ol>
-                  <button className="walk-button" onClick={() => setWalkTo(letter)}>
+                  <a href={googleMapsWalkingUrl(letter)} target="_blank" rel="noreferrer" className="walk-button">
                     🚶 Walk me to Building {letter}
-                  </button>
+                  </a>
                 </div>
               </div>
             );
@@ -116,15 +114,6 @@ export default function CampusMap({ locations }) {
           </a>
         </div>
       </div>
-
-      {walkTo && (
-        <WalkingDirections
-          building={walkTo}
-          buildingName={locations.find((l) => l.building === walkTo).building_name}
-          rooms={locations.filter((l) => l.building === walkTo)}
-          onClose={() => setWalkTo(null)}
-        />
-      )}
     </div>
   );
 }

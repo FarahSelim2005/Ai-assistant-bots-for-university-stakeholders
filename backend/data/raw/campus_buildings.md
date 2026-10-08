@@ -92,14 +92,16 @@ and medical excuses. In an emergency, call the campus emergency line at extensio
 
 ## Building S (Student Services Building)
 
-Building S is the Student Services Building. It has the Library (S010 to S020 on
-the ground floor and S101 to S110 on the first floor), the Finance Office (S115)
-on the first floor and the Student Affairs Office (S201) on the second floor.
+Building S is the Student Services Building. It has the Finance Office (S115) on
+the first floor, the Student Affairs Office (S201) on the second floor and the
+Library (S401 to S420) on the fourth floor, the top floor of the building.
 
 ## Library
 
-The Library is in Building S. The main reading hall is on the ground floor
-(S010 to S020) and the quiet study rooms are on the first floor (S101 to S110).
+The Library is on the top floor of Building S: the fourth floor, which is the fifth
+level when the ground floor is counted. The main reading hall is in rooms S401 to
+S410 and the quiet study rooms are in rooms S411 to S420. Take the stairs or the
+elevator next to the entrance of Building S.
 It is open Sunday to Thursday from 8:00 AM to 8:00 PM and Saturday from 10:00 AM
 to 4:00 PM. Students can borrow up to 5 books for 14 days with their student ID.
 Contact: library@example.edu.

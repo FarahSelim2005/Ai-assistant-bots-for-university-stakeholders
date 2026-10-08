@@ -438,64 +438,19 @@ a.choice-card { text-decoration: none; }
 }
 .pending-file button:hover:not(:disabled) { background: none; color: var(--giu-red); }
 
-/* ================= Walking directions ================= */
+/* ================= Walking directions (link to Google Maps) ================= */
 .walk-button {
+  display: inline-block;
   margin-top: 8px;
   padding: 7px 12px;
   font-size: 13px;
+  font-weight: 600;
+  color: #fff;
   background: var(--giu-red);
+  border-radius: 10px;
+  text-decoration: none;
 }
-
-.walk {
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.45);
-}
-.walk-panel {
-  width: min(480px, 100%);
-  max-height: 100%;
-  overflow-y: auto;
-  background: var(--surface);
-  border-radius: var(--radius);
-  border-top: 4px solid var(--giu-red);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.walk-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.walk-header .secondary { padding: 6px 12px; }
-
-.walk-start { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; }
-.walk-start button {
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-  padding: 5px 10px;
-  font-size: 13px;
-  font-weight: 500;
-}
-.walk-start button:hover:not(:disabled) { background: var(--border); }
-.walk-start button.active { background: var(--giu-black); color: #fff; border-color: var(--giu-black); }
-
-.walk-instruction p { margin: 0; }
-.walk-big { font-size: 20px; line-height: 1.4; }
-.walk-sub { display: block; font-size: 13px; margin-top: 4px; }
-
-.walk-map { width: 100%; height: auto; background: #efe9dc; border-radius: 10px; }
-.walk-building { fill: #d6d7da; stroke: #b9bbbf; }
-.walk-building.target { fill: var(--giu-red); stroke: var(--giu-red-dark); }
-.walk-letter { font-size: 16px; font-weight: 800; fill: #fff; }
-.walk-door { fill: var(--giu-black); }
-.walk-target-door { fill: var(--giu-gold); stroke: #fff; stroke-width: 2; }
-.walk-route { stroke: #1a73e8; stroke-width: 3; stroke-dasharray: 6 5; }
-.walk-user { fill: #1a73e8; stroke: #fff; stroke-width: 3; }
-.walk-accuracy { fill: rgba(26, 115, 232, 0.15); stroke: rgba(26, 115, 232, 0.4); }
-.walk-google { text-align: center; }
+.walk-button:hover { background: var(--giu-red-dark); }
 
 /* ================= Voice call ================= */
 .call-start { background: var(--giu-black); }

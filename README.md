@@ -191,13 +191,10 @@ model, and only codes that follow the numbering rules are shown. The layout in
 `frontend/src/components/CampusMap.jsx` matches the "Campus Layout and Directions"
 section of `campus_buildings.md`; keep the two in sync.
 
-**Walking directions:** the map card has a "🚶 Walk me to Building …" button. It opens a
-live, north-up map with your position (browser GPS, or a building you pick as the
-starting point), a dashed line to the nearest entrance of the target building, and the
-direction and distance, updated as you walk, plus a Google Maps walking link. The real
-GPS positions of the entrances (M: 2, A: 3, S: 1) and the distance maths are in
-`frontend/src/campusGeo.js`; no map library or API key is used. Browsers only share the
-location on `localhost` or HTTPS, and phone GPS is far more accurate than a laptop.
+**Walking directions:** the map card has a "🚶 Walk me to Building …" button that opens
+Google Maps walking navigation from the user's location to the building's entrance.
+The real GPS positions of the entrances (M: 2, A: 3, S: 1) are in
+`frontend/src/campusGeo.js`; no API key is needed.
 
 **Links to the other agents:** the GIU chatbot has four agents (Graduation & Advising,
 HR & Policies, Orientation, Labs & Research). When this agent has no answer, the
