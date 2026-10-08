@@ -10,9 +10,34 @@ const USER_TYPES = [
   { value: "staff", title: "Staff", text: "All assistants, including HR & Policies" },
 ];
 
+// The Student/Staff choice is remembered for this browser tab, so "New chat" and the
+// coming-soon page's back link return straight to the assistant list.
+function savedUserType() {
+  try {
+    const saved = sessionStorage.getItem("userType");
+    return USER_TYPES.some((type) => type.value === saved) ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveUserType(type) {
+  try {
+    if (type) sessionStorage.setItem("userType", type);
+    else sessionStorage.removeItem("userType");
+  } catch {
+    // not remembered; the user just picks again
+  }
+}
+
 export default function StartScreen({ onChoose, loading, error }) {
-  const [userType, setUserType] = useState(null);
+  const [userType, setUserType] = useState(savedUserType);
   const agents = AGENTS.filter((agent) => agent.userTypes.includes(userType));
+
+  function chooseUserType(type) {
+    saveUserType(type);
+    setUserType(type);
+  }
 
   function chooseAgent(agent) {
     if (agent.ready) onChoose(userType);
@@ -41,7 +66,7 @@ export default function StartScreen({ onChoose, loading, error }) {
             <p className="muted">Choose one to continue.</p>
             <div className="choice-cards">
               {USER_TYPES.map((type) => (
-                <button key={type.value} className="choice-card" onClick={() => setUserType(type.value)}>
+                <button key={type.value} className="choice-card" onClick={() => chooseUserType(type.value)}>
                   <span className="choice-title">{type.title}</span>
                   <span className="choice-text">{type.text}</span>
                 </button>
@@ -50,7 +75,7 @@ export default function StartScreen({ onChoose, loading, error }) {
           </>
         ) : (
           <>
-            <button className="back-link" onClick={() => setUserType(null)} disabled={loading}>
+            <button className="back-link" onClick={() => chooseUserType(null)} disabled={loading}>
               ← Back
             </button>
             <h2>Choose an assistant</h2>
