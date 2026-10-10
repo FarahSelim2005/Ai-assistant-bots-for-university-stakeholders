@@ -31,7 +31,14 @@ VISION_MODEL = os.getenv("VISION_MODEL", "")  # must accept images; used only wh
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
 OLLAMA_TIMEOUT = 300.0  # seconds; a laptop CPU can need a minute or more per answer
 
-# Voice call: local speech-to-text with Whisper (tiny, base, small, medium, large-v3).
+# Voice call, speech-to-text 1: Groq's hosted Whisper (fast, best Arabic, free tier).
+# Get a key at https://console.groq.com and put GROQ_API_KEY in .env; without a key
+# the local Whisper below is used.
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+GROQ_WHISPER_MODEL = "whisper-large-v3-turbo"
+
+# Voice call, speech-to-text 2 (fallback): local Whisper (tiny, base, small, medium, large-v3).
 # "base" takes ~3.5 s per question on a 4-thread CPU; "small" understands Arabic
 # better but takes ~12 s there. Use "small" or larger on a faster machine.
 WHISPER_MODEL = "base"

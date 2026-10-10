@@ -28,7 +28,7 @@ const STATUS_TEXT = {
 const ARABIC_LETTERS = /[؀-ۿ]/;
 
 // When to stop recording: after the user spoke and then was quiet for a moment.
-const SILENCE_MS = 1200;      // pause that ends a question
+const SILENCE_MS = 1000;      // pause that ends a question
 const MAX_QUESTION_MS = 15000;
 const MAX_WAIT_MS = 12000;    // nobody spoke: start a fresh recording
 const CALIBRATE_MS = 300;     // measure the room noise first

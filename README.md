@@ -219,11 +219,14 @@ staff also to HR & Policies. Nothing is suggested when no agent matches
 assistant greets you, records you until you pause, turns the recording into text,
 sends it as a normal chat question, reads the answer aloud and listens again, until
 you hang up. **Arabic, English or a mix are detected automatically**: the recording
-goes to `POST /transcribe`, where Whisper runs locally on the backend
-(`backend/app/speech.py`, faster-whisper; free, no API key, no OpenRouter requests).
-`WHISPER_MODEL` in `config.py` sets the model: `base` (~3 s per question on a 4-thread
-CPU) or `small` (better Arabic, ~12 s there). The model is downloaded once on the first
-start. Answers are read with an Arabic or English browser voice depending on their
+goes to `POST /transcribe` (`backend/app/speech.py`), which uses **Groq's hosted
+Whisper large-v3-turbo** when `GROQ_API_KEY` is set in `.env` (free key at
+https://console.groq.com; under a second, best Arabic; free tier of about 2,000
+requests a day, the recording is sent to Groq). Without a key, or when Groq is
+unreachable or over its limit, it falls back to **local Whisper** (faster-whisper,
+free, offline; `WHISPER_MODEL` in `config.py`: `base` ~3 s per question on a 4-thread
+CPU, `small` better Arabic but ~12 s there; downloaded once on the first start).
+Answers are read with an Arabic or English browser voice depending on their
 text. Tap the circle to interrupt. Code: `frontend/src/components/CallScreen.jsx`.
 
 **Attachments:** the 📎 button lets students and staff attach one file to a question
@@ -282,7 +285,7 @@ backend/
     config.py            all settings (reads .env)
     attachments.py       reads files attached to a chat message
     campus.py            finds room codes in answers for the campus map
-    speech.py            local Whisper speech-to-text for the voice call
+    speech.py            speech-to-text for the voice call (Groq Whisper, local fallback)
     db.py                PostgreSQL connection
     schemas.py           request/response models
     routers/             session.py, chat.py, feedback.py, speech.py

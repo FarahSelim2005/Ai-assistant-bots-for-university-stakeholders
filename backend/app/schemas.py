@@ -51,6 +51,7 @@ class ChatResponse(BaseModel):
 class TranscribeRequest(BaseModel):
     # Recorded audio (webm/ogg/wav...) as base64 text; the size is checked in the router.
     audio_base64: str = Field(min_length=1, max_length=15_000_000)
+    mime_type: str = "audio/webm"  # what the browser recorded, e.g. "audio/webm;codecs=opus"
 
 
 class TranscribeResponse(BaseModel):
