@@ -30,7 +30,7 @@ Question ──► Rules ──► Retrieve ──► Validate ──► Generat
 | Database | PostgreSQL `giu-bots` | Chunks with embeddings, conversations, messages, feedback |
 
 **Stack:** Python 3.13, FastAPI, psycopg 3 (raw SQL), httpx, numpy, pypdf ·
-PostgreSQL 18 · OpenRouter (`openai/text-embedding-3-small` for embeddings, chat
+PostgreSQL 18 · OpenRouter (`baai/bge-m3` multilingual embeddings, chat
 model set in `.env`) · React + Vite.
 
 ## Prerequisites (Windows)
@@ -202,7 +202,7 @@ question is compared with each agent's description (`backend/app/agents/director
 embeddings only, no chat model call) and the fallback message gets a button to the
 best-matching agent. Students can be sent to Orientation and Graduation & Advising;
 staff also to HR & Policies. Nothing is suggested when no agent matches
-(`AGENT_LINK_THRESHOLD` in `config.py`). Agents that are not built yet open a
+(`AGENT_LINK_MIN_GAP` in `config.py`: the best agent must clearly beat the second best). Agents that are not built yet open a
 "coming soon" page (`/?agent=<key>`, `frontend/src/components/ComingSoon.jsx`).
 
 **Voice call:** the 📞 Call button (Edge and Chrome) opens a hands-free call: the
@@ -258,7 +258,7 @@ All settings are in `backend/app/config.py`:
 | Setting | Default | Meaning |
 |---|---|---|
 | `TOP_K` | 4 | chunks returned by the retriever |
-| `SIMILARITY_THRESHOLD` | 0.35 | chunks below this score are ignored; if none pass, the fallback message is returned |
+| `SIMILARITY_THRESHOLD` | 0.48 | chunks below this score are ignored; if none pass, the fallback message is returned |
 | `CHUNK_SIZE_WORDS` / `CHUNK_OVERLAP_WORDS` | 200 / 40 | chunking during ingestion |
 
 Re-check `SIMILARITY_THRESHOLD` after adding real documents: run `try_retrieve` with

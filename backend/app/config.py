@@ -17,7 +17,9 @@ DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 # OpenRouter (used for both embeddings and chat)
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-EMBEDDING_MODEL = "openai/text-embedding-3-small"  # 1536 dimensions
+# Multilingual: matches Arabic questions to the English documents far better than
+# openai/text-embedding-3-small. 1024 dimensions. Re-run scripts.ingest after changing.
+EMBEDDING_MODEL = "baai/bge-m3"
 LABS_MODEL = os.getenv("LABS_MODEL", "")
 # Optional backups, tried in order when LABS_MODEL fails. Several can be given,
 # separated by commas: LABS_BACKUP_MODEL=model-one,model-two
@@ -33,8 +35,10 @@ FRONTEND_ORIGIN = "http://localhost:5173"  # the Vite dev server, allowed by COR
 
 # Retrieval
 TOP_K = 4                    # how many chunks the retriever returns
-AGENT_LINK_THRESHOLD = 0.15  # min. match with another agent's description to suggest it
-SIMILARITY_THRESHOLD = 0.35  # chunks scoring below this are not used to answer
+# Suggest another agent only when it clearly wins: its description must match the
+# question at least this much better than the second-best agent (tuned for bge-m3).
+AGENT_LINK_MIN_GAP = 0.05
+SIMILARITY_THRESHOLD = 0.48  # chunks scoring below this are not used to answer (tuned for bge-m3)
 
 # Ingestion
 RAW_DATA_DIR = BACKEND_DIR / "data" / "raw"
