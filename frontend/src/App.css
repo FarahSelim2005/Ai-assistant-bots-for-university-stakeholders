@@ -472,18 +472,8 @@ a.choice-card { text-decoration: none; }
 .call-logo { height: 40px; background: #fff; padding: 6px 10px; border-radius: 10px; }
 .call-time { font-variant-numeric: tabular-nums; color: #c9cacc; font-size: 15px; }
 
-/* Language switch: which language the user speaks */
-.call-languages { display: flex; background: #2f2f2f; border-radius: 999px; padding: 4px; }
-.call-languages button {
-  background: none;
-  color: #c9cacc;
-  padding: 6px 14px;
-  border-radius: 999px;
-  font-size: 14px;
-  font-weight: 600;
-}
-.call-languages button:hover:not(:disabled) { background: #3d3d3d; }
-.call-languages button.active { background: var(--giu-gold); color: var(--giu-black); }
+/* Shows that both languages are understood (Whisper detects the language itself) */
+.call-languages-note { color: var(--giu-gold); font-size: 14px; font-weight: 600; }
 
 .call-center { display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 640px; }
 .call-center h2 { margin: 28px 0 4px; font-size: 22px; }
@@ -503,14 +493,12 @@ a.choice-card { text-decoration: none; }
   box-shadow: 0 0 0 0 rgba(196, 22, 28, 0.6);
 }
 .call-avatar:hover:not(:disabled) { background: var(--giu-red); }
-.call-avatar.listening { animation: pulse-red 1.6s infinite; }
+/* While listening, the glow follows the microphone volume (set inline in CallScreen) */
+.call-avatar.listening { animation: none; transition: box-shadow 0.08s linear; }
 .call-avatar.speaking { animation: pulse-gold 1.2s infinite; }
-.call-avatar.thinking { animation: spin-glow 1.4s linear infinite; }
+.call-avatar.thinking,
+.call-avatar.understanding { animation: spin-glow 1.4s linear infinite; }
 .call-avatar.muted { background: #4a4a4a; border-color: #777; }
-@keyframes pulse-red {
-  0% { box-shadow: 0 0 0 0 rgba(196, 22, 28, 0.6); }
-  100% { box-shadow: 0 0 0 36px rgba(196, 22, 28, 0); }
-}
 @keyframes pulse-gold {
   0% { box-shadow: 0 0 0 0 rgba(217, 162, 27, 0.6); }
   100% { box-shadow: 0 0 0 28px rgba(217, 162, 27, 0); }

@@ -48,6 +48,16 @@ class ChatResponse(BaseModel):
     message_id: int  # id of the saved assistant message, used for feedback
 
 
+class TranscribeRequest(BaseModel):
+    # Recorded audio (webm/ogg/wav...) as base64 text; the size is checked in the router.
+    audio_base64: str = Field(min_length=1, max_length=15_000_000)
+
+
+class TranscribeResponse(BaseModel):
+    text: str      # what the user said ("" if nothing was understood)
+    language: str  # "ar" or "en"
+
+
 class FeedbackRequest(BaseModel):
     message_id: int
     rating: int = Field(ge=1, le=5)

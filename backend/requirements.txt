@@ -6,3 +6,5 @@ pydantic==2.13.5
 numpy==2.5.3
 python-dotenv==1.2.4
 pypdf==6.19.0
+faster-whisper==1.2.1
+av==18.1.0  # av 19 removed an option that faster-whisper 1.2.1 still uses

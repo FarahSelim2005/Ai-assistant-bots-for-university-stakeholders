@@ -26,6 +26,12 @@ LABS_MODEL = os.getenv("LABS_MODEL", "")
 LABS_BACKUP_MODELS = [m.strip() for m in os.getenv("LABS_BACKUP_MODEL", "").split(",") if m.strip()]
 VISION_MODEL = os.getenv("VISION_MODEL", "")  # must accept images; used only when an image is attached
 
+# Voice call: local speech-to-text with Whisper (tiny, base, small, medium, large-v3).
+# "base" takes ~3.5 s per question on a 4-thread CPU; "small" understands Arabic
+# better but takes ~12 s there. Use "small" or larger on a faster machine.
+WHISPER_MODEL = "base"
+MAX_AUDIO_MB = 10
+
 # Chat attachments
 MAX_UPLOAD_MB = 5
 MAX_ATTACHMENT_CHARS = 12000  # longer documents are cut to keep answers fast

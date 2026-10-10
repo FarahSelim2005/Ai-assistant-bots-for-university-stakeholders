@@ -206,17 +206,15 @@ staff also to HR & Policies. Nothing is suggested when no agent matches
 "coming soon" page (`/?agent=<key>`, `frontend/src/components/ComingSoon.jsx`).
 
 **Voice call:** the 📞 Call button (Edge and Chrome) opens a hands-free call: the
-assistant greets you, listens, sends what you said as a normal chat question, reads
-the answer aloud and listens again, until you hang up. Speech recognition and the
-voice are the browser's own (Web Speech API), so no extra service or dependency is
-needed; the browser sends the audio to its speech service (Microsoft or Google) to
-turn it into text. Each spoken question is one normal chat request, and the whole
-call appears in the chat afterwards (including maps). Tap the circle to interrupt
-the assistant. A switch at the top chooses the spoken language: **English** or
-**عربي + English** (Egyptian Arabic, which also understands English words mixed into
-Arabic sentences). Answers are read with an Arabic or English voice depending on
-their text, and Arabic questions get Arabic answers (room codes stay in Latin letters
-so the map still works). Code: `frontend/src/components/CallScreen.jsx`.
+assistant greets you, records you until you pause, turns the recording into text,
+sends it as a normal chat question, reads the answer aloud and listens again, until
+you hang up. **Arabic, English or a mix are detected automatically**: the recording
+goes to `POST /transcribe`, where Whisper runs locally on the backend
+(`backend/app/speech.py`, faster-whisper; free, no API key, no OpenRouter requests).
+`WHISPER_MODEL` in `config.py` sets the model: `base` (~3 s per question on a 4-thread
+CPU) or `small` (better Arabic, ~12 s there). The model is downloaded once on the first
+start. Answers are read with an Arabic or English browser voice depending on their
+text. Tap the circle to interrupt. Code: `frontend/src/components/CallScreen.jsx`.
 
 **Attachments:** the 📎 button lets students and staff attach one file to a question
 (PDF, TXT, MD, PNG, JPG or WEBP, up to 5 MB) and ask about it. Documents are converted
@@ -274,9 +272,10 @@ backend/
     config.py            all settings (reads .env)
     attachments.py       reads files attached to a chat message
     campus.py            finds room codes in answers for the campus map
+    speech.py            local Whisper speech-to-text for the voice call
     db.py                PostgreSQL connection
     schemas.py           request/response models
-    routers/             session.py, chat.py, feedback.py
+    routers/             session.py, chat.py, feedback.py, speech.py
     agents/              base.py (shared flow), labs_research.py
     rag/                 embeddings.py, retriever.py, prompts.py
     llm/openrouter.py    chat completions call
