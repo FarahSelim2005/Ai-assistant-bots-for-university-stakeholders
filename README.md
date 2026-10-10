@@ -103,6 +103,16 @@ Open `backend/.env` and fill in:
 
 `.env` is ignored by git. Never commit it.
 
+**Local models (Ollama):** any model written as `ollama/<name>` runs on your own
+computer through [Ollama](https://ollama.com) instead of OpenRouter: free, unlimited and
+offline, but slower. Measured on a laptop with a 4-thread CPU and a GeForce 940MX,
+`ollama/gemma4:e4b` scored 17/18 with ~27 s per answer (Nemotron on OpenRouter: ~2 s).
+It works best as the **last backup**, so the chat keeps answering after the free
+OpenRouter limit is reached:
+`LABS_BACKUP_MODEL=nvidia/nemotron-3-super-120b-a12b:free,ollama/gemma4:e4b`.
+Ollama must be running (`ollama serve`, or the Ollama app). Thinking is turned off for
+local models in `backend/app/llm/client.py`, which makes Gemma 4 about 3x faster.
+
 **Choosing `LABS_MODEL`:** lab questions are simple lookups, so pick a fast,
 cheap, *non-reasoning* model ("flash-lite", "nano", "mini"). Reasoning/"thinking"
 models add several seconds. Copy the exact ID shown under the model's name on its
