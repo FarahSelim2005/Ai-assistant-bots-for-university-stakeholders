@@ -26,7 +26,7 @@ Question ──► Rules ──► Retrieve ──► Validate ──► Generat
 | API | `backend/app/main.py`, `routers/` | HTTP endpoints, saving conversations, messages and feedback |
 | Agents | `backend/app/agents/` | The rules → retrieve → validate → generate flow |
 | RAG | `backend/app/rag/` | Embeddings, retrieval (cosine similarity with numpy), prompts |
-| LLM | `backend/app/llm/openrouter.py` | One function that calls OpenRouter chat completions |
+| LLM | `backend/app/llm/client.py` | Chat completions through OpenRouter, or a local Ollama model (`ollama/<name>`) |
 | Database | PostgreSQL `giu-bots` | Chunks with embeddings, conversations, messages, feedback |
 
 **Stack:** Python 3.13, FastAPI, psycopg 3 (raw SQL), httpx, numpy, pypdf ·
@@ -278,7 +278,7 @@ backend/
     routers/             session.py, chat.py, feedback.py, speech.py
     agents/              base.py (shared flow), labs_research.py
     rag/                 embeddings.py, retriever.py, prompts.py
-    llm/openrouter.py    chat completions call
+    llm/client.py        chat completions (OpenRouter or local Ollama)
   scripts/
     ingest.py            load documents into the chunks table
     evaluate.py          accuracy and response time on test questions

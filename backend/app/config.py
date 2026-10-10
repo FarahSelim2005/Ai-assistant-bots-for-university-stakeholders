@@ -26,6 +26,11 @@ LABS_MODEL = os.getenv("LABS_MODEL", "")
 LABS_BACKUP_MODELS = [m.strip() for m in os.getenv("LABS_BACKUP_MODEL", "").split(",") if m.strip()]
 VISION_MODEL = os.getenv("VISION_MODEL", "")  # must accept images; used only when an image is attached
 
+# Local models through Ollama (https://ollama.com): write them as "ollama/<name>",
+# e.g. LABS_MODEL=ollama/gemma4:e4b. Free and unlimited, but slow on a laptop.
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+OLLAMA_TIMEOUT = 300.0  # seconds; a laptop CPU can need a minute or more per answer
+
 # Voice call: local speech-to-text with Whisper (tiny, base, small, medium, large-v3).
 # "base" takes ~3.5 s per question on a 4-thread CPU; "small" understands Arabic
 # better but takes ~12 s there. Use "small" or larger on a faster machine.

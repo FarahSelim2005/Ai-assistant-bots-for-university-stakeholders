@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 from app.agents import AGENTS
 from app.attachments import read_attachment
 from app.db import get_connection
-from app.llm.openrouter import LLMError
+from app.llm.client import LLMError
 from app.schemas import ChatRequest, ChatResponse
 
 router = APIRouter()

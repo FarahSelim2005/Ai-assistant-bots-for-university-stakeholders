@@ -10,7 +10,7 @@ from app import config
 from app.agents.directory import AgentLink, suggest_agent
 from app.attachments import Attachment
 from app.campus import Location, find_locations
-from app.llm.openrouter import chat_with_backup
+from app.llm.client import chat_with_backup
 from app.rag.prompts import build_messages
 from app.rag.retriever import RetrievedChunk, retrieve
 

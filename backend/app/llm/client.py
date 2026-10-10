@@ -1,12 +1,21 @@
-"""Minimal client for OpenRouter's chat completions API."""
+"""Minimal chat-completions client for OpenRouter and for local Ollama models.
+
+Both speak the same OpenAI-style API. A model written as "ollama/<name>" (for example
+"ollama/gemma4:e4b") runs on this computer through Ollama: free, unlimited, offline,
+but slower. Every other model name goes to OpenRouter.
+"""
 import time
 
 import httpx
 
 from app import config
 
-# One shared client reuses the HTTPS connection, which saves time on every call.
-_client = httpx.Client(base_url=config.OPENROUTER_BASE_URL, timeout=30.0)
+OLLAMA_PREFIX = "ollama/"
+
+# Shared clients reuse their connections, which saves time on every call.
+# Local models on a laptop are slow, so Ollama gets a much longer timeout.
+_openrouter = httpx.Client(base_url=config.OPENROUTER_BASE_URL, timeout=30.0)
+_ollama = httpx.Client(base_url=config.OLLAMA_BASE_URL, timeout=config.OLLAMA_TIMEOUT)
 
 
 class LLMError(Exception):
@@ -20,21 +29,23 @@ def chat(messages: list[dict], model: str,
     `messages` uses the OpenAI format: [{"role": "system"|"user"|"assistant", "content": "..."}].
     A low temperature keeps answers close to the given context.
     """
-    if not config.OPENROUTER_API_KEY:
-        raise RuntimeError("OPENROUTER_API_KEY is not set in backend/.env")
     if not model:
         raise RuntimeError("No chat model given. Set LABS_MODEL in backend/.env")
 
-    response = _client.post(
-        "/chat/completions",
-        headers={"Authorization": f"Bearer {config.OPENROUTER_API_KEY}"},
-        json={
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        },
-    )
+    body = {"messages": messages, "temperature": temperature, "max_tokens": max_tokens}
+    if model.startswith(OLLAMA_PREFIX):
+        client, headers = _ollama, {}
+        body["model"] = model.removeprefix(OLLAMA_PREFIX)
+        # Models like Gemma 4 otherwise "think" silently first: ~300 tokens instead
+        # of ~40, which took 2 minutes instead of 35 seconds on a laptop.
+        body["reasoning_effort"] = "none"
+    else:
+        if not config.OPENROUTER_API_KEY:
+            raise RuntimeError("OPENROUTER_API_KEY is not set in backend/.env")
+        client, headers = _openrouter, {"Authorization": f"Bearer {config.OPENROUTER_API_KEY}"}
+        body["model"] = model
+
+    response = client.post("/chat/completions", headers=headers, json=body)
     response.raise_for_status()
     data = response.json()
     # OpenRouter can answer "200 OK" with an error instead of choices (e.g. the provider

@@ -17,7 +17,7 @@ import httpx
 
 from app import config
 from app.agents import AGENTS
-from app.llm.openrouter import LLMError
+from app.llm.client import LLMError
 
 DEFAULT_CSV = config.BACKEND_DIR / "data" / "test_questions.csv"
 
