@@ -2,7 +2,7 @@
 
 Run from the backend folder:
     python -m scripts.try_chat "where is the AI lab?"
-    python -m scripts.try_chat "who can access the biotech lab?" --user-type staff
+    python -m scripts.try_chat "where is the clinic?" --user-type staff
 """
 import argparse
 import time

@@ -4,7 +4,8 @@ Run from the backend folder:
     python -m scripts.ingest
     python -m scripts.ingest --agent labs_research --audience student,staff
 
-Re-running is safe: chunks of a file are deleted before that file is ingested again.
+Re-running is safe: chunks of a file are deleted before that file is ingested again,
+and chunks of files that were removed from the folder are deleted too.
 """
 import argparse
 import re
@@ -109,7 +110,24 @@ def main() -> None:
         count = ingest_file(path, args.agent, audience)
         print(f"{path.name}: {count} chunks")
         total += count
+    removed = remove_missing_files(args.agent, [p.name for p in files])
+    for source, count in removed:
+        print(f"{source}: no longer in the folder, {count} old chunks removed")
     print(f"Done. {total} chunks stored for agent '{args.agent}' (audience: {audience}).")
+
+
+def remove_missing_files(agent: str, present: list[str]) -> list[tuple[str, int]]:
+    """Delete this agent's chunks whose source file was removed from the folder, so the
+    agent stops answering from deleted documents. Returns (file name, chunks removed)."""
+    with get_connection() as conn:
+        rows = conn.execute(
+            "DELETE FROM chunks WHERE agent = %s AND NOT (source = ANY(%s)) RETURNING source",
+            (agent, present),
+        ).fetchall()
+    counts: dict[str, int] = {}
+    for (source,) in rows:
+        counts[source] = counts.get(source, 0) + 1
+    return list(counts.items())
 
 
 if __name__ == "__main__":

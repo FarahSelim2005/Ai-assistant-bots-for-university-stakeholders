@@ -8,7 +8,7 @@ const EXAMPLE_QUESTIONS = [
   "Where is the AI lab?",
   "Where is the Admission Office?",
   "How do I pay my tuition fees?",
-  "When are research grant proposals due?",
+  "Where is the gym?",
 ];
 
 // Must match the backend (app/attachments.py and MAX_UPLOAD_MB in config.py).

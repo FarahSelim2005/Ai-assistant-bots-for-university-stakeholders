@@ -144,13 +144,13 @@ a file's old chunks are replaced.
 Options: `--agent <name>`, `--audience student` (staff-only or student-only
 documents), `--folder <path>`.
 
-The two files in `data/raw/` are **fictional placeholder data** for testing. Replace
-them with official GIU documents:
+The file in `data/raw/` is **fictional placeholder data** for testing. Replace it with
+official GIU documents:
 
-- `sample_labs_and_research.md`: labs, research funding and thesis support
 - `campus_buildings.md`: Buildings A, M and S, room numbering (ground floor 001–030,
-  then 101–120, 201–220, 301–320, 401–420) and offices such as Admission, Academic
-  Coordinator, German Office, Clinic, Library, Finance and Student Affairs
+  then 101–120, 201–220, 301–320, 401–420), offices such as Admission, Academic
+  Coordinator, German Office, Clinic, Library, Finance and Student Affairs, and places
+  such as the supermarket, gym and sports courts
 
 Quick checks from the terminal:
 
@@ -275,7 +275,7 @@ and maximum response time, and how many answers took over 2 seconds.
 python -m scripts.evaluate --user-type staff --out data/results.csv   # save every answer
 ```
 
-The 20 included questions are placeholders based on the two sample documents. Two of
+The 17 included questions are placeholders based on the sample campus document. Two of
 them (the AI lab's phone number and renewing a passport) ask for information that is
 not in the documents and expect `don't have`, to check the agent does not invent answers.
 
