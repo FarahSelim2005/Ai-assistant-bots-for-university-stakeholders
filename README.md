@@ -201,6 +201,14 @@ model, and only codes that follow the numbering rules are shown. The layout in
 `frontend/src/components/CampusMap.jsx` matches the "Campus Layout and Directions"
 section of `campus_buildings.md`; keep the two in sync.
 
+**Rooms and places:** a room code in a question (e.g. "Which floor is A107 on?",
+"a 305", "فين أوضة S214؟") adds its building and floor, worked out from the numbering
+rules in `backend/app/campus.py`, so any valid room can be answered, also rooms that
+are not listed in the documents. Places outside the buildings (supermarket, gym, padel,
+food court, football, tennis and basketball courts) are described in
+`campus_buildings.md`; when an answer names one, it gets a "🚶 Walk me to …" Google
+Maps button (positions in `frontend/src/campusGeo.js`).
+
 **Walking directions:** the map card has a "🚶 Walk me to Building …" button that opens
 Google Maps walking navigation from the user's location to the building's entrance.
 The real GPS positions of the entrances (M: 2, A: 3, S: 1) are in
@@ -258,9 +266,9 @@ and maximum response time, and how many answers took over 2 seconds.
 python -m scripts.evaluate --user-type staff --out data/results.csv   # save every answer
 ```
 
-The 18 included questions are placeholders based on the two sample documents. The
-last two ask for information that is not in the documents and expect `don't have`,
-to check the agent does not invent answers.
+The 20 included questions are placeholders based on the two sample documents. Two of
+them (the AI lab's phone number and renewing a passport) ask for information that is
+not in the documents and expect `don't have`, to check the agent does not invent answers.
 
 ## Settings
 

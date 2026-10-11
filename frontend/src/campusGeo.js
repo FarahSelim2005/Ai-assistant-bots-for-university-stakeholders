@@ -1,5 +1,5 @@
-// Real GPS positions of the building entrances, used for the "Walk me there" link that
-// opens Google Maps walking directions (Google Maps starts from the user's location).
+// Real GPS positions of the building entrances and of places on campus, used for the
+// "Walk me there" links that open Google Maps walking directions from the user's location.
 
 // Degrees, minutes, seconds (as copied from Google Maps) -> decimal degrees.
 function dms(degrees, minutes, seconds) {
@@ -20,8 +20,28 @@ export const ENTRANCES = {
   S: [[dms(30, 0, 13.5), dms(31, 41, 59.1)]],
 };
 
-// Google Maps walking navigation to a building (works in the app and in the browser).
-export function googleMapsWalkingUrl(building) {
-  const [lat, lng] = ENTRANCES[building][0];
+// [latitude, longitude] of places outside the buildings. Keys must match PLACES in
+// backend/app/campus.py. Most come from Plus Codes the user copied from Google Maps;
+// the tennis court is estimated from the aerial picture (its code was a duplicate).
+export const PLACES = {
+  supermarket: [30.004688, 31.701797], // 2P32+VPF
+  gym: [dms(30, 0, 18.0), dms(31, 42, 6.0)],
+  padel: [30.004387, 31.701484], // 2P32+QH5
+  food_court: [dms(30, 0, 17.8), dms(31, 42, 8.3)],
+  football: [30.005138, 31.701141], // 2P42+3F2
+  tennis: [30.004645, 31.701079], // estimated from the aerial picture
+  basketball: [30.004113, 31.701484], // 2P32+JHX
+};
+
+function walkingUrl([lat, lng]) {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat.toFixed(6)},${lng.toFixed(6)}&travelmode=walking`;
+}
+
+// Google Maps walking navigation (works in the app and in the browser).
+export function googleMapsWalkingUrl(building) {
+  return walkingUrl(ENTRANCES[building][0]);
+}
+
+export function placeWalkingUrl(placeKey) {
+  return PLACES[placeKey] ? walkingUrl(PLACES[placeKey]) : null;
 }

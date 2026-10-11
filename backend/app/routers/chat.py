@@ -64,6 +64,7 @@ def chat(body: ChatRequest) -> ChatResponse:
         answer=result.answer,
         sources=result.sources,
         locations=[asdict(location) for location in result.locations],
+        places=[{"key": place.key, "name": place.name} for place in result.places],
         redirect=asdict(result.redirect) if result.redirect else None,
         message_id=message_id,
     )

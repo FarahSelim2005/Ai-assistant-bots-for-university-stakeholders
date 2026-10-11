@@ -34,6 +34,11 @@ class LocationOut(BaseModel):
     floor_name: str     # e.g. "Ground floor"
 
 
+class PlaceOut(BaseModel):
+    key: str   # e.g. "gym"; the frontend has its GPS position for the walking link
+    name: str  # e.g. "Gym"
+
+
 class AgentLinkOut(BaseModel):
     agent: str  # e.g. "orientation"
     name: str   # e.g. "Orientation Assistant"
@@ -44,6 +49,7 @@ class ChatResponse(BaseModel):
     answer: str
     sources: list[str]
     locations: list[LocationOut] = []  # rooms mentioned in the answer, shown on a map
+    places: list[PlaceOut] = []  # places outside the buildings in the answer, with walking links
     redirect: AgentLinkOut | None = None  # the agent to ask instead, when this one can't answer
     message_id: int  # id of the saved assistant message, used for feedback
 

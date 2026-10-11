@@ -1,4 +1,5 @@
 import CampusMap from "./CampusMap.jsx";
+import PlaceLinks from "./PlaceLinks.jsx";
 
 const ARABIC_LETTERS = /[؀-ۿ]/;
 
@@ -28,6 +29,8 @@ export default function Message({ message, onRate }) {
         <div className="bubble" dir="auto">{message.content}</div>
 
         {message.locations?.length > 0 && <CampusMap locations={message.locations} />}
+
+        {message.places?.length > 0 && <PlaceLinks places={message.places} />}
 
         {message.redirect && (
           <div className="redirect-card" dir="auto">

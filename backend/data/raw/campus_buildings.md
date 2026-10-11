@@ -23,12 +23,55 @@ the car park, Building M (Main Administration Building) is the large building on
 the right; it is the main GIU building and has the CIB ATM. Building S (Student
 Services Building) is on the left, the building closest to the road, next to the
 GIU swimming pool. Building A (Academic Building) is behind Building S, further
-from the road, on the north-west side of the campus. The sports courts are north
-of Building M, between Building A and Building M, and the Essen food court is east
-of Building M. Building M has two entrances, Building A has three entrances and
+from the road, on the north-west side of the campus. The tennis court and a sports
+court are north of Building M, between Building A and Building M. The supermarket,
+the gym, the padel court and the food court are north-east of Building M, and the
+Essen fast food restaurant is east of Building M. Building M has two entrances, Building A has three entrances and
 Building S has one entrance. Every building has stairs and an elevator next to its entrance. To reach a room,
 go to the building shown by the letter of the room number, then take the stairs
 or the elevator to the floor shown by the first digit (0 means the ground floor).
+
+## Supermarket
+
+Arabic names: السوبر ماركت، سوبرماركت الجامعة.
+The GIU Supermarket is north-east of Building M, about 130 metres from Building M.
+The gym is next to the supermarket, and the football field is on the other side of
+the supermarket. The padel court is in front of the supermarket.
+
+## Gym
+
+Arabic names: الجيم، صالة الألعاب الرياضية.
+The gym is north-east of Building M, about 145 metres from Building M, next to the
+GIU Supermarket. The padel court is in front of the gym and the supermarket.
+
+## Padel Court
+
+Arabic names: ملعب البادل، البادل.
+The padel court is north-east of Building M, about 85 metres from Building M. It is in
+front of the supermarket and the gym, and the food court is in front of the padel court.
+
+## Food Court
+
+Arabic names: الفود كورت، فود كورت، المطاعم، منطقة الأكل، الكافيهات، أكل الجامعة.
+The food court is north-east of Building M, about 185 metres from Building M, in front
+of the padel court. It has several restaurants and cafes with outdoor seating.
+
+## Football Field
+
+Arabic names: ملعب الكورة، ملعب كرة القدم.
+The GIU football field is north of Building M, about 140 metres from Building M, on the
+other side of the supermarket.
+
+## Tennis Court
+
+Arabic names: ملعب التنس.
+The GIU tennis court is north of Building M, about 80 metres from Building M, between
+Building A and Building M, next to the red sports court.
+
+## Basketball Court
+
+Arabic names: ملعب الباسكت، ملعب كرة السلة.
+The basketball court is east of Building M, about 70 metres from Building M.
 
 ## Building A (Academic Building)
 

@@ -451,6 +451,8 @@ a.choice-card { text-decoration: none; }
   text-decoration: none;
 }
 .walk-button:hover { background: var(--giu-red-dark); }
+.place-buttons { display: flex; flex-wrap: wrap; gap: 8px; padding: 6px 14px 14px; }
+.place-buttons .walk-button { margin-top: 0; }
 
 /* ================= Voice call ================= */
 .call-start { background: var(--giu-black); }
