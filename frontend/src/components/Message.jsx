@@ -1,9 +1,8 @@
 import CampusMap from "./CampusMap.jsx";
-import PlaceLinks from "./PlaceLinks.jsx";
 
 const ARABIC_LETTERS = /[؀-ۿ]/;
 
-// One chat message. Assistant messages also show a map (if rooms are mentioned),
+// One chat message. Assistant messages also show a map (if rooms or places are mentioned),
 // their sources and a 1-5 star rating.
 export default function Message({ message, onRate }) {
   if (message.role === "user") {
@@ -28,9 +27,9 @@ export default function Message({ message, onRate }) {
       <div className="assistant-body">
         <div className="bubble" dir="auto">{message.content}</div>
 
-        {message.locations?.length > 0 && <CampusMap locations={message.locations} />}
-
-        {message.places?.length > 0 && <PlaceLinks places={message.places} />}
+        {(message.locations?.length > 0 || message.places?.length > 0) && (
+          <CampusMap locations={message.locations} places={message.places} />
+        )}
 
         {message.redirect && (
           <div className="redirect-card" dir="auto">
