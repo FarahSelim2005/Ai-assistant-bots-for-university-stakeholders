@@ -25,39 +25,39 @@ const BUILDINGS = {
 // there. Keys must match PLACES in backend/app/campus.py and frontend/src/campusGeo.js.
 const PLACES = {
   football: {
-    x: 272, y: -68, width: 58, height: 32, kind: "grass", label: "Football", icon: "⚽",
-    steps: ["From Building M, walk about 140 m north, past the tennis court.",
+    x: 286, y: -58, width: 54, height: 30, kind: "grass", label: "Football", icon: "⚽",
+    steps: ["From Building M, walk about 135 m north, past the tennis court.",
             "The football field is on the other side of the supermarket."],
   },
+  supermarket: {
+    x: 346, y: -52, width: 36, height: 22, kind: "landmark", label: "Market", icon: "🛒",
+    steps: ["From Building M, walk about 150 m north-east.",
+            "The supermarket is on the left of the gym, behind the padel court."],
+  },
   gym: {
-    x: 376, y: -46, width: 32, height: 22, kind: "landmark", label: "Gym", icon: "🏋️",
+    x: 386, y: -38, width: 30, height: 22, kind: "landmark", label: "Gym", icon: "🏋️",
     steps: ["From Building M, walk about 145 m north-east.",
             "The gym is on the right (east) side of the supermarket, behind the padel court."],
   },
-  supermarket: {
-    x: 330, y: -46, width: 42, height: 22, kind: "landmark", label: "Market", icon: "🛒",
-    steps: ["From Building M, walk about 130 m north-east.",
-            "The supermarket is on the left of the gym, behind the padel court."],
-  },
   padel: {
-    x: 330, y: 8, width: 34, height: 28, kind: "grass", label: "Padel", icon: "🎾",
-    steps: ["From Building M, walk about 85 m north-east.",
+    x: 336, y: 12, width: 32, height: 28, kind: "grass", label: "Padel", icon: "🎾",
+    steps: ["From Building M, walk about 105 m north-east.",
             "The padel court is in front of the supermarket and the gym."],
   },
   food_court: {
-    x: 414, y: -16, width: 50, height: 48, kind: "grass", label: "Food", icon: "🍔",
+    x: 460, y: -26, width: 54, height: 50, kind: "grass", label: "Food", icon: "🍔",
     steps: ["From Building M, walk about 185 m north-east.",
             "The food court is in front of the padel court, with restaurants and cafes."],
   },
   tennis: {
-    x: 244, y: -2, width: 38, height: 26, kind: "court blue", label: "Tennis", icon: "🎾",
-    steps: ["From Building M, walk about 80 m north.",
-            "The tennis court is between Building A and Building M, next to the red sports court."],
+    x: 244, y: -18, width: 40, height: 26, kind: "court blue", label: "Tennis", icon: "🎾",
+    steps: ["From Building M, walk about 95 m north.",
+            "The tennis court is next to the basketball court, between Building A and Building M."],
   },
   basketball: {
-    x: 226, y: -66, width: 40, height: 26, kind: "court", label: "Basket", icon: "🏀",
-    steps: ["From Building M, walk about 140 m north, past the tennis court.",
-            "The basketball court is on the left (west) side of the football field."],
+    x: 170, y: 8, width: 66, height: 50, kind: "court", label: "Basketball", icon: "🏀",
+    steps: ["From Building M, walk about 75 m north-west, towards Building A.",
+            "The basketball court is the red court between Building A and Building M."],
   },
 };
 
@@ -89,18 +89,14 @@ export default function CampusMap({ locations = [], places = [] }) {
       </div>
 
       <div className="map-body">
-        <svg viewBox="0 -96 470 324" className="map-svg" role="img"
+        <svg viewBox="0 -96 520 324" className="map-svg" role="img"
              aria-label={`Campus map highlighting ${highlighted.join(", ")}`}>
-          {/* Red sports court between A and M (not a place of its own, just for orientation) */}
-          <rect x="170" y="8" width="66" height="50" rx="3" className="map-court" />
-          <text x="203" y="37" textAnchor="middle" className="map-label-small light">Courts</text>
-
           {/* Road and car park along the south-east side */}
-          <path d="M0 202 C 150 196, 300 178, 470 100 L 470 124 C 300 202, 150 220, 0 224 Z" className="map-road" />
+          <path d="M0 202 C 160 196, 330 176, 520 92 L 520 116 C 330 200, 160 220, 0 224 Z" className="map-road" />
           <text x="120" y="192" textAnchor="middle" className="map-label-small">Road &amp; car park</text>
 
           {/* North arrow */}
-          <g transform="translate(452, -74)">
+          <g transform="translate(504, -74)">
             <path d="M0 -14 L6 4 L0 0 L-6 4 Z" className="map-north" />
             <text y="16" textAnchor="middle" className="map-label-small">N</text>
           </g>

@@ -21,16 +21,16 @@ export const ENTRANCES = {
 };
 
 // [latitude, longitude] of places outside the buildings. Keys must match PLACES in
-// backend/app/campus.py. Most come from Plus Codes the user copied from Google Maps;
-// the tennis and basketball courts are estimated (no exact code yet).
+// backend/app/campus.py. Taken from each place's own Google Maps pin (its share link),
+// except the food court, which has no pin (coordinates copied by the user).
 export const PLACES = {
-  supermarket: [30.004688, 31.701797], // 2P32+VPF
-  gym: [dms(30, 0, 18.0), dms(31, 42, 6.0)],
-  padel: [30.004387, 31.701484], // 2P32+QH5
+  supermarket: [30.0050804, 31.7015537], // GIU Supermarket
+  gym: [30.0050087, 31.7016298],         // الجيم
+  padel: [30.0046121, 31.7015252],       // GoPadel
   food_court: [dms(30, 0, 17.8), dms(31, 42, 8.3)],
-  football: [30.005138, 31.701141], // 2P42+3F2
-  tennis: [30.004645, 31.701079], // estimated from the aerial picture
-  basketball: [30.005138, 31.700726], // estimated: ~40 m west of the football field
+  football: [30.0050833, 31.7012533],    // GIU Football Field
+  tennis: [30.004766, 31.700971],        // GIU Tennis Court
+  basketball: [30.0045601, 31.7005281],  // GIU Basketball Court
 };
 
 function walkingUrl([lat, lng]) {

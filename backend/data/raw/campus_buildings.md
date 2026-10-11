@@ -23,7 +23,7 @@ the car park, Building M (Main Administration Building) is the large building on
 the right; it is the main GIU building and has the CIB ATM. Building S (Student
 Services Building) is on the left, the building closest to the road, next to the
 GIU swimming pool. Building A (Academic Building) is behind Building S, further
-from the road, on the north-west side of the campus. The tennis court and a sports
+from the road, on the north-west side of the campus. The basketball court and the tennis
 court are north of Building M, between Building A and Building M. The supermarket,
 the gym, the padel court and the food court are north-east of Building M, and the
 Essen fast food restaurant is east of Building M. Building M has two entrances, Building A has three entrances and
@@ -34,7 +34,7 @@ or the elevator to the floor shown by the first digit (0 means the ground floor)
 ## Supermarket
 
 Arabic names: السوبر ماركت، سوبرماركت الجامعة.
-The GIU Supermarket is north-east of Building M, about 130 metres from Building M.
+The GIU Supermarket is north-east of Building M, about 150 metres from Building M.
 The gym is next to the supermarket, on its right (east) side, and the football field
 is on the other side of the supermarket. The padel court is in front of the supermarket.
 
@@ -47,7 +47,7 @@ GIU Supermarket, on the right (east) side of the supermarket. The padel court is
 ## Padel Court
 
 Arabic names: ملعب البادل، البادل.
-The padel court is north-east of Building M, about 85 metres from Building M. It is in
+The padel court is north-east of Building M, about 105 metres from Building M. It is in
 front of the supermarket and the gym, and the food court is in front of the padel court.
 
 ## Food Court
@@ -59,21 +59,22 @@ of the padel court. It has several restaurants and cafes with outdoor seating.
 ## Football Field
 
 Arabic names: ملعب الكورة، ملعب كرة القدم.
-The GIU football field is north of Building M, about 140 metres from Building M, on the
+The GIU football field is north of Building M, about 135 metres from Building M, on the
 other side of the supermarket. The basketball court is on the left (west) side of the
 football field.
 
 ## Tennis Court
 
 Arabic names: ملعب التنس.
-The GIU tennis court is north of Building M, about 80 metres from Building M, between
-Building A and Building M, next to the red sports court.
+The GIU tennis court is north of Building M, about 95 metres from Building M, between
+Building A and Building M, next to the basketball court.
 
 ## Basketball Court
 
 Arabic names: ملعب الباسكت، ملعب كرة السلة.
-The basketball court is north of Building M, about 140 metres from Building M, next to
-the football field, on the left (west) side of the football field.
+The GIU basketball court is the red court between Building A and Building M, about 75
+metres north-west of Building M. It is on the left (west) side of the tennis court and
+the football field.
 
 ## Building A (Academic Building)
 
