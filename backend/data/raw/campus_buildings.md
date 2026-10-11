@@ -35,14 +35,14 @@ or the elevator to the floor shown by the first digit (0 means the ground floor)
 
 Arabic names: السوبر ماركت، سوبرماركت الجامعة.
 The GIU Supermarket is north-east of Building M, about 130 metres from Building M.
-The gym is next to the supermarket, and the football field is on the other side of
-the supermarket. The padel court is in front of the supermarket.
+The gym is next to the supermarket, on its right (east) side, and the football field
+is on the other side of the supermarket. The padel court is in front of the supermarket.
 
 ## Gym
 
 Arabic names: الجيم، صالة الألعاب الرياضية.
 The gym is north-east of Building M, about 145 metres from Building M, next to the
-GIU Supermarket. The padel court is in front of the gym and the supermarket.
+GIU Supermarket, on the right (east) side of the supermarket. The padel court is in front of the gym and the supermarket.
 
 ## Padel Court
 
@@ -60,7 +60,8 @@ of the padel court. It has several restaurants and cafes with outdoor seating.
 
 Arabic names: ملعب الكورة، ملعب كرة القدم.
 The GIU football field is north of Building M, about 140 metres from Building M, on the
-other side of the supermarket.
+other side of the supermarket. The basketball court is on the left (west) side of the
+football field.
 
 ## Tennis Court
 
@@ -71,7 +72,8 @@ Building A and Building M, next to the red sports court.
 ## Basketball Court
 
 Arabic names: ملعب الباسكت، ملعب كرة السلة.
-The basketball court is east of Building M, about 70 metres from Building M.
+The basketball court is north of Building M, about 140 metres from Building M, next to
+the football field, on the left (west) side of the football field.
 
 ## Building A (Academic Building)
 

@@ -60,8 +60,12 @@ class BaseAgent:
                                  redirect=suggest_agent(question, self.name, user_type))
         # 4. Generate
         answer = self.generate(question, relevant, history, attachment)
+        # Show only the places the user asked about (an answer about the gym may also
+        # mention the supermarket next to it); use the answer only if the question
+        # names no place, e.g. "where can I work out?".
+        places = find_places(question) or find_places(answer)
         return AgentResponse(answer=answer, sources=unique_sources(relevant),
-                             locations=find_locations(answer), places=find_places(answer))
+                             locations=find_locations(answer), places=places)
 
     def check_rules(self, question: str, user_type: str,
                     attachment: Attachment | None = None) -> None:

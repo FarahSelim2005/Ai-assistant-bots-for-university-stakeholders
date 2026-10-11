@@ -22,7 +22,7 @@ export const ENTRANCES = {
 
 // [latitude, longitude] of places outside the buildings. Keys must match PLACES in
 // backend/app/campus.py. Most come from Plus Codes the user copied from Google Maps;
-// the tennis court is estimated from the aerial picture (its code was a duplicate).
+// the tennis and basketball courts are estimated (no exact code yet).
 export const PLACES = {
   supermarket: [30.004688, 31.701797], // 2P32+VPF
   gym: [dms(30, 0, 18.0), dms(31, 42, 6.0)],
@@ -30,7 +30,7 @@ export const PLACES = {
   food_court: [dms(30, 0, 17.8), dms(31, 42, 8.3)],
   football: [30.005138, 31.701141], // 2P42+3F2
   tennis: [30.004645, 31.701079], // estimated from the aerial picture
-  basketball: [30.004113, 31.701484], // 2P32+JHX
+  basketball: [30.005138, 31.700726], // estimated: ~40 m west of the football field
 };
 
 function walkingUrl([lat, lng]) {

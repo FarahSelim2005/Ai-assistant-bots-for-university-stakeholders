@@ -30,14 +30,14 @@ const PLACES = {
             "The football field is on the other side of the supermarket."],
   },
   gym: {
-    x: 338, y: -68, width: 34, height: 18, kind: "landmark", label: "Gym", icon: "🏋️",
+    x: 376, y: -46, width: 32, height: 22, kind: "landmark", label: "Gym", icon: "🏋️",
     steps: ["From Building M, walk about 145 m north-east.",
-            "The gym is next to the supermarket, behind the padel court."],
+            "The gym is on the right (east) side of the supermarket, behind the padel court."],
   },
   supermarket: {
-    x: 340, y: -44, width: 40, height: 22, kind: "landmark", label: "Market", icon: "🛒",
+    x: 330, y: -46, width: 42, height: 22, kind: "landmark", label: "Market", icon: "🛒",
     steps: ["From Building M, walk about 130 m north-east.",
-            "The supermarket is next to the gym, behind the padel court."],
+            "The supermarket is on the left of the gym, behind the padel court."],
   },
   padel: {
     x: 330, y: 8, width: 34, height: 28, kind: "grass", label: "Padel", icon: "🎾",
@@ -45,7 +45,7 @@ const PLACES = {
             "The padel court is in front of the supermarket and the gym."],
   },
   food_court: {
-    x: 400, y: -30, width: 56, height: 50, kind: "grass", label: "Food", icon: "🍔",
+    x: 414, y: -16, width: 50, height: 48, kind: "grass", label: "Food", icon: "🍔",
     steps: ["From Building M, walk about 185 m north-east.",
             "The food court is in front of the padel court, with restaurants and cafes."],
   },
@@ -55,9 +55,9 @@ const PLACES = {
             "The tennis court is between Building A and Building M, next to the red sports court."],
   },
   basketball: {
-    x: 316, y: 74, width: 34, height: 22, kind: "court", label: "Basket", icon: "🏀",
-    steps: ["From Building M, walk about 70 m east.",
-            "The basketball court is just east of Building M."],
+    x: 226, y: -66, width: 40, height: 26, kind: "court", label: "Basket", icon: "🏀",
+    steps: ["From Building M, walk about 140 m north, past the tennis court.",
+            "The basketball court is on the left (west) side of the football field."],
   },
 };
 
