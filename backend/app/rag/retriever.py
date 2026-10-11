@@ -49,3 +49,15 @@ def retrieve(question: str, agent: str, user_type: str,
     best = np.argsort(scores)[::-1][:top_k]
     return [RetrievedChunk(content=rows[i][0], source=rows[i][1], score=float(scores[i]))
             for i in best]
+
+
+def retrieve_best(questions: list[str], agent: str, user_type: str,
+                  top_k: int = config.TOP_K) -> list[RetrievedChunk]:
+    """Search with several wordings of the same question and keep, for each chunk, its
+    best score (used for English words written in Arabic letters)."""
+    best: dict[str, RetrievedChunk] = {}
+    for question in questions:
+        for chunk in retrieve(question, agent, user_type, top_k):
+            if chunk.content not in best or chunk.score > best[chunk.content].score:
+                best[chunk.content] = chunk
+    return sorted(best.values(), key=lambda c: c.score, reverse=True)[:top_k]

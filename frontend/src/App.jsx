@@ -8,7 +8,7 @@ const EXAMPLE_QUESTIONS = [
   "Where is the AI lab?",
   "Where is the Admission Office?",
   "How do I pay my tuition fees?",
-  "When are research grant proposals due?",
+  "Where is the gym?",
 ];
 
 // Must match the backend (app/attachments.py and MAX_UPLOAD_MB in config.py).
@@ -18,7 +18,7 @@ const MAX_UPLOAD_MB = 5;
 export default function App() {
   const [userType, setUserType] = useState(null);
   const [conversationId, setConversationId] = useState(null);
-  // Each message: { role, content, attachment?, sources?, locations?, redirect?, messageId?, rating? }
+  // Each message: { role, content, attachment?, sources?, locations?, places?, redirect?, messageId?, rating? }
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   // File chosen for the next message: { filename, dataUrl, isImage }
@@ -90,6 +90,7 @@ export default function App() {
           content: data.answer,
           sources: data.sources,
           locations: data.locations,
+          places: data.places,
           redirect: data.redirect,
           messageId: data.message_id,
         },

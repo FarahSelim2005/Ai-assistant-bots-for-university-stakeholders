@@ -32,3 +32,15 @@ export function sendMessage(conversationId, query, attachment = null) {
 export function sendFeedback(messageId, rating) {
   return post("/feedback", { message_id: messageId, rating }); // -> { feedback_id }
 }
+
+// Sends a recorded voice question (a Blob from MediaRecorder) to the backend, which
+// uses Whisper (Groq, or local as fallback) and detects Arabic or English. -> { text, language }
+export async function transcribe(recording) {
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("The recording could not be read."));
+    reader.readAsDataURL(recording);
+  });
+  return post("/transcribe", { audio_base64: dataUrl.split(",")[1], mime_type: recording.type || "audio/webm" });
+}

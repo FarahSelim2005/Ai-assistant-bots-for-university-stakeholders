@@ -70,7 +70,8 @@ _description_vectors: np.ndarray | None = None  # computed once, on first use
 
 def suggest_agent(question: str, current_agent: str, user_type: str) -> AgentLink | None:
     """The agent whose description best matches the question, or None when the best
-    match is the current agent, an agent this user may not use, or nothing fits."""
+    match is the current agent, an agent this user may not use, or no agent clearly
+    wins (off-topic questions match all agents about equally)."""
     global _description_vectors
     try:
         if _description_vectors is None:
@@ -79,9 +80,9 @@ def suggest_agent(question: str, current_agent: str, user_type: str) -> AgentLin
     except httpx.HTTPError:
         return None  # no link is better than a broken answer
 
-    best = int(np.argmax(scores))
+    best, second = np.argsort(scores)[::-1][:2]
     agent = AGENT_DIRECTORY[best]
-    if (scores[best] < config.AGENT_LINK_THRESHOLD
+    if (scores[best] - scores[second] < config.AGENT_LINK_MIN_GAP
             or agent.key == current_agent
             or user_type not in agent.user_types):
         return None

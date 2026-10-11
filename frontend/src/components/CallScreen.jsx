@@ -1,47 +1,40 @@
-// "Call the agent": a hands-free voice conversation using the browser's built-in
-// speech recognition (speech -> text) and speech synthesis (text -> speech).
-// Each spoken question is sent through the normal chat (onAsk), so the agent,
-// its rules and the saved messages are exactly the same as when typing.
-// Loop: listen -> (user stops talking) -> thinking -> speak the answer -> listen ...
+// "Call the agent": a hands-free voice conversation.
+// Speech -> text: the microphone is recorded in the browser and sent to the backend,
+// where Whisper (running locally) detects Arabic or English by itself.
+// Text -> speech: the browser's built-in voices (an Arabic or English voice per answer).
+// Each question goes through the normal chat (onAsk), so the agent and its rules are
+// exactly the same as when typing.
+// Loop: listen -> (user pauses) -> understanding -> thinking -> speak -> listen ...
 import { useEffect, useRef, useState } from "react";
+import { transcribe } from "../api.js";
 
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-export const callSupported = Boolean(SpeechRecognition && window.speechSynthesis);
+export const callSupported = Boolean(
+  navigator.mediaDevices?.getUserMedia && window.MediaRecorder && window.speechSynthesis,
+);
 
-// The recognizer listens for one language at a time. Egyptian Arabic also picks up
-// English words mixed into Arabic sentences ("فين الـ AI lab؟").
-const LANGUAGES = {
-  en: {
-    label: "English",
-    recognition: "en-US",
-    greeting: "Hello, this is the GIU Labs and Research assistant. How can I help you?",
-    noAnswer: "Sorry, I couldn't get an answer right now. Please try again in a moment.",
-  },
-  ar: {
-    label: "عربي + English",
-    recognition: "ar-EG",
-    greeting: "أهلاً، أنا مساعد المعامل والأبحاث في الجامعة الألمانية الدولية. أقدر أساعدك إزاي؟",
-    noAnswer: "آسف، مقدرتش أجيب إجابة دلوقتي. حاول تاني بعد شوية.",
-  },
+const GREETING_EN = "Hello! This is the GIU Labs and Research assistant. Ask me in English or Arabic.";
+const GREETING_AR = "أهلاً! اسألني بالعربي أو بالإنجليزي.";
+const NO_ANSWER = {
+  en: "Sorry, I couldn't get an answer right now. Please try again in a moment.",
+  ar: "آسف، مقدرتش أجيب إجابة دلوقتي. حاول تاني بعد شوية.",
 };
 const STATUS_TEXT = {
-  listening: "Listening…",
+  listening: "Listening… speak in Arabic or English",
+  understanding: "Understanding…",
   thinking: "Thinking…",
   speaking: "Speaking… tap the circle to interrupt",
   muted: "Microphone muted",
 };
 const ARABIC_LETTERS = /[؀-ۿ]/;
 
-function savedLanguage() {
-  try {
-    return localStorage.getItem("callLanguage") === "en" ? "en" : "ar";
-  } catch {
-    return "ar";
-  }
-}
+// When to stop recording: after the user spoke and then was quiet for a moment.
+const SILENCE_MS = 1000;      // pause that ends a question
+const MAX_QUESTION_MS = 15000;
+const MAX_WAIT_MS = 12000;    // nobody spoke: start a fresh recording
+const CALIBRATE_MS = 300;     // measure the room noise first
+const MIN_LEVEL = 0.015;      // volume that counts as speech, at least
 
 // Pick a voice that matches the text: Arabic text gets an Arabic voice, otherwise English.
-// Prefers the natural-sounding online voices when the browser has them.
 function voiceFor(text) {
   const wanted = ARABIC_LETTERS.test(text) ? "ar" : "en";
   const voices = window.speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith(wanted));
@@ -55,21 +48,24 @@ function voiceFor(text) {
 }
 
 export default function CallScreen({ onAsk, onHangUp }) {
-  const [language, setLanguage] = useState(savedLanguage);
   const [status, setStatus] = useState("speaking");
-  const [heard, setHeard] = useState("");      // what the user is saying, live
-  const [reply, setReply] = useState("");      // what the agent said last
+  const [heard, setHeard] = useState("");  // what the user said (after Whisper)
+  const [reply, setReply] = useState("");  // what the agent said last
+  const [level, setLevel] = useState(0);   // microphone volume, drives the circle's glow
   const [muted, setMuted] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState("");
 
-  // Refs hold values that the speech callbacks need to see right now
-  // (callbacks created earlier would otherwise keep old state values).
-  const activeRef = useRef(true);          // false after hang up: stop everything
+  // Refs hold values the audio callbacks need right now (state in old callbacks is stale).
+  const activeRef = useRef(true);
   const mutedRef = useRef(false);
-  const languageRef = useRef(language);
-  const recognitionRef = useRef(null);     // the current listening session
-  const utteranceRef = useRef(null);       // the sentence being spoken
+  const languageRef = useRef("en");      // language of the last question
+  const streamRef = useRef(null);        // microphone
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const recorderRef = useRef(null);
+  const timerRef = useRef(null);         // volume check while recording
+  const lastUtteranceRef = useRef(null);
   const onAskRef = useRef(onAsk);
   onAskRef.current = onAsk;
 
@@ -79,102 +75,160 @@ export default function CallScreen({ onAsk, onHangUp }) {
     return () => clearInterval(timer);
   }, []);
 
-  // Start the call with a greeting; stop all audio when the screen closes.
+  // Start: open the microphone, greet, then listen. Stop everything when the screen closes.
   useEffect(() => {
     activeRef.current = true;
-    // Browsers load their voices a moment after the page opens; wait for them (max 1 s)
-    // so the greeting is spoken with the right Arabic or English voice.
+    let cancelled = false; // this run was cleaned up (React runs effects twice in development)
+    navigator.mediaDevices
+      .getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
+      .then((stream) => {
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        const context = new AudioContext();
+        const analyser = context.createAnalyser();
+        analyser.fftSize = 1024;
+        context.createMediaStreamSource(stream).connect(analyser);
+        audioContextRef.current = context;
+        analyserRef.current = analyser;
+        greetWhenVoicesReady();
+      })
+      .catch(() => {
+        if (cancelled) return;
+        activeRef.current = false;
+        setError("Microphone access is blocked. Allow the microphone for this site and call again.");
+      });
+    return () => {
+      cancelled = true;
+      stopEverything();
+    };
+  }, []);
+
+  function stopEverything() {
+    activeRef.current = false;
+    clearInterval(timerRef.current);
+    if (recorderRef.current?.state === "recording") {
+      recorderRef.current.onstop = null;
+      recorderRef.current.stop();
+    }
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    audioContextRef.current?.close();
+    window.speechSynthesis.cancel();
+  }
+
+  // Browsers load their voices a moment after the page opens; wait for them (max 1 s).
+  function greetWhenVoicesReady() {
     let greeted = false;
     const greet = () => {
       if (greeted || !activeRef.current) return;
       greeted = true;
-      speak(LANGUAGES[languageRef.current].greeting);
+      speak([GREETING_EN, GREETING_AR]);
     };
-    const timeout = setTimeout(greet, 1000);
+    setTimeout(greet, 1000);
     if (window.speechSynthesis.getVoices().length) greet();
     else window.speechSynthesis.addEventListener("voiceschanged", greet, { once: true });
-    return () => {
-      activeRef.current = false;
-      clearTimeout(timeout);
-      window.speechSynthesis.removeEventListener("voiceschanged", greet);
-      recognitionRef.current?.abort();
-      window.speechSynthesis.cancel();
-    };
-  }, []);
-
-  function speak(text) {
-    const utterance = new SpeechSynthesisUtterance(text);
-    const voice = voiceFor(text);
-    if (voice) utterance.voice = voice;
-    utterance.lang = voice?.lang || (ARABIC_LETTERS.test(text) ? "ar-EG" : "en-US");
-    // Only the latest sentence may continue the loop (cancel() also fires "end").
-    utterance.onend = () => {
-      if (activeRef.current && utteranceRef.current === utterance) listen();
-    };
-    utteranceRef.current = utterance;
-    window.speechSynthesis.cancel();
-    setReply(text);
-    setStatus("speaking");
-    window.speechSynthesis.speak(utterance);
   }
 
+  // Speak one or more sentences (each with a matching voice), then listen again.
+  function speak(texts) {
+    window.speechSynthesis.cancel();
+    let last = null;
+    for (const text of texts) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      const voice = voiceFor(text);
+      if (voice) utterance.voice = voice;
+      utterance.lang = voice?.lang || (ARABIC_LETTERS.test(text) ? "ar-EG" : "en-US");
+      window.speechSynthesis.speak(utterance);
+      last = utterance;
+    }
+    // Only the latest sentence may continue the loop (cancel() also fires "end").
+    last.onend = () => {
+      if (activeRef.current && lastUtteranceRef.current === last) listen();
+    };
+    lastUtteranceRef.current = last;
+    setReply(texts.join("\n"));
+    setStatus("speaking");
+  }
+
+  // Current microphone volume (0 = silence, ~0.1+ = loud speech).
+  function currentLevel() {
+    const samples = new Float32Array(analyserRef.current.fftSize);
+    analyserRef.current.getFloatTimeDomainData(samples);
+    return Math.sqrt(samples.reduce((sum, x) => sum + x * x, 0) / samples.length);
+  }
+
+  // Record until the user has spoken and then paused, then send the recording to Whisper.
   function listen() {
-    if (!activeRef.current) return;
+    if (!activeRef.current || !streamRef.current) return;
     if (mutedRef.current) {
       setStatus("muted");
       return;
     }
-    const recognition = new SpeechRecognition();
-    recognition.lang = LANGUAGES[languageRef.current].recognition;
-    recognition.interimResults = true; // show words while the user is talking
-    let finalText = "";
+    const chunks = [];
+    const recorder = new MediaRecorder(streamRef.current);
+    recorder.ondataavailable = (event) => chunks.push(event.data);
+    recorderRef.current = recorder;
 
-    recognition.onresult = (event) => {
-      const text = Array.from(event.results).map((r) => r[0].transcript).join("");
-      setHeard(text);
-      if (event.results[event.results.length - 1].isFinal) finalText = text;
-    };
-    recognition.onerror = (event) => {
-      if (event.error === "no-speech" || event.error === "aborted") return; // keep listening
-      activeRef.current = false;
-      setError(event.error === "not-allowed" || event.error === "service-not-allowed"
-        ? "Microphone access is blocked. Allow the microphone for this site and call again."
-        : `Voice recognition stopped (${event.error}). Please hang up and call again.`);
-    };
-    // Recognition ends when the user stops talking (or after silence).
-    recognition.onend = () => {
-      if (!activeRef.current || recognitionRef.current !== recognition) return;
-      if (finalText.trim()) ask(finalText.trim());
-      else listen(); // nothing was said: keep listening
+    const startedAt = Date.now();
+    let noise = 0;
+    let noiseSamples = 0;
+    let spokeAt = null;    // when speech started
+    let quietSince = null; // when the current silence started
+
+    recorder.onstop = () => {
+      clearInterval(timerRef.current);
+      setLevel(0);
+      if (!activeRef.current || mutedRef.current) return;
+      if (spokeAt) understand(new Blob(chunks, { type: recorder.mimeType }));
+      else listen(); // nobody spoke: start a fresh recording
     };
 
-    recognitionRef.current = recognition;
+    timerRef.current = setInterval(() => {
+      const volume = currentLevel();
+      const now = Date.now();
+      setLevel(volume);
+      if (now - startedAt < CALIBRATE_MS) {
+        noise += volume;
+        noiseSamples += 1;
+        return;
+      }
+      const threshold = Math.max(MIN_LEVEL, (noise / Math.max(noiseSamples, 1)) * 2.5);
+      if (volume > threshold) {
+        spokeAt ??= now;
+        quietSince = null;
+      } else if (spokeAt) {
+        quietSince ??= now;
+      }
+      const finished = spokeAt && quietSince && now - quietSince > SILENCE_MS;
+      const tooLong = spokeAt && now - spokeAt > MAX_QUESTION_MS;
+      const nobodySpoke = !spokeAt && now - startedAt > MAX_WAIT_MS;
+      if (finished || tooLong || nobodySpoke) recorder.stop();
+    }, 50);
+
+    recorder.start();
     setHeard("");
     setStatus("listening");
-    recognition.start();
   }
 
-  async function ask(question) {
-    recognitionRef.current = null;
-    setStatus("thinking");
-    const answer = await onAskRef.current(question); // the normal chat request
-    if (activeRef.current) speak(answer || LANGUAGES[languageRef.current].noAnswer);
-  }
-
-  // Switching language restarts listening so the new language is used right away.
-  function changeLanguage(code) {
-    languageRef.current = code;
-    setLanguage(code);
+  // Whisper turns the recording into text; then the question goes to the agent.
+  async function understand(recording) {
+    setStatus("understanding");
     try {
-      localStorage.setItem("callLanguage", code);
+      const { text, language } = await transcribe(recording);
+      if (!activeRef.current) return;
+      if (!text.trim()) {
+        listen(); // only noise was recorded
+        return;
+      }
+      languageRef.current = language;
+      setHeard(text);
+      setStatus("thinking");
+      const answer = await onAskRef.current(text); // the normal chat request
+      if (activeRef.current) speak([answer || NO_ANSWER[languageRef.current] || NO_ANSWER.en]);
     } catch {
-      // the choice is just not remembered
-    }
-    if (status === "listening") {
-      const recognition = recognitionRef.current;
-      recognitionRef.current = null;
-      recognition?.abort();
-      listen();
+      if (activeRef.current) speak([NO_ANSWER[languageRef.current] || NO_ANSWER.en]);
     }
   }
 
@@ -183,9 +237,7 @@ export default function CallScreen({ onAsk, onHangUp }) {
     mutedRef.current = nowMuted;
     setMuted(nowMuted);
     if (nowMuted && status === "listening") {
-      const recognition = recognitionRef.current;
-      recognitionRef.current = null;
-      recognition?.abort();
+      recorderRef.current?.stop(); // onstop sees "muted" and does not send anything
       setStatus("muted");
     } else if (!nowMuted && status === "muted") {
       listen();
@@ -194,43 +246,38 @@ export default function CallScreen({ onAsk, onHangUp }) {
 
   function interrupt() {
     if (status !== "speaking") return;
-    utteranceRef.current = null;
+    lastUtteranceRef.current = null;
     window.speechSynthesis.cancel();
     listen();
   }
 
   function hangUp() {
-    activeRef.current = false;
-    recognitionRef.current?.abort();
-    window.speechSynthesis.cancel();
+    stopEverything();
     onHangUp();
   }
 
   const time = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  // The circle grows with the voice while listening, so users see they are heard.
+  const glow = status === "listening" ? Math.min(level * 400, 40) : 0;
 
   return (
     <div className="call" role="dialog" aria-label="Voice call with the assistant">
       <div className="call-top">
         <img src="/giu-logo.jpg" alt="German International University" className="call-logo" />
-        <div className="call-languages" role="group" aria-label="Language you speak">
-          {Object.entries(LANGUAGES).map(([code, lang]) => (
-            <button key={code} className={language === code ? "active" : ""} onClick={() => changeLanguage(code)}>
-              {lang.label}
-            </button>
-          ))}
-        </div>
+        <span className="call-languages-note">العربية · English</span>
         <span className="call-time">{time}</span>
       </div>
 
       <div className="call-center">
-        <button className={`call-avatar ${status}`} onClick={interrupt} aria-label="Interrupt">
+        <button className={`call-avatar ${status}`} onClick={interrupt} aria-label="Interrupt"
+                style={glow ? { boxShadow: `0 0 0 ${glow}px rgba(196, 22, 28, 0.35)` } : undefined}>
           GIU
         </button>
         <h2>Labs &amp; Research Assistant</h2>
         <p className="call-status">{error || STATUS_TEXT[status]}</p>
 
         <div className="call-text">
-          {status === "listening" || status === "thinking" ? (
+          {status === "listening" || status === "understanding" || status === "thinking" ? (
             <p className="call-heard" dir="auto">{heard || "…"}</p>
           ) : (
             <p className="call-reply" dir="auto">{reply}</p>

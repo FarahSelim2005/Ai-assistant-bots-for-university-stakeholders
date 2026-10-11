@@ -26,11 +26,11 @@ Question ──► Rules ──► Retrieve ──► Validate ──► Generat
 | API | `backend/app/main.py`, `routers/` | HTTP endpoints, saving conversations, messages and feedback |
 | Agents | `backend/app/agents/` | The rules → retrieve → validate → generate flow |
 | RAG | `backend/app/rag/` | Embeddings, retrieval (cosine similarity with numpy), prompts |
-| LLM | `backend/app/llm/openrouter.py` | One function that calls OpenRouter chat completions |
+| LLM | `backend/app/llm/client.py` | Chat completions through OpenRouter, or a local Ollama model (`ollama/<name>`) |
 | Database | PostgreSQL `giu-bots` | Chunks with embeddings, conversations, messages, feedback |
 
 **Stack:** Python 3.13, FastAPI, psycopg 3 (raw SQL), httpx, numpy, pypdf ·
-PostgreSQL 18 · OpenRouter (`openai/text-embedding-3-small` for embeddings, chat
+PostgreSQL 18 · OpenRouter (`baai/bge-m3` multilingual embeddings, chat
 model set in `.env`) · React + Vite.
 
 ## Prerequisites (Windows)
@@ -103,6 +103,16 @@ Open `backend/.env` and fill in:
 
 `.env` is ignored by git. Never commit it.
 
+**Local models (Ollama):** any model written as `ollama/<name>` runs on your own
+computer through [Ollama](https://ollama.com) instead of OpenRouter: free, unlimited and
+offline, but slower. Measured on a laptop with a 4-thread CPU and a GeForce 940MX,
+`ollama/gemma4:e4b` scored 17/18 with ~27 s per answer (Nemotron on OpenRouter: ~2 s).
+It works best as the **last backup**, so the chat keeps answering after the free
+OpenRouter limit is reached:
+`LABS_BACKUP_MODEL=nvidia/nemotron-3-super-120b-a12b:free,ollama/gemma4:e4b`.
+Ollama must be running (`ollama serve`, or the Ollama app). Thinking is turned off for
+local models in `backend/app/llm/client.py`, which makes Gemma 4 about 3x faster.
+
 **Choosing `LABS_MODEL`:** lab questions are simple lookups, so pick a fast,
 cheap, *non-reasoning* model ("flash-lite", "nano", "mini"). Reasoning/"thinking"
 models add several seconds. Copy the exact ID shown under the model's name on its
@@ -134,13 +144,13 @@ a file's old chunks are replaced.
 Options: `--agent <name>`, `--audience student` (staff-only or student-only
 documents), `--folder <path>`.
 
-The two files in `data/raw/` are **fictional placeholder data** for testing. Replace
-them with official GIU documents:
+The file in `data/raw/` is **fictional placeholder data** for testing. Replace it with
+official GIU documents:
 
-- `sample_labs_and_research.md`: labs, research funding and thesis support
 - `campus_buildings.md`: Buildings A, M and S, room numbering (ground floor 001–030,
-  then 101–120, 201–220, 301–320, 401–420) and offices such as Admission, Academic
-  Coordinator, German Office, Clinic, Library, Finance and Student Affairs
+  then 101–120, 201–220, 301–320, 401–420), offices such as Admission, Academic
+  Coordinator, German Office, Clinic, Library, Finance and Student Affairs, and places
+  such as the supermarket, gym and sports courts
 
 Quick checks from the terminal:
 
@@ -191,6 +201,23 @@ model, and only codes that follow the numbering rules are shown. The layout in
 `frontend/src/components/CampusMap.jsx` matches the "Campus Layout and Directions"
 section of `campus_buildings.md`; keep the two in sync.
 
+**Rooms and places:** a room code in a question (e.g. "Which floor is A107 on?",
+"a 305", "فين أوضة S214؟") adds its building and floor, worked out from the numbering
+rules in `backend/app/campus.py`, so any valid room can be answered, also rooms that
+are not listed in the documents. Places outside the buildings (supermarket, gym, padel,
+food court, football, tennis and basketball courts) are described in
+`campus_buildings.md`; when an answer names one, it gets a "🚶 Walk me to …" Google
+Maps button (positions in `frontend/src/campusGeo.js`).
+
+**English words in Arabic letters:** questions like "فين بسكت بال؟" (basketball),
+"فين بدل؟" (padel) or "فين الكلينيك؟" (clinic) are understood through a small glossary
+in `backend/app/rag/transliteration.py`. Words are compared by their consonants
+(vowel letters ا و ي and "ال" ignored), so spellings like بادل / بدل / باديل all match.
+Words that are also everyday Arabic ("بدل" = instead of, "تنسى" = forget) only count
+when the question is about a place ("فين بدل؟", "ملعب بدل"). Egyptian question words are
+translated too, so "فين بسكت بال" is also searched as "where is basketball", and the
+best match of both searches is kept. Add new words to `GLOSSARY` when needed.
+
 **Walking directions:** the map card has a "🚶 Walk me to Building …" button that opens
 Google Maps walking navigation from the user's location to the building's entrance.
 The real GPS positions of the entrances (M: 2, A: 3, S: 1) are in
@@ -202,21 +229,22 @@ question is compared with each agent's description (`backend/app/agents/director
 embeddings only, no chat model call) and the fallback message gets a button to the
 best-matching agent. Students can be sent to Orientation and Graduation & Advising;
 staff also to HR & Policies. Nothing is suggested when no agent matches
-(`AGENT_LINK_THRESHOLD` in `config.py`). Agents that are not built yet open a
+(`AGENT_LINK_MIN_GAP` in `config.py`: the best agent must clearly beat the second best). Agents that are not built yet open a
 "coming soon" page (`/?agent=<key>`, `frontend/src/components/ComingSoon.jsx`).
 
 **Voice call:** the 📞 Call button (Edge and Chrome) opens a hands-free call: the
-assistant greets you, listens, sends what you said as a normal chat question, reads
-the answer aloud and listens again, until you hang up. Speech recognition and the
-voice are the browser's own (Web Speech API), so no extra service or dependency is
-needed; the browser sends the audio to its speech service (Microsoft or Google) to
-turn it into text. Each spoken question is one normal chat request, and the whole
-call appears in the chat afterwards (including maps). Tap the circle to interrupt
-the assistant. A switch at the top chooses the spoken language: **English** or
-**عربي + English** (Egyptian Arabic, which also understands English words mixed into
-Arabic sentences). Answers are read with an Arabic or English voice depending on
-their text, and Arabic questions get Arabic answers (room codes stay in Latin letters
-so the map still works). Code: `frontend/src/components/CallScreen.jsx`.
+assistant greets you, records you until you pause, turns the recording into text,
+sends it as a normal chat question, reads the answer aloud and listens again, until
+you hang up. **Arabic, English or a mix are detected automatically**: the recording
+goes to `POST /transcribe` (`backend/app/speech.py`), which uses **Groq's hosted
+Whisper large-v3-turbo** when `GROQ_API_KEY` is set in `.env` (free key at
+https://console.groq.com; under a second, best Arabic; free tier of about 2,000
+requests a day, the recording is sent to Groq). Without a key, or when Groq is
+unreachable or over its limit, it falls back to **local Whisper** (faster-whisper,
+free, offline; `WHISPER_MODEL` in `config.py`: `base` ~3 s per question on a 4-thread
+CPU, `small` better Arabic but ~12 s there; downloaded once on the first start).
+Answers are read with an Arabic or English browser voice depending on their
+text. Tap the circle to interrupt. Code: `frontend/src/components/CallScreen.jsx`.
 
 **Attachments:** the 📎 button lets students and staff attach one file to a question
 (PDF, TXT, MD, PNG, JPG or WEBP, up to 5 MB) and ask about it. Documents are converted
@@ -247,9 +275,9 @@ and maximum response time, and how many answers took over 2 seconds.
 python -m scripts.evaluate --user-type staff --out data/results.csv   # save every answer
 ```
 
-The 18 included questions are placeholders based on the two sample documents. The
-last two ask for information that is not in the documents and expect `don't have`,
-to check the agent does not invent answers.
+The 17 included questions are placeholders based on the sample campus document. Two of
+them (the AI lab's phone number and renewing a passport) ask for information that is
+not in the documents and expect `don't have`, to check the agent does not invent answers.
 
 ## Settings
 
@@ -258,7 +286,7 @@ All settings are in `backend/app/config.py`:
 | Setting | Default | Meaning |
 |---|---|---|
 | `TOP_K` | 4 | chunks returned by the retriever |
-| `SIMILARITY_THRESHOLD` | 0.35 | chunks below this score are ignored; if none pass, the fallback message is returned |
+| `SIMILARITY_THRESHOLD` | 0.48 | chunks below this score are ignored; if none pass, the fallback message is returned |
 | `CHUNK_SIZE_WORDS` / `CHUNK_OVERLAP_WORDS` | 200 / 40 | chunking during ingestion |
 
 Re-check `SIMILARITY_THRESHOLD` after adding real documents: run `try_retrieve` with
@@ -274,12 +302,13 @@ backend/
     config.py            all settings (reads .env)
     attachments.py       reads files attached to a chat message
     campus.py            finds room codes in answers for the campus map
+    speech.py            speech-to-text for the voice call (Groq Whisper, local fallback)
     db.py                PostgreSQL connection
     schemas.py           request/response models
-    routers/             session.py, chat.py, feedback.py
+    routers/             session.py, chat.py, feedback.py, speech.py
     agents/              base.py (shared flow), labs_research.py
-    rag/                 embeddings.py, retriever.py, prompts.py
-    llm/openrouter.py    chat completions call
+    rag/                 embeddings.py, retriever.py, prompts.py, transliteration.py
+    llm/client.py        chat completions (OpenRouter or local Ollama)
   scripts/
     ingest.py            load documents into the chunks table
     evaluate.py          accuracy and response time on test questions

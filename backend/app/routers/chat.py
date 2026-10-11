@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 from app.agents import AGENTS
 from app.attachments import read_attachment
 from app.db import get_connection
-from app.llm.openrouter import LLMError
+from app.llm.client import LLMError
 from app.schemas import ChatRequest, ChatResponse
 
 router = APIRouter()
@@ -64,6 +64,7 @@ def chat(body: ChatRequest) -> ChatResponse:
         answer=result.answer,
         sources=result.sources,
         locations=[asdict(location) for location in result.locations],
+        places=[{"key": place.key, "name": place.name} for place in result.places],
         redirect=asdict(result.redirect) if result.redirect else None,
         message_id=message_id,
     )
