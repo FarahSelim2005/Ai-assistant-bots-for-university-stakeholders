@@ -12,7 +12,8 @@ from app.attachments import Attachment
 from app.campus import Location, Place, find_locations, find_places, room_facts, rooms_in_question
 from app.llm.client import chat_with_backup
 from app.rag.prompts import build_messages
-from app.rag.retriever import RetrievedChunk, retrieve
+from app.rag.transliteration import search_variants, with_english_terms
+from app.rag.retriever import RetrievedChunk, retrieve_best
 
 MAX_QUESTION_LENGTH = 1000
 ROOM_FACTS_SOURCE = "Room numbering rules"
@@ -45,8 +46,12 @@ class BaseAgent:
         question = question.strip()
         # 1. Rules
         self.check_rules(question, user_type, attachment)
+        # English words written in Arabic letters ("فين بسكت بال؟") get their English
+        # form added, so the search and place detection understand them.
+        search_question = with_english_terms(question)
         # 2. Retrieve (filtered by this agent and the user's type)
-        chunks = retrieve(self.search_text(question, history), self.name, user_type)
+        chunks = retrieve_best([self.search_text(q, history) for q in search_variants(question)],
+                               self.name, user_type)
         # 3. Validate: with no relevant chunk and no attachment, skip the model and
         #    return the fallback, with a link to the agent that probably can answer
         relevant = self.validate(chunks)
@@ -57,13 +62,13 @@ class BaseAgent:
             relevant.insert(0, RetrievedChunk(room_facts(asked_rooms), ROOM_FACTS_SOURCE, 1.0))
         if not relevant and attachment is None:
             return AgentResponse(answer=self.fallback_for(question), sources=[],
-                                 redirect=suggest_agent(question, self.name, user_type))
+                                 redirect=suggest_agent(search_question, self.name, user_type))
         # 4. Generate
         answer = self.generate(question, relevant, history, attachment)
         # Show only the places the user asked about (an answer about the gym may also
         # mention the supermarket next to it); use the answer only if the question
         # names no place, e.g. "where can I work out?".
-        places = find_places(question) or find_places(answer)
+        places = find_places(search_question) or find_places(answer)
         return AgentResponse(answer=answer, sources=unique_sources(relevant),
                              locations=find_locations(answer), places=places)
 

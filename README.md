@@ -209,6 +209,12 @@ food court, football, tennis and basketball courts) are described in
 `campus_buildings.md`; when an answer names one, it gets a "🚶 Walk me to …" Google
 Maps button (positions in `frontend/src/campusGeo.js`).
 
+**English words in Arabic letters:** questions like "فين بسكت بال؟" (basketball) or
+"فين الكلينك؟" (clinic) are understood through a small glossary in
+`backend/app/rag/transliteration.py`. When a question contains such words, it is
+searched twice, once with the English word added and once with it replaced, and the
+better match is kept. Add new words to `GLOSSARY` when students use other spellings.
+
 **Walking directions:** the map card has a "🚶 Walk me to Building …" button that opens
 Google Maps walking navigation from the user's location to the building's entrance.
 The real GPS positions of the entrances (M: 2, A: 3, S: 1) are in
@@ -298,7 +304,7 @@ backend/
     schemas.py           request/response models
     routers/             session.py, chat.py, feedback.py, speech.py
     agents/              base.py (shared flow), labs_research.py
-    rag/                 embeddings.py, retriever.py, prompts.py
+    rag/                 embeddings.py, retriever.py, prompts.py, transliteration.py
     llm/client.py        chat completions (OpenRouter or local Ollama)
   scripts/
     ingest.py            load documents into the chunks table

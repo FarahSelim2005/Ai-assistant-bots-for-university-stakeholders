@@ -71,7 +71,7 @@ Building A and Building M, next to the basketball court.
 
 ## Basketball Court
 
-Arabic names: ملعب الباسكت، ملعب كرة السلة.
+Arabic names: ملعب الباسكت، الباسكت بول، بسكت بال، ملعب كرة السلة.
 The GIU basketball court is the red court between Building A and Building M, about 75
 metres north-west of Building M. It is on the left (west) side of the tennis court and
 the football field.
@@ -110,6 +110,7 @@ the second floor.
 
 ## Admission Office
 
+Arabic names: مكتب القبول، شئون القبول، التقديم.
 The Admission Office is in Building M, Room M005 (ground floor). It handles new
 applications, admission tests, submission of school certificates and transfer
 requests. It is open Sunday to Thursday from 9:00 AM to 3:00 PM.
@@ -117,6 +118,7 @@ Contact: admission@example.edu.
 
 ## Academic Coordinator
 
+Arabic names: المنسق الأكاديمي، الأكاديميك كوردينيتور.
 The Academic Coordinator's office is in Building M, Room M110 (first floor). The
 Academic Coordinator helps students with course registration, adding and dropping
 courses, schedule clashes, study plans and academic warnings. Office hours are
@@ -124,6 +126,7 @@ Sunday to Thursday from 10:00 AM to 3:00 PM. Contact: academic.coordinator@examp
 
 ## German Office
 
+Arabic names: المكتب الألماني، مكتب الجيرمان.
 The German Office is in Building M, Room M201 (second floor). It organizes German
 language courses, the semester abroad in Germany, internships in Germany and
 DAAD scholarship applications. It is open Sunday to Thursday from 9:00 AM to 2:00 PM.
@@ -131,6 +134,7 @@ Contact: german.office@example.edu.
 
 ## Clinic
 
+Arabic names: العيادة، الكلينك، الدكتور.
 The Clinic is in Building M, Room M012 (ground floor). A doctor and a nurse are
 available Sunday to Thursday from 8:30 AM to 4:30 PM for first aid, minor illnesses
 and medical excuses. In an emergency, call the campus emergency line at extension
@@ -144,6 +148,7 @@ Library (S401 to S420) on the fourth floor, the top floor of the building.
 
 ## Library
 
+Arabic names: المكتبة، اللايبراري.
 The Library is on the top floor of Building S: the fourth floor, which is the fifth
 level when the ground floor is counted. The main reading hall is in rooms S401 to
 S410 and the quiet study rooms are in rooms S411 to S420. Take the stairs or the
@@ -154,6 +159,7 @@ Contact: library@example.edu.
 
 ## Finance Office
 
+Arabic names: الماليات، الحسابات، الفاينانس، مكتب المصاريف.
 The Finance Office is in Building S, Room S115 (first floor). It handles tuition
 fee payments, installment plans, refunds and payment receipts. Tuition fees can
 be paid at the Finance Office by card or by bank transfer. It is open Sunday to
@@ -161,6 +167,7 @@ Thursday from 9:00 AM to 3:00 PM. Contact: finance@example.edu.
 
 ## Student Affairs Office
 
+Arabic names: شئون الطلاب، الستيودنت أفيرز.
 The Student Affairs Office is in Building S, Room S201 (second floor). It handles
 student ID cards, enrollment certificates, student clubs and activities, and
 student complaints. It is open Sunday to Thursday from 9:00 AM to 4:00 PM.
