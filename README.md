@@ -209,11 +209,14 @@ food court, football, tennis and basketball courts) are described in
 `campus_buildings.md`; when an answer names one, it gets a "🚶 Walk me to …" Google
 Maps button (positions in `frontend/src/campusGeo.js`).
 
-**English words in Arabic letters:** questions like "فين بسكت بال؟" (basketball) or
-"فين الكلينك؟" (clinic) are understood through a small glossary in
-`backend/app/rag/transliteration.py`. When a question contains such words, it is
-searched twice, once with the English word added and once with it replaced, and the
-better match is kept. Add new words to `GLOSSARY` when students use other spellings.
+**English words in Arabic letters:** questions like "فين بسكت بال؟" (basketball),
+"فين بدل؟" (padel) or "فين الكلينيك؟" (clinic) are understood through a small glossary
+in `backend/app/rag/transliteration.py`. Words are compared by their consonants
+(vowel letters ا و ي and "ال" ignored), so spellings like بادل / بدل / باديل all match.
+Words that are also everyday Arabic ("بدل" = instead of, "تنسى" = forget) only count
+when the question is about a place ("فين بدل؟", "ملعب بدل"). Egyptian question words are
+translated too, so "فين بسكت بال" is also searched as "where is basketball", and the
+best match of both searches is kept. Add new words to `GLOSSARY` when needed.
 
 **Walking directions:** the map card has a "🚶 Walk me to Building …" button that opens
 Google Maps walking navigation from the user's location to the building's entrance.
