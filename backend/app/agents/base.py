@@ -36,8 +36,13 @@ class BaseAgent:
     model: str
     backup_models: list[str]  # tried in order when `model` fails, e.g. a free model is rate-limited
     vision_model: str  # used instead of `model` when the user attaches an image
+    vision_backup_models: list[str] = []  # tried in order when `vision_model` fails
     fallback_message: str
     fallback_message_ar: str = ""  # used when the question contains Arabic
+    # False: no relevant document -> fallback message without asking the model (Labs).
+    # True: the model may still give general advice without documents (Career).
+    answers_without_documents: bool = False
+    max_answer_tokens: int = 400  # longer for agents that write long answers (CV reviews)
 
     def run(self, question: str, user_type: str, history: list[dict] | None = None,
             attachment: Attachment | None = None) -> AgentResponse:
@@ -60,9 +65,17 @@ class BaseAgent:
         asked_rooms = rooms_in_question(question)
         if asked_rooms:
             relevant.insert(0, RetrievedChunk(room_facts(asked_rooms), ROOM_FACTS_SOURCE, 1.0))
-        if not relevant and attachment is None:
+        if not relevant and attachment is None and not self.answers_without_documents:
             return AgentResponse(answer=self.fallback_for(question), sources=[],
                                  redirect=suggest_agent(search_question, self.name, user_type))
+        # A question that only weakly matches this agent's documents but clearly belongs
+        # to another built agent is handed over to it instead of being answered here.
+        best_score = max((c.score for c in chunks), default=0.0)
+        if attachment is None and not asked_rooms and best_score < config.HANDOVER_MAX_SCORE:
+            owner = suggest_agent(search_question, self.name, user_type,
+                                  min_gap=config.HANDOVER_MIN_GAP, built_only=True)
+            if owner:
+                return AgentResponse(answer=self.fallback_for(question), sources=[], redirect=owner)
         # 4. Generate
         answer = self.generate(question, relevant, history, attachment)
         # Show only the places the user asked about (an answer about the gym may also
@@ -107,8 +120,9 @@ class BaseAgent:
         """Ask the model to answer from the relevant chunks and the attachment only."""
         messages = build_messages(self.system_prompt, question, chunks, history, attachment)
         if attachment and attachment.is_image:
-            return chat_with_backup(messages, [self.vision_model])
-        return chat_with_backup(messages, [self.model, *self.backup_models])
+            return chat_with_backup(messages, [self.vision_model, *self.vision_backup_models],
+                                    self.max_answer_tokens)
+        return chat_with_backup(messages, [self.model, *self.backup_models], self.max_answer_tokens)
 
 
 def unique_sources(chunks: list[RetrievedChunk]) -> list[str]:

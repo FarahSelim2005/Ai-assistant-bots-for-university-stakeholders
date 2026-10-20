@@ -1,8 +1,12 @@
 """Load documents from data/raw, split them into chunks, embed them, and store them.
 
+Each agent has its own folder named after it, e.g. data/raw/labs_research/ and
+data/raw/internship_career/. Who may see the chunks (students, staff) comes from the
+agent list in app/agents/directory.py.
+
 Run from the backend folder:
-    python -m scripts.ingest
-    python -m scripts.ingest --agent labs_research --audience student,staff
+    python -m scripts.ingest                          # every agent's folder
+    python -m scripts.ingest --agent internship_career
 
 Re-running is safe: chunks of a file are deleted before that file is ingested again,
 and chunks of files that were removed from the folder are deleted too.
@@ -14,6 +18,7 @@ from pathlib import Path
 from pypdf import PdfReader
 
 from app import config
+from app.agents.directory import AGENT_DIRECTORY
 from app.db import get_connection
 from app.rag.embeddings import embed_texts
 
@@ -90,30 +95,37 @@ def ingest_file(path: Path, agent: str, audience: list[str]) -> int:
     return len(chunks)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Ingest documents into the chunks table.")
-    parser.add_argument("--agent", default="labs_research")
-    parser.add_argument("--audience", default="student,staff",
-                        help="comma-separated user types allowed to see these chunks")
-    parser.add_argument("--folder", default=str(config.RAW_DATA_DIR))
-    args = parser.parse_args()
-
-    audience = [a.strip() for a in args.audience.split(",") if a.strip()]
-    files = sorted(p for p in Path(args.folder).iterdir()
-                   if p.suffix.lower() in SUPPORTED_EXTENSIONS)
-    if not files:
-        print(f"No .pdf/.txt/.md files found in {args.folder}")
-        return
-
+def ingest_agent(agent: str, folder: Path, audience: list[str]) -> None:
+    """Index all documents in one agent's folder and remove chunks of deleted files."""
+    files = sorted(p for p in folder.iterdir() if p.suffix.lower() in SUPPORTED_EXTENSIONS)
     total = 0
     for path in files:
-        count = ingest_file(path, args.agent, audience)
-        print(f"{path.name}: {count} chunks")
+        count = ingest_file(path, agent, audience)
+        print(f"  {path.name}: {count} chunks")
         total += count
-    removed = remove_missing_files(args.agent, [p.name for p in files])
-    for source, count in removed:
-        print(f"{source}: no longer in the folder, {count} old chunks removed")
-    print(f"Done. {total} chunks stored for agent '{args.agent}' (audience: {audience}).")
+    for source, count in remove_missing_files(agent, [p.name for p in files]):
+        print(f"  {source}: no longer in the folder, {count} old chunks removed")
+    print(f"  {total} chunks stored for '{agent}' (audience: {audience}).")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Ingest documents into the chunks table.")
+    parser.add_argument("--agent", help="only this agent (default: every folder in data/raw)")
+    args = parser.parse_args()
+
+    audiences = {a.key: list(a.user_types) for a in AGENT_DIRECTORY}
+    folders = sorted(p for p in config.RAW_DATA_DIR.iterdir() if p.is_dir())
+    if args.agent:
+        folders = [f for f in folders if f.name == args.agent]
+    if not folders:
+        print(f"No agent folders found in {config.RAW_DATA_DIR}")
+        return
+    for folder in folders:
+        if folder.name not in audiences:
+            print(f"Skipping {folder.name}/: no agent with that name in app/agents/directory.py")
+            continue
+        print(f"{folder.name}:")
+        ingest_agent(folder.name, folder, audiences[folder.name])
 
 
 def remove_missing_files(agent: str, present: list[str]) -> list[tuple[str, int]]:

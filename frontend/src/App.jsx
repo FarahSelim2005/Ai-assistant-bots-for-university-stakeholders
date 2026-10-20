@@ -1,22 +1,18 @@
 import { useEffect, useRef, useState } from "react";
+import { findAgent } from "./agents.js";
 import { sendFeedback, sendMessage, startSession } from "./api.js";
 import CallScreen, { callSupported } from "./components/CallScreen.jsx";
 import Message from "./components/Message.jsx";
 import StartScreen from "./components/StartScreen.jsx";
 
-const EXAMPLE_QUESTIONS = [
-  "Where is the AI lab?",
-  "Where is the Admission Office?",
-  "How do I pay my tuition fees?",
-  "Where is the gym?",
-];
-
 // Must match the backend (app/attachments.py and MAX_UPLOAD_MB in config.py).
 const ACCEPTED_FILES = ".pdf,.txt,.md,.png,.jpg,.jpeg,.webp";
 const MAX_UPLOAD_MB = 5;
+const CV_QUESTION = "Please analyze my CV and suggest improvements.";
 
-export default function App() {
+export default function App({ initialAgent }) {
   const [userType, setUserType] = useState(null);
+  const [agentKey, setAgentKey] = useState(null); // which assistant this chat is with
   const [conversationId, setConversationId] = useState(null);
   // Each message: { role, content, attachment?, sources?, locations?, places?, redirect?, messageId?, rating? }
   const [messages, setMessages] = useState([]);
@@ -26,20 +22,36 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [calling, setCalling] = useState(false);
+  const [slow, setSlow] = useState(false); // the answer takes long: explain why
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
+  const cvReviewRef = useRef(false); // the next chosen file is a CV to analyse right away
+  const requestRef = useRef(null); // the answer being waited for: { controller, query, file }
+  const agent = findAgent(agentKey) || findAgent("labs_research");
+
+  // After 8 seconds of waiting, explain the delay (usually the free online models are
+  // busy and the backup model on this computer is answering).
+  useEffect(() => {
+    if (!loading) {
+      setSlow(false);
+      return undefined;
+    }
+    const timer = setTimeout(() => setSlow(true), 8000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   // Keep the newest message in view.
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  async function choose(type) {
+  async function choose(type, chosenAgent) {
     setLoading(true);
     setError("");
     try {
-      const data = await startSession(type);
+      const data = await startSession(type, chosenAgent);
       setUserType(type);
+      setAgentKey(chosenAgent);
       setConversationId(data.conversation_id);
     } catch (err) {
       setError(`Could not start the chat: ${err.message}`);
@@ -58,11 +70,24 @@ export default function App() {
     }
     // Read the file as a data URL ("data:<type>;base64,<content>") to send it as JSON.
     const reader = new FileReader();
-    reader.onload = () =>
-      setAttachment({ filename: file.name, dataUrl: reader.result, isImage: file.type.startsWith("image/") });
+    reader.onload = () => {
+      const chosen = { filename: file.name, dataUrl: reader.result, isImage: file.type.startsWith("image/") };
+      if (cvReviewRef.current) {
+        cvReviewRef.current = false;
+        send(CV_QUESTION, chosen); // "Analyze my CV": send the CV straight away
+      } else {
+        setAttachment(chosen);
+      }
+    };
     reader.onerror = () => setError("The file could not be read.");
     reader.readAsDataURL(file);
     setError("");
+  }
+
+  // "Analyze my CV": pick a file, which is then sent with CV_QUESTION.
+  function analyzeCv() {
+    cvReviewRef.current = true;
+    fileInputRef.current.click();
   }
 
   function handleSubmit(event) {
@@ -81,8 +106,11 @@ export default function App() {
     setAttachment(null);
     setLoading(true);
     setError("");
+    const request = { controller: new AbortController(), query, file };
+    requestRef.current = request;
     try {
-      const data = await sendMessage(conversationId, query, file);
+      const data = await sendMessage(conversationId, query, file, request.controller.signal);
+      if (requestRef.current !== request) return null; // stopped meanwhile: ignore the late answer
       setMessages((prev) => [
         ...prev,
         {
@@ -97,11 +125,32 @@ export default function App() {
       ]);
       return data.answer;
     } catch (err) {
-      setError(err.message);
+      // AbortError, or a request that was stopped meanwhile: the user pressed Stop
+      if (err.name !== "AbortError" && requestRef.current === request) setError(err.message);
       return null;
     } finally {
-      setLoading(false);
+      if (requestRef.current === request) {
+        requestRef.current = null;
+        setLoading(false);
+      }
     }
+  }
+
+  // "Stop": cancel the answer and put the question (and its file) back in the input box,
+  // so it can be edited and sent again. The backend then does not save it either.
+  // It always resets the screen, even if the request cannot be found (for example after
+  // the page was updated while a slow answer was still running).
+  function stop() {
+    const request = requestRef.current;
+    requestRef.current = null; // any answer that still arrives is ignored
+    request?.controller.abort();
+    const question = messages[messages.length - 1];
+    const waiting = question?.role === "user" ? question : null;
+    if (waiting) setMessages((prev) => prev.slice(0, -1)); // remove the question that was waiting
+    const query = request?.query ?? waiting?.content ?? "";
+    setInput(query === CV_QUESTION || query === "Please explain this file." ? "" : query);
+    setAttachment(request?.file ?? waiting?.attachment ?? null);
+    setLoading(false);
   }
 
   async function handleRate(messageId, rating) {
@@ -115,6 +164,7 @@ export default function App() {
 
   function newChat() {
     setUserType(null);
+    setAgentKey(null);
     setConversationId(null);
     setMessages([]);
     setAttachment(null);
@@ -122,7 +172,7 @@ export default function App() {
   }
 
   if (!conversationId) {
-    return <StartScreen onChoose={choose} loading={loading} error={error} />;
+    return <StartScreen onChoose={choose} loading={loading} error={error} initialAgent={initialAgent} />;
   }
 
   return (
@@ -130,8 +180,8 @@ export default function App() {
       <header className="topbar">
         <img src="/giu-logo.jpg" alt="German International University" className="topbar-logo" />
         <div className="topbar-title">
-          <h1>Labs &amp; Research Assistant</h1>
-          <span>Answers from official GIU documents</span>
+          <h1>{agent.name}</h1>
+          <span>{agent.subtitle}</span>
         </div>
         <span className="badge">{userType === "staff" ? "Staff" : "Student"}</span>
         {callSupported && (
@@ -143,16 +193,24 @@ export default function App() {
       </header>
       <div className="flag-stripe" />
 
-      {calling && <CallScreen onAsk={(question) => send(question)} onHangUp={() => setCalling(false)} />}
+      {calling && (
+        <CallScreen onAsk={(question) => send(question)} onHangUp={() => setCalling(false)} agentName={agent.name} />
+      )}
 
       <main className="messages">
         <div className="messages-inner">
           {messages.length === 0 && (
             <div className="welcome">
               <h2>How can I help you today?</h2>
-              <p className="muted">Ask anything about GIU labs and research, or try one of these:</p>
+              <p className="muted">{agent.welcome}</p>
+              {agent.cvReview && (
+                <button className="cv-button" onClick={analyzeCv} disabled={loading}>
+                  📄 Analyze my CV
+                  <span>Upload your CV (PDF) and get concrete improvements</span>
+                </button>
+              )}
               <div className="suggestions">
-                {EXAMPLE_QUESTIONS.map((question) => (
+                {agent.examples.map((question) => (
                   <button key={question} className="suggestion" onClick={() => send(question)}>
                     {question}
                   </button>
@@ -166,7 +224,16 @@ export default function App() {
           {loading && (
             <div className="message assistant">
               <div className="avatar">GIU</div>
-              <div className="bubble typing"><span /><span /><span /></div>
+              <div className="assistant-body">
+                <div className="bubble typing"><span /><span /><span /></div>
+                {slow && (
+                  <p className="slow-note">
+                    Still working… The free online models seem busy, so a backup model on this
+                    computer is answering. This can take up to a minute. You can press Stop to
+                    edit your message.
+                  </p>
+                )}
+              </div>
             </div>
           )}
           <div ref={bottomRef} />
@@ -206,12 +273,24 @@ export default function App() {
           <input
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder={attachment ? "Ask about your file..." : "Ask about labs, offices, rooms, research funding..."}
+            placeholder={attachment ? "Ask about your file..." : agent.placeholder}
             maxLength={1000}
             dir="auto"
             autoFocus
           />
-          <button type="submit" disabled={loading || (!input.trim() && !attachment)}>Send</button>
+          {agent.cvReview && (
+            <button type="button" className="attach" onClick={analyzeCv} disabled={loading}
+                    title="Analyze my CV" aria-label="Analyze my CV">
+              📄
+            </button>
+          )}
+          {loading ? (
+            <button type="button" className="stop-button" onClick={stop} title="Stop and edit your message">
+              ■ Stop
+            </button>
+          ) : (
+            <button type="submit" disabled={!input.trim() && !attachment}>Send</button>
+          )}
         </form>
       </footer>
     </div>

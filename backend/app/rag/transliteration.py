@@ -48,6 +48,16 @@ GLOSSARY = {
     "building": ["بيلدنج"],
     "room": ["روم"],
     "floor": ["فلور"],
+    # careers (Internship & Career agent)
+    "CV": ["سي في", "السي في"],
+    "resume": ["ريزيوم", "ريزومي"],
+    "internship": ["انترنشيب", "انترنشبس"],
+    "interview": ["انترفيو", "انترفيوز"],
+    "LinkedIn": ["لينكد ان", "لينكدان"],
+    "career fair": ["كارير فير"],
+    "career center": ["كارير سنتر"],
+    "career": ["كارير"],
+    "skills": ["سكيلز", "سكيل"],
     # Egyptian question words, so "فين بسكت بال" can also be searched as "where is basketball"
     "where is": ["فين"],
     "when": ["امتي"],

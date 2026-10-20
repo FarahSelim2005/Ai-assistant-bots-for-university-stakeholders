@@ -4,6 +4,7 @@ Both speak the same OpenAI-style API. A model written as "ollama/<name>" (for ex
 "ollama/gemma4:e4b") runs on this computer through Ollama: free, unlimited, offline,
 but slower. Every other model name goes to OpenRouter.
 """
+import logging
 import time
 
 import httpx
@@ -11,6 +12,7 @@ import httpx
 from app import config
 
 OLLAMA_PREFIX = "ollama/"
+log = logging.getLogger("uvicorn.error")  # shows up in the backend terminal
 
 # Shared clients reuse their connections, which saves time on every call.
 # Local models on a laptop are slow, so Ollama gets a much longer timeout.
@@ -39,6 +41,11 @@ def chat(messages: list[dict], model: str,
         # Models like Gemma 4 otherwise "think" silently first: ~300 tokens instead
         # of ~40, which took 2 minutes instead of 35 seconds on a laptop.
         body["reasoning_effort"] = "none"
+        # A laptop writes only a few words per second, so keep local answers short, and
+        # ask for a short answer so it ends naturally instead of being cut off.
+        # (Measured: 300 tokens took ~90 s; this gives a complete ~100-token answer in ~16 s.)
+        body["max_tokens"] = min(max_tokens, config.OLLAMA_MAX_TOKENS)
+        body["messages"] = ask_for_short_answer(messages)
     else:
         if not config.OPENROUTER_API_KEY:
             raise RuntimeError("OPENROUTER_API_KEY is not set in backend/.env")
@@ -60,7 +67,8 @@ def chat(messages: list[dict], model: str,
     return content.strip()
 
 
-def chat_with_backup(messages: list[dict], models: list[str], rounds: int = 2) -> str:
+def chat_with_backup(messages: list[dict], models: list[str], max_tokens: int = 400,
+                     rounds: int = 2) -> str:
     """Try the models in order and return the first answer.
 
     Free models are often rate-limited (daily limit or busy provider), so if one
@@ -73,8 +81,35 @@ def chat_with_backup(messages: list[dict], models: list[str], rounds: int = 2) -
         if round_number > 0:
             time.sleep(1)
         for model in [m for m in models if m]:
+            started = time.perf_counter()
             try:
-                return chat(messages, model)
+                answer = chat(messages, model, max_tokens=max_tokens)
+                log.info("Answered by %s in %.1f s", model, time.perf_counter() - started)
+                return answer
             except (httpx.HTTPError, LLMError) as error:
+                log.warning("%s failed after %.1f s: %s", model, time.perf_counter() - started, describe(error))
                 last_error = error
     raise last_error
+
+
+def describe(error: Exception) -> str:
+    """A short reason for the log, e.g. "429 Rate limit exceeded: free-models-per-day"."""
+    response = getattr(error, "response", None)
+    if response is not None:
+        try:
+            message = response.json().get("error", {}).get("message", "")
+        except ValueError:
+            message = response.text[:100]
+        return f"{response.status_code} {message}".strip()
+    return str(error) or type(error).__name__
+
+
+SHORT_ANSWER = ("\n\nKeep the answer as short as possible: one or two sentences for a simple "
+                "question, at most 5 short lines otherwise. Do not add extra information.")
+
+
+def ask_for_short_answer(messages: list[dict]) -> list[dict]:
+    """A copy of the messages whose system message also asks for a short answer."""
+    if messages and messages[0]["role"] == "system":
+        return [{**messages[0], "content": messages[0]["content"] + SHORT_ANSWER}, *messages[1:]]
+    return [{"role": "system", "content": SHORT_ANSWER.strip()}, *messages]

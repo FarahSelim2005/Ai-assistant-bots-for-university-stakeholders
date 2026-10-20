@@ -25,11 +25,15 @@ LABS_MODEL = os.getenv("LABS_MODEL", "")
 # separated by commas: LABS_BACKUP_MODEL=model-one,model-two
 LABS_BACKUP_MODELS = [m.strip() for m in os.getenv("LABS_BACKUP_MODEL", "").split(",") if m.strip()]
 VISION_MODEL = os.getenv("VISION_MODEL", "")  # must accept images; used only when an image is attached
+# Optional backups for pictures, tried in order when VISION_MODEL fails (comma-separated,
+# all must accept images): VISION_BACKUP_MODEL=model-one,model-two
+VISION_BACKUP_MODELS = [m.strip() for m in os.getenv("VISION_BACKUP_MODEL", "").split(",") if m.strip()]
 
 # Local models through Ollama (https://ollama.com): write them as "ollama/<name>",
 # e.g. LABS_MODEL=ollama/gemma4:e4b. Free and unlimited, but slow on a laptop.
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
 OLLAMA_TIMEOUT = 300.0  # seconds; a laptop CPU can need a minute or more per answer
+OLLAMA_MAX_TOKENS = 150  # local answers are kept short: a laptop writes only a few words per second
 
 # Voice call, speech-to-text 1: Groq's hosted Whisper (fast, best Arabic, free tier).
 # Get a key at https://console.groq.com and put GROQ_API_KEY in .env; without a key
@@ -56,6 +60,12 @@ TOP_K = 4                    # how many chunks the retriever returns
 # Suggest another agent only when it clearly wins: its description must match the
 # question at least this much better than the second-best agent (tuned for bge-m3).
 AGENT_LINK_MIN_GAP = 0.05
+# Hand a question over to another BUILT agent (fallback + link) when that agent clearly
+# owns it (gap >= HANDOVER_MIN_GAP) and this agent's best document is only a weak
+# match (score < HANDOVER_MAX_SCORE). E.g. "How do I apply for an internship?" asked
+# to Labs & Research -> link to the Internship & Career agent.
+HANDOVER_MIN_GAP = 0.10
+HANDOVER_MAX_SCORE = 0.55
 SIMILARITY_THRESHOLD = 0.48  # chunks scoring below this are not used to answer (tuned for bge-m3)
 
 # Ingestion

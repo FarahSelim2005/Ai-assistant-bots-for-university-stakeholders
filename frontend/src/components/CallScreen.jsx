@@ -12,7 +12,7 @@ export const callSupported = Boolean(
   navigator.mediaDevices?.getUserMedia && window.MediaRecorder && window.speechSynthesis,
 );
 
-const GREETING_EN = "Hello! This is the GIU Labs and Research assistant. Ask me in English or Arabic.";
+const greetingEn = (agentName) => `Hello! This is the GIU ${agentName}. Ask me in English or Arabic.`;
 const GREETING_AR = "أهلاً! اسألني بالعربي أو بالإنجليزي.";
 const NO_ANSWER = {
   en: "Sorry, I couldn't get an answer right now. Please try again in a moment.",
@@ -47,7 +47,7 @@ function voiceFor(text) {
   );
 }
 
-export default function CallScreen({ onAsk, onHangUp }) {
+export default function CallScreen({ onAsk, onHangUp, agentName = "Labs & Research Assistant" }) {
   const [status, setStatus] = useState("speaking");
   const [heard, setHeard] = useState("");  // what the user said (after Whisper)
   const [reply, setReply] = useState("");  // what the agent said last
@@ -124,7 +124,7 @@ export default function CallScreen({ onAsk, onHangUp }) {
     const greet = () => {
       if (greeted || !activeRef.current) return;
       greeted = true;
-      speak([GREETING_EN, GREETING_AR]);
+      speak([greetingEn(agentName.replace("&", "and")), GREETING_AR]);
     };
     setTimeout(greet, 1000);
     if (window.speechSynthesis.getVoices().length) greet();
@@ -273,7 +273,7 @@ export default function CallScreen({ onAsk, onHangUp }) {
                 style={glow ? { boxShadow: `0 0 0 ${glow}px rgba(196, 22, 28, 0.35)` } : undefined}>
           GIU
         </button>
-        <h2>Labs &amp; Research Assistant</h2>
+        <h2>{agentName}</h2>
         <p className="call-status">{error || STATUS_TEXT[status]}</p>
 
         <div className="call-text">

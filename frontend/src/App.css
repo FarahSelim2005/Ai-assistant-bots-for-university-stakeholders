@@ -173,6 +173,18 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
 .messages-inner { max-width: 920px; margin: 0 auto; padding: 32px 32px 16px; }
 
 /* Empty chat */
+/* Career agent: big "Analyze my CV" button above the example questions */
+.cv-button {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: 20px;
+  padding: 14px 26px;
+  font-size: 17px;
+  border-radius: var(--radius);
+}
+.cv-button span { font-size: 13px; font-weight: 400; opacity: 0.85; }
 .welcome { text-align: center; padding: 8vh 0 24px; }
 .welcome h2 { font-size: 30px; margin: 0 0 8px; }
 .suggestions {
@@ -367,6 +379,8 @@ a.choice-card { text-decoration: none; }
 .stars button:hover,
 .stars button:hover ~ button { background: none; color: var(--giu-gold); }
 
+.slow-note { font-size: 13px; color: var(--muted); margin: 6px 0 0; max-width: 420px; }
+
 /* Typing indicator: three bouncing dots */
 .typing { display: flex; gap: 5px; align-items: center; height: 46px; }
 .typing span {
@@ -401,6 +415,8 @@ a.choice-card { text-decoration: none; }
   transition: border-color 0.15s;
 }
 .composer:focus-within { border-color: var(--giu-red); }
+.stop-button { background: var(--giu-black); }
+.stop-button:hover:not(:disabled) { background: #000; }
 .composer input {
   flex: 1;
   font: inherit;
