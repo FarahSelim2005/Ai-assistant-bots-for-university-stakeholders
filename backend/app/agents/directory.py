@@ -49,6 +49,14 @@ AGENT_DIRECTORY = [
         ("student", "staff"),
     ),
     AgentInfo(
+        "internship_career", "Internship & Career Assistant",
+        "Internships, the GIU Internship Semester, the GIU Career Fair and employers, CV and "
+        "resume writing, CV review, interview preparation, job applications, LinkedIn, "
+        "skills for a major and career paths. "
+        "الانترنشيب، التدريب، معرض التوظيف، السي في، السيرة الذاتية، الانترفيو، الشغل، الوظايف.",
+        ("student",),
+    ),
+    AgentInfo(
         "labs_research", "Labs & Research Assistant",
         "Lab access, lab rooms and opening hours, lab supervisors, equipment and booking, "
         "research funding and grants, research resources, thesis support and publications. "

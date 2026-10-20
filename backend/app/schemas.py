@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 class SessionRequest(BaseModel):
     user_type: Literal["student", "staff"]
-    agent: Literal["labs_research"] = "labs_research"
+    agent: Literal["labs_research", "internship_career"] = "labs_research"
 
 
 class SessionResponse(BaseModel):

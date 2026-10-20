@@ -60,7 +60,8 @@ def chat(messages: list[dict], model: str,
     return content.strip()
 
 
-def chat_with_backup(messages: list[dict], models: list[str], rounds: int = 2) -> str:
+def chat_with_backup(messages: list[dict], models: list[str], max_tokens: int = 400,
+                     rounds: int = 2) -> str:
     """Try the models in order and return the first answer.
 
     Free models are often rate-limited (daily limit or busy provider), so if one
@@ -74,7 +75,7 @@ def chat_with_backup(messages: list[dict], models: list[str], rounds: int = 2) -
             time.sleep(1)
         for model in [m for m in models if m]:
             try:
-                return chat(messages, model)
+                return chat(messages, model, max_tokens=max_tokens)
             except (httpx.HTTPError, LLMError) as error:
                 last_error = error
     raise last_error

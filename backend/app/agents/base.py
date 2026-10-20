@@ -38,6 +38,10 @@ class BaseAgent:
     vision_model: str  # used instead of `model` when the user attaches an image
     fallback_message: str
     fallback_message_ar: str = ""  # used when the question contains Arabic
+    # False: no relevant document -> fallback message without asking the model (Labs).
+    # True: the model may still give general advice without documents (Career).
+    answers_without_documents: bool = False
+    max_answer_tokens: int = 400  # longer for agents that write long answers (CV reviews)
 
     def run(self, question: str, user_type: str, history: list[dict] | None = None,
             attachment: Attachment | None = None) -> AgentResponse:
@@ -60,7 +64,7 @@ class BaseAgent:
         asked_rooms = rooms_in_question(question)
         if asked_rooms:
             relevant.insert(0, RetrievedChunk(room_facts(asked_rooms), ROOM_FACTS_SOURCE, 1.0))
-        if not relevant and attachment is None:
+        if not relevant and attachment is None and not self.answers_without_documents:
             return AgentResponse(answer=self.fallback_for(question), sources=[],
                                  redirect=suggest_agent(search_question, self.name, user_type))
         # 4. Generate
@@ -107,8 +111,8 @@ class BaseAgent:
         """Ask the model to answer from the relevant chunks and the attachment only."""
         messages = build_messages(self.system_prompt, question, chunks, history, attachment)
         if attachment and attachment.is_image:
-            return chat_with_backup(messages, [self.vision_model])
-        return chat_with_backup(messages, [self.model, *self.backup_models])
+            return chat_with_backup(messages, [self.vision_model], self.max_answer_tokens)
+        return chat_with_backup(messages, [self.model, *self.backup_models], self.max_answer_tokens)
 
 
 def unique_sources(chunks: list[RetrievedChunk]) -> list[str]:
