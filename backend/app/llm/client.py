@@ -4,6 +4,7 @@ Both speak the same OpenAI-style API. A model written as "ollama/<name>" (for ex
 "ollama/gemma4:e4b") runs on this computer through Ollama: free, unlimited, offline,
 but slower. Every other model name goes to OpenRouter.
 """
+import logging
 import time
 
 import httpx
@@ -11,6 +12,7 @@ import httpx
 from app import config
 
 OLLAMA_PREFIX = "ollama/"
+log = logging.getLogger("uvicorn.error")  # shows up in the backend terminal
 
 # Shared clients reuse their connections, which saves time on every call.
 # Local models on a laptop are slow, so Ollama gets a much longer timeout.
@@ -39,6 +41,8 @@ def chat(messages: list[dict], model: str,
         # Models like Gemma 4 otherwise "think" silently first: ~300 tokens instead
         # of ~40, which took 2 minutes instead of 35 seconds on a laptop.
         body["reasoning_effort"] = "none"
+        # A laptop writes only a few words per second, so keep local answers short.
+        body["max_tokens"] = min(max_tokens, config.OLLAMA_MAX_TOKENS)
     else:
         if not config.OPENROUTER_API_KEY:
             raise RuntimeError("OPENROUTER_API_KEY is not set in backend/.env")
@@ -74,8 +78,24 @@ def chat_with_backup(messages: list[dict], models: list[str], max_tokens: int = 
         if round_number > 0:
             time.sleep(1)
         for model in [m for m in models if m]:
+            started = time.perf_counter()
             try:
-                return chat(messages, model, max_tokens=max_tokens)
+                answer = chat(messages, model, max_tokens=max_tokens)
+                log.info("Answered by %s in %.1f s", model, time.perf_counter() - started)
+                return answer
             except (httpx.HTTPError, LLMError) as error:
+                log.warning("%s failed after %.1f s: %s", model, time.perf_counter() - started, describe(error))
                 last_error = error
     raise last_error
+
+
+def describe(error: Exception) -> str:
+    """A short reason for the log, e.g. "429 Rate limit exceeded: free-models-per-day"."""
+    response = getattr(error, "response", None)
+    if response is not None:
+        try:
+            message = response.json().get("error", {}).get("message", "")
+        except ValueError:
+            message = response.text[:100]
+        return f"{response.status_code} {message}".strip()
+    return str(error) or type(error).__name__

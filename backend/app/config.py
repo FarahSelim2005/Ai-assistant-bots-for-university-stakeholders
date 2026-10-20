@@ -30,6 +30,7 @@ VISION_MODEL = os.getenv("VISION_MODEL", "")  # must accept images; used only wh
 # e.g. LABS_MODEL=ollama/gemma4:e4b. Free and unlimited, but slow on a laptop.
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
 OLLAMA_TIMEOUT = 300.0  # seconds; a laptop CPU can need a minute or more per answer
+OLLAMA_MAX_TOKENS = 300  # local answers are cut shorter: ~6 words/s on a laptop, so 900 took minutes
 
 # Voice call, speech-to-text 1: Groq's hosted Whisper (fast, best Arabic, free tier).
 # Get a key at https://console.groq.com and put GROQ_API_KEY in .env; without a key

@@ -379,6 +379,8 @@ a.choice-card { text-decoration: none; }
 .stars button:hover,
 .stars button:hover ~ button { background: none; color: var(--giu-gold); }
 
+.slow-note { font-size: 13px; color: var(--muted); margin: 6px 0 0; max-width: 420px; }
+
 /* Typing indicator: three bouncing dots */
 .typing { display: flex; gap: 5px; align-items: center; height: 46px; }
 .typing span {

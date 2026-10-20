@@ -22,10 +22,22 @@ export default function App({ initialAgent }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [calling, setCalling] = useState(false);
+  const [slow, setSlow] = useState(false); // the answer takes long: explain why
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
   const cvReviewRef = useRef(false); // the next chosen file is a CV to analyse right away
   const agent = findAgent(agentKey) || findAgent("labs_research");
+
+  // After 8 seconds of waiting, explain the delay (usually the free online models are
+  // busy and the backup model on this computer is answering).
+  useEffect(() => {
+    if (!loading) {
+      setSlow(false);
+      return undefined;
+    }
+    const timer = setTimeout(() => setSlow(true), 8000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   // Keep the newest message in view.
   useEffect(() => {
@@ -187,7 +199,15 @@ export default function App({ initialAgent }) {
           {loading && (
             <div className="message assistant">
               <div className="avatar">GIU</div>
-              <div className="bubble typing"><span /><span /><span /></div>
+              <div className="assistant-body">
+                <div className="bubble typing"><span /><span /><span /></div>
+                {slow && (
+                  <p className="slow-note">
+                    Still working… The free online models seem busy, so a backup model on this
+                    computer is answering. This can take up to a minute.
+                  </p>
+                )}
+              </div>
             </div>
           )}
           <div ref={bottomRef} />
