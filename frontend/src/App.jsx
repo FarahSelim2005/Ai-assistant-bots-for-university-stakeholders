@@ -106,10 +106,11 @@ export default function App({ initialAgent }) {
     setAttachment(null);
     setLoading(true);
     setError("");
-    const controller = new AbortController();
-    requestRef.current = { controller, query, file };
+    const request = { controller: new AbortController(), query, file };
+    requestRef.current = request;
     try {
-      const data = await sendMessage(conversationId, query, file, controller.signal);
+      const data = await sendMessage(conversationId, query, file, request.controller.signal);
+      if (requestRef.current !== request) return null; // stopped meanwhile: ignore the late answer
       setMessages((prev) => [
         ...prev,
         {
@@ -124,23 +125,32 @@ export default function App({ initialAgent }) {
       ]);
       return data.answer;
     } catch (err) {
-      if (err.name !== "AbortError") setError(err.message); // AbortError: the user pressed Stop
+      // AbortError, or a request that was stopped meanwhile: the user pressed Stop
+      if (err.name !== "AbortError" && requestRef.current === request) setError(err.message);
       return null;
     } finally {
-      requestRef.current = null;
-      setLoading(false);
+      if (requestRef.current === request) {
+        requestRef.current = null;
+        setLoading(false);
+      }
     }
   }
 
   // "Stop": cancel the answer and put the question (and its file) back in the input box,
   // so it can be edited and sent again. The backend then does not save it either.
+  // It always resets the screen, even if the request cannot be found (for example after
+  // the page was updated while a slow answer was still running).
   function stop() {
     const request = requestRef.current;
-    if (!request) return;
-    request.controller.abort();
-    setMessages((prev) => prev.slice(0, -1)); // remove the question that was waiting
-    setInput(request.query === CV_QUESTION || request.query === "Please explain this file." ? "" : request.query);
-    setAttachment(request.file);
+    requestRef.current = null; // any answer that still arrives is ignored
+    request?.controller.abort();
+    const question = messages[messages.length - 1];
+    const waiting = question?.role === "user" ? question : null;
+    if (waiting) setMessages((prev) => prev.slice(0, -1)); // remove the question that was waiting
+    const query = request?.query ?? waiting?.content ?? "";
+    setInput(query === CV_QUESTION || query === "Please explain this file." ? "" : query);
+    setAttachment(request?.file ?? waiting?.attachment ?? null);
+    setLoading(false);
   }
 
   async function handleRate(messageId, rating) {
