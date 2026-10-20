@@ -25,6 +25,9 @@ LABS_MODEL = os.getenv("LABS_MODEL", "")
 # separated by commas: LABS_BACKUP_MODEL=model-one,model-two
 LABS_BACKUP_MODELS = [m.strip() for m in os.getenv("LABS_BACKUP_MODEL", "").split(",") if m.strip()]
 VISION_MODEL = os.getenv("VISION_MODEL", "")  # must accept images; used only when an image is attached
+# Optional backups for pictures, tried in order when VISION_MODEL fails (comma-separated,
+# all must accept images): VISION_BACKUP_MODEL=model-one,model-two
+VISION_BACKUP_MODELS = [m.strip() for m in os.getenv("VISION_BACKUP_MODEL", "").split(",") if m.strip()]
 
 # Local models through Ollama (https://ollama.com): write them as "ollama/<name>",
 # e.g. LABS_MODEL=ollama/gemma4:e4b. Free and unlimited, but slow on a laptop.

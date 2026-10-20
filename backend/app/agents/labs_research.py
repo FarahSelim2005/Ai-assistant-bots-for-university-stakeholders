@@ -11,6 +11,7 @@ class LabsResearchAgent(BaseAgent):
     model = config.LABS_MODEL
     backup_models = config.LABS_BACKUP_MODELS
     vision_model = config.VISION_MODEL
+    vision_backup_models = config.VISION_BACKUP_MODELS
     fallback_message = (
         "Sorry, I don't have information about that. "
         "Please contact the relevant office or department for help."

@@ -36,6 +36,7 @@ class BaseAgent:
     model: str
     backup_models: list[str]  # tried in order when `model` fails, e.g. a free model is rate-limited
     vision_model: str  # used instead of `model` when the user attaches an image
+    vision_backup_models: list[str] = []  # tried in order when `vision_model` fails
     fallback_message: str
     fallback_message_ar: str = ""  # used when the question contains Arabic
     # False: no relevant document -> fallback message without asking the model (Labs).
@@ -119,7 +120,8 @@ class BaseAgent:
         """Ask the model to answer from the relevant chunks and the attachment only."""
         messages = build_messages(self.system_prompt, question, chunks, history, attachment)
         if attachment and attachment.is_image:
-            return chat_with_backup(messages, [self.vision_model], self.max_answer_tokens)
+            return chat_with_backup(messages, [self.vision_model, *self.vision_backup_models],
+                                    self.max_answer_tokens)
         return chat_with_backup(messages, [self.model, *self.backup_models], self.max_answer_tokens)
 
 
