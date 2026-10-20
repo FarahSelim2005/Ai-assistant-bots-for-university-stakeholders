@@ -67,6 +67,14 @@ class BaseAgent:
         if not relevant and attachment is None and not self.answers_without_documents:
             return AgentResponse(answer=self.fallback_for(question), sources=[],
                                  redirect=suggest_agent(search_question, self.name, user_type))
+        # A question that only weakly matches this agent's documents but clearly belongs
+        # to another built agent is handed over to it instead of being answered here.
+        best_score = max((c.score for c in chunks), default=0.0)
+        if attachment is None and not asked_rooms and best_score < config.HANDOVER_MAX_SCORE:
+            owner = suggest_agent(search_question, self.name, user_type,
+                                  min_gap=config.HANDOVER_MIN_GAP, built_only=True)
+            if owner:
+                return AgentResponse(answer=self.fallback_for(question), sources=[], redirect=owner)
         # 4. Generate
         answer = self.generate(question, relevant, history, attachment)
         # Show only the places the user asked about (an answer about the gym may also

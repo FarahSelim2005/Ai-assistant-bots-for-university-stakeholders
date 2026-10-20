@@ -20,6 +20,7 @@ class AgentInfo:
     name: str
     description: str             # what the agent handles; used for matching
     user_types: tuple[str, ...]  # who may use it
+    built: bool = False          # True once the agent exists in this app
 
 
 AGENT_DIRECTORY = [
@@ -54,14 +55,14 @@ AGENT_DIRECTORY = [
         "resume writing, CV review, interview preparation, job applications, LinkedIn, "
         "skills for a major and career paths. "
         "الانترنشيب، التدريب، معرض التوظيف، السي في، السيرة الذاتية، الانترفيو، الشغل، الوظايف.",
-        ("student",),
+        ("student",), built=True,
     ),
     AgentInfo(
         "labs_research", "Labs & Research Assistant",
         "Lab access, lab rooms and opening hours, lab supervisors, equipment and booking, "
         "research funding and grants, research resources, thesis support and publications. "
         "المعامل، الأجهزة، منحة البحث، البحث العلمي، الرسالة، النشر.",
-        ("student", "staff"),
+        ("student", "staff"), built=True,
     ),
 ]
 
@@ -76,7 +77,8 @@ class AgentLink:
 _description_vectors: np.ndarray | None = None  # computed once, on first use
 
 
-def suggest_agent(question: str, current_agent: str, user_type: str) -> AgentLink | None:
+def suggest_agent(question: str, current_agent: str, user_type: str,
+                  min_gap: float = config.AGENT_LINK_MIN_GAP, built_only: bool = False) -> AgentLink | None:
     """The agent whose description best matches the question, or None when the best
     match is the current agent, an agent this user may not use, or no agent clearly
     wins (off-topic questions match all agents about equally)."""
@@ -90,7 +92,8 @@ def suggest_agent(question: str, current_agent: str, user_type: str) -> AgentLin
 
     best, second = np.argsort(scores)[::-1][:2]
     agent = AGENT_DIRECTORY[best]
-    if (scores[best] - scores[second] < config.AGENT_LINK_MIN_GAP
+    if (scores[best] - scores[second] < min_gap
+            or (built_only and not agent.built)
             or agent.key == current_agent
             or user_type not in agent.user_types):
         return None

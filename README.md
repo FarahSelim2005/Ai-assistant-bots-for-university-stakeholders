@@ -1,13 +1,20 @@
 # AI Assistant Bots for University Stakeholders
 
-A GIU university chatbot made of four agents. This branch contains the first one,
-the **Labs & Research agent**, as a complete working slice: database, backend,
-frontend and evaluation.
+A GIU university chatbot made of five agents. Two are built here as complete working
+slices (database, backend, frontend and evaluation):
 
-The agent answers questions about labs, research facilities, funding and thesis
-support **only from ingested documents** (retrieval-augmented generation). If no
-document is relevant enough, it says it doesn't have the information instead of
-guessing.
+- **Labs & Research** (students and staff): labs, campus buildings, rooms, offices and
+  places, answered **only from ingested documents** (retrieval-augmented generation). If
+  no document is relevant enough, it says it doesn't have the information instead of
+  guessing.
+- **Internship & Career** (students only): the GIU Career Fair, the GIU Internship
+  Semester, how to apply, CVs, interviews, skills and career paths. **GIU facts come only
+  from its documents**; general career advice may also come from the model's own
+  knowledge and is marked "General advice:". It can **analyse an uploaded CV**
+  ("📄 Analyze my CV").
+
+The other three (Graduation & Advising, HR & Policies, Orientation) show a "coming soon"
+page.
 
 ## How it works
 
@@ -130,24 +137,29 @@ possible, and always report which model ID you used.
 
 ## 3. Ingest documents
 
-Put `.pdf`, `.txt` or `.md` files in `backend/data/raw/`, then:
+Each agent has its own folder: put `.pdf`, `.txt` or `.md` files in
+`backend/data/raw/labs_research/` or `backend/data/raw/internship_career/`, then:
 
 ```bash
-python -m scripts.ingest
+python -m scripts.ingest                            # every agent's folder
+python -m scripts.ingest --agent internship_career  # only one agent
 ```
 
 Each file is split into chunks (paragraphs kept together, a new chunk at every
-Markdown heading, at most 200 words), embedded, and stored with
-`agent = labs_research` and `audience = {student, staff}`. Re-running is safe:
-a file's old chunks are replaced.
+Markdown heading, at most 200 words), embedded, and stored with the folder's agent
+and that agent's audience from `backend/app/agents/directory.py` (Career: students
+only). Re-running is safe: a file's old chunks are replaced, and chunks of files you
+deleted are removed.
 
-Options: `--agent <name>`, `--audience student` (staff-only or student-only
-documents), `--folder <path>`.
+The documents:
 
-The file in `data/raw/` is **fictional placeholder data** for testing. Replace it with
-official GIU documents:
-
-- `campus_buildings.md`: Buildings A, M and S, room numbering (ground floor 001–030,
+- `internship_career/career_guide.md`: GIU facts from GIU's official news pages (Career
+  Fair 2025 on November 14 with 95 exhibitors and its employers, the five-month GIU
+  Internship Semester, the first fair in 2022 and the GIU Career Center, with sources),
+  plus general advice: fair preparation, CVs, interviews, applying, and skills and
+  career paths per faculty. Check the GIU website before relying on dates.
+- `labs_research/campus_buildings.md` (**fictional placeholder data**, replace it with
+  official GIU documents): Buildings A, M and S, room numbering (ground floor 001–030,
   then 101–120, 201–220, 301–320, 401–420), offices such as Admission, Academic
   Coordinator, German Office, Clinic, Library, Finance and Student Affairs, and places
   such as the supermarket, gym and sports courts
@@ -223,14 +235,18 @@ Google Maps walking navigation from the user's location to the building's entran
 The real GPS positions of the entrances (M: 2, A: 3, S: 1) are in
 `frontend/src/campusGeo.js`; no API key is needed.
 
-**Links to the other agents:** the GIU chatbot has four agents (Graduation & Advising,
-HR & Policies, Orientation, Labs & Research). When this agent has no answer, the
+**Links to the other agents:** the GIU chatbot has five agents (Graduation & Advising,
+HR & Policies, Orientation, Internship & Career, Labs & Research). When an agent has no answer, the
 question is compared with each agent's description (`backend/app/agents/directory.py`,
 embeddings only, no chat model call) and the fallback message gets a button to the
 best-matching agent. Students can be sent to Orientation and Graduation & Advising;
 staff also to HR & Policies. Nothing is suggested when no agent matches
 (`AGENT_LINK_MIN_GAP` in `config.py`: the best agent must clearly beat the second best). Agents that are not built yet open a
-"coming soon" page (`/?agent=<key>`, `frontend/src/components/ComingSoon.jsx`).
+"coming soon" page (`/?agent=<key>`, `frontend/src/components/ComingSoon.jsx`); built
+ones open directly. A question that only weakly matches an agent's documents (best score
+below `HANDOVER_MAX_SCORE`) but clearly belongs to another built agent
+(`HANDOVER_MIN_GAP`) is handed over: e.g. "How do I apply for an internship?" asked to
+Labs & Research gets a button to the Internship & Career agent.
 
 **Voice call:** the 📞 Call button (Edge and Chrome) opens a hands-free call: the
 assistant greets you, records you until you pause, turns the recording into text,
@@ -275,9 +291,11 @@ and maximum response time, and how many answers took over 2 seconds.
 python -m scripts.evaluate --user-type staff --out data/results.csv   # save every answer
 ```
 
-The 17 included questions are placeholders based on the sample campus document. Two of
-them (the AI lab's phone number and renewing a passport) ask for information that is
-not in the documents and expect `don't have`, to check the agent does not invent answers.
+The 25 included questions (17 Labs & Research, 8 Internship & Career) are placeholders
+based on the two documents. Three of them (the AI lab's phone number, renewing a
+passport, a paid internship semester) ask for information that is not in the documents
+and expect `don't have`, to check the agents do not invent answers. Questions for an
+agent the chosen user type may not use (Career for staff) are skipped.
 
 ## Settings
 
@@ -306,7 +324,7 @@ backend/
     db.py                PostgreSQL connection
     schemas.py           request/response models
     routers/             session.py, chat.py, feedback.py, speech.py
-    agents/              base.py (shared flow), labs_research.py
+    agents/              base.py (shared flow), labs_research.py, internship_career.py, directory.py
     rag/                 embeddings.py, retriever.py, prompts.py, transliteration.py
     llm/client.py        chat completions (OpenRouter or local Ollama)
   scripts/

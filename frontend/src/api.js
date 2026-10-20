@@ -16,8 +16,8 @@ async function post(path, body) {
   return data;
 }
 
-export function startSession(userType) {
-  return post("/session", { user_type: userType }); // -> { conversation_id }
+export function startSession(userType, agent) {
+  return post("/session", { user_type: userType, agent }); // -> { conversation_id }
 }
 
 // `attachment` is optional: { filename, dataUrl } where dataUrl is "data:<type>;base64,<content>".

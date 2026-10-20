@@ -1,12 +1,13 @@
 // First screen, in two steps:
 // 1. the user says whether they are a student or staff member;
-// 2. they choose one of the agents available to them (3 for students, 4 for staff).
-// Labs & Research opens the chat; agents that are not built yet open their coming-soon page.
-import { useState } from "react";
+// 2. they choose one of the agents available to them.
+// Built agents open the chat; agents that are not built yet open their coming-soon page.
+// A link like "/?agent=internship_career" opens that agent directly once the user type is known.
+import { useEffect, useRef, useState } from "react";
 import { AGENTS } from "../agents.js";
 
 const USER_TYPES = [
-  { value: "student", title: "Student", text: "Advising, orientation, labs and research" },
+  { value: "student", title: "Student", text: "Advising, orientation, careers, labs and research" },
   { value: "staff", title: "Staff", text: "All assistants, including HR & Policies" },
 ];
 
@@ -30,9 +31,21 @@ function saveUserType(type) {
   }
 }
 
-export default function StartScreen({ onChoose, loading, error }) {
+export default function StartScreen({ onChoose, loading, error, initialAgent }) {
   const [userType, setUserType] = useState(savedUserType);
   const agents = AGENTS.filter((agent) => agent.userTypes.includes(userType));
+
+  // Opened from a link to a specific agent: start it as soon as we know the user type.
+  // (The ref makes sure it starts only once, also when React runs effects twice.)
+  const linkUsed = useRef(false);
+  useEffect(() => {
+    const linked = agents.find((agent) => agent.key === initialAgent && agent.ready);
+    if (linked && !linkUsed.current) {
+      linkUsed.current = true;
+      window.history.replaceState(null, "", "/"); // so "New chat" shows the list again
+      onChoose(userType, linked.key);
+    }
+  }, [userType]);
 
   function chooseUserType(type) {
     saveUserType(type);
@@ -40,7 +53,7 @@ export default function StartScreen({ onChoose, loading, error }) {
   }
 
   function chooseAgent(agent) {
-    if (agent.ready) onChoose(userType);
+    if (agent.ready) onChoose(userType, agent.key);
     else window.location.href = `/?agent=${agent.key}`;
   }
 
@@ -51,9 +64,9 @@ export default function StartScreen({ onChoose, loading, error }) {
         <p className="eyebrow">AI Assistants</p>
         <h1>GIU Chatbot</h1>
         <p>
-          Four assistants for students and staff: graduation and advising, HR and policies,
-          orientation, and labs and research. Answers come only from official university
-          documents.
+          Five assistants for students and staff: graduation and advising, HR and policies,
+          orientation, internships and careers, and labs and research. University facts come
+          only from official GIU documents.
         </p>
       </section>
 

@@ -44,6 +44,9 @@ def main() -> None:
 
     results = []
     for number, row in enumerate(rows, start=1):
+        if args.user_type not in AGENTS[row["agent"]].allowed_user_types:
+            print(f"{number:2}. skipped (not available for {args.user_type}): {row['question']}")
+            continue
         keywords = [k.strip() for k in row["expected_keywords"].split(";") if k.strip()]
         start = time.perf_counter()
         try:

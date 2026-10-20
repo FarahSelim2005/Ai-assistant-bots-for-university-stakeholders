@@ -1,22 +1,18 @@
 import { useEffect, useRef, useState } from "react";
+import { findAgent } from "./agents.js";
 import { sendFeedback, sendMessage, startSession } from "./api.js";
 import CallScreen, { callSupported } from "./components/CallScreen.jsx";
 import Message from "./components/Message.jsx";
 import StartScreen from "./components/StartScreen.jsx";
 
-const EXAMPLE_QUESTIONS = [
-  "Where is the AI lab?",
-  "Where is the Admission Office?",
-  "How do I pay my tuition fees?",
-  "Where is the gym?",
-];
-
 // Must match the backend (app/attachments.py and MAX_UPLOAD_MB in config.py).
 const ACCEPTED_FILES = ".pdf,.txt,.md,.png,.jpg,.jpeg,.webp";
 const MAX_UPLOAD_MB = 5;
+const CV_QUESTION = "Please analyze my CV and suggest improvements.";
 
-export default function App() {
+export default function App({ initialAgent }) {
   const [userType, setUserType] = useState(null);
+  const [agentKey, setAgentKey] = useState(null); // which assistant this chat is with
   const [conversationId, setConversationId] = useState(null);
   // Each message: { role, content, attachment?, sources?, locations?, places?, redirect?, messageId?, rating? }
   const [messages, setMessages] = useState([]);
@@ -28,18 +24,21 @@ export default function App() {
   const [calling, setCalling] = useState(false);
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
+  const cvReviewRef = useRef(false); // the next chosen file is a CV to analyse right away
+  const agent = findAgent(agentKey) || findAgent("labs_research");
 
   // Keep the newest message in view.
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  async function choose(type) {
+  async function choose(type, chosenAgent) {
     setLoading(true);
     setError("");
     try {
-      const data = await startSession(type);
+      const data = await startSession(type, chosenAgent);
       setUserType(type);
+      setAgentKey(chosenAgent);
       setConversationId(data.conversation_id);
     } catch (err) {
       setError(`Could not start the chat: ${err.message}`);
@@ -58,11 +57,24 @@ export default function App() {
     }
     // Read the file as a data URL ("data:<type>;base64,<content>") to send it as JSON.
     const reader = new FileReader();
-    reader.onload = () =>
-      setAttachment({ filename: file.name, dataUrl: reader.result, isImage: file.type.startsWith("image/") });
+    reader.onload = () => {
+      const chosen = { filename: file.name, dataUrl: reader.result, isImage: file.type.startsWith("image/") };
+      if (cvReviewRef.current) {
+        cvReviewRef.current = false;
+        send(CV_QUESTION, chosen); // "Analyze my CV": send the CV straight away
+      } else {
+        setAttachment(chosen);
+      }
+    };
     reader.onerror = () => setError("The file could not be read.");
     reader.readAsDataURL(file);
     setError("");
+  }
+
+  // "Analyze my CV": pick a file, which is then sent with CV_QUESTION.
+  function analyzeCv() {
+    cvReviewRef.current = true;
+    fileInputRef.current.click();
   }
 
   function handleSubmit(event) {
@@ -115,6 +127,7 @@ export default function App() {
 
   function newChat() {
     setUserType(null);
+    setAgentKey(null);
     setConversationId(null);
     setMessages([]);
     setAttachment(null);
@@ -122,7 +135,7 @@ export default function App() {
   }
 
   if (!conversationId) {
-    return <StartScreen onChoose={choose} loading={loading} error={error} />;
+    return <StartScreen onChoose={choose} loading={loading} error={error} initialAgent={initialAgent} />;
   }
 
   return (
@@ -130,8 +143,8 @@ export default function App() {
       <header className="topbar">
         <img src="/giu-logo.jpg" alt="German International University" className="topbar-logo" />
         <div className="topbar-title">
-          <h1>Labs &amp; Research Assistant</h1>
-          <span>Answers from official GIU documents</span>
+          <h1>{agent.name}</h1>
+          <span>{agent.subtitle}</span>
         </div>
         <span className="badge">{userType === "staff" ? "Staff" : "Student"}</span>
         {callSupported && (
@@ -143,16 +156,24 @@ export default function App() {
       </header>
       <div className="flag-stripe" />
 
-      {calling && <CallScreen onAsk={(question) => send(question)} onHangUp={() => setCalling(false)} />}
+      {calling && (
+        <CallScreen onAsk={(question) => send(question)} onHangUp={() => setCalling(false)} agentName={agent.name} />
+      )}
 
       <main className="messages">
         <div className="messages-inner">
           {messages.length === 0 && (
             <div className="welcome">
               <h2>How can I help you today?</h2>
-              <p className="muted">Ask anything about GIU labs and research, or try one of these:</p>
+              <p className="muted">{agent.welcome}</p>
+              {agent.cvReview && (
+                <button className="cv-button" onClick={analyzeCv} disabled={loading}>
+                  📄 Analyze my CV
+                  <span>Upload your CV (PDF) and get concrete improvements</span>
+                </button>
+              )}
               <div className="suggestions">
-                {EXAMPLE_QUESTIONS.map((question) => (
+                {agent.examples.map((question) => (
                   <button key={question} className="suggestion" onClick={() => send(question)}>
                     {question}
                   </button>
@@ -206,11 +227,17 @@ export default function App() {
           <input
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder={attachment ? "Ask about your file..." : "Ask about labs, offices, rooms, research funding..."}
+            placeholder={attachment ? "Ask about your file..." : agent.placeholder}
             maxLength={1000}
             dir="auto"
             autoFocus
           />
+          {agent.cvReview && (
+            <button type="button" className="attach" onClick={analyzeCv} disabled={loading}
+                    title="Analyze my CV" aria-label="Analyze my CV">
+              📄
+            </button>
+          )}
           <button type="submit" disabled={loading || (!input.trim() && !attachment)}>Send</button>
         </form>
       </footer>
