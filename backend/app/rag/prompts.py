@@ -72,7 +72,8 @@ def build_messages(system_prompt: str, question: str, chunks: list[RetrievedChun
     `history` holds earlier messages of the conversation as {"role", "content"} dicts,
     so follow-up questions like "and what are its hours?" can be understood.
     An attached document is added as text after the context; an attached image is
-    sent next to the question in the format vision models expect.
+    sent next to the question in the format vision models expect (one picture per
+    page for PDFs that contain only pictures).
     """
     system = f"{system_prompt}\n\nCONTEXT:\n{format_context(chunks) or '(no matching GIU documents)'}"
     if attachment and attachment.text:
@@ -81,8 +82,8 @@ def build_messages(system_prompt: str, question: str, chunks: list[RetrievedChun
     user_content: str | list[dict] = question
     if attachment and attachment.is_image:
         user_content = [
-            {"type": "text", "text": f"{question}\n(Attached image: {attachment.filename})"},
-            {"type": "image_url", "image_url": {"url": attachment.image_url}},
+            {"type": "text", "text": f"{question}\n(Attached: {attachment.filename})"},
+            *({"type": "image_url", "image_url": {"url": url}} for url in attachment.image_urls),
         ]
 
     return [
