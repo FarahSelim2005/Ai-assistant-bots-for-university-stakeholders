@@ -41,8 +41,11 @@ def chat(messages: list[dict], model: str,
         # Models like Gemma 4 otherwise "think" silently first: ~300 tokens instead
         # of ~40, which took 2 minutes instead of 35 seconds on a laptop.
         body["reasoning_effort"] = "none"
-        # A laptop writes only a few words per second, so keep local answers short.
+        # A laptop writes only a few words per second, so keep local answers short, and
+        # ask for a short answer so it ends naturally instead of being cut off.
+        # (Measured: 300 tokens took ~90 s; this gives a complete ~100-token answer in ~16 s.)
         body["max_tokens"] = min(max_tokens, config.OLLAMA_MAX_TOKENS)
+        body["messages"] = ask_for_short_answer(messages)
     else:
         if not config.OPENROUTER_API_KEY:
             raise RuntimeError("OPENROUTER_API_KEY is not set in backend/.env")
@@ -99,3 +102,14 @@ def describe(error: Exception) -> str:
             message = response.text[:100]
         return f"{response.status_code} {message}".strip()
     return str(error) or type(error).__name__
+
+
+SHORT_ANSWER = ("\n\nKeep the answer as short as possible: one or two sentences for a simple "
+                "question, at most 5 short lines otherwise. Do not add extra information.")
+
+
+def ask_for_short_answer(messages: list[dict]) -> list[dict]:
+    """A copy of the messages whose system message also asks for a short answer."""
+    if messages and messages[0]["role"] == "system":
+        return [{**messages[0], "content": messages[0]["content"] + SHORT_ANSWER}, *messages[1:]]
+    return [{"role": "system", "content": SHORT_ANSWER.strip()}, *messages]
