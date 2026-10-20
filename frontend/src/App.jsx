@@ -26,6 +26,7 @@ export default function App({ initialAgent }) {
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
   const cvReviewRef = useRef(false); // the next chosen file is a CV to analyse right away
+  const requestRef = useRef(null); // the answer being waited for: { controller, query, file }
   const agent = findAgent(agentKey) || findAgent("labs_research");
 
   // After 8 seconds of waiting, explain the delay (usually the free online models are
@@ -105,8 +106,10 @@ export default function App({ initialAgent }) {
     setAttachment(null);
     setLoading(true);
     setError("");
+    const controller = new AbortController();
+    requestRef.current = { controller, query, file };
     try {
-      const data = await sendMessage(conversationId, query, file);
+      const data = await sendMessage(conversationId, query, file, controller.signal);
       setMessages((prev) => [
         ...prev,
         {
@@ -121,11 +124,23 @@ export default function App({ initialAgent }) {
       ]);
       return data.answer;
     } catch (err) {
-      setError(err.message);
+      if (err.name !== "AbortError") setError(err.message); // AbortError: the user pressed Stop
       return null;
     } finally {
+      requestRef.current = null;
       setLoading(false);
     }
+  }
+
+  // "Stop": cancel the answer and put the question (and its file) back in the input box,
+  // so it can be edited and sent again. The backend then does not save it either.
+  function stop() {
+    const request = requestRef.current;
+    if (!request) return;
+    request.controller.abort();
+    setMessages((prev) => prev.slice(0, -1)); // remove the question that was waiting
+    setInput(request.query === CV_QUESTION || request.query === "Please explain this file." ? "" : request.query);
+    setAttachment(request.file);
   }
 
   async function handleRate(messageId, rating) {
@@ -204,7 +219,8 @@ export default function App({ initialAgent }) {
                 {slow && (
                   <p className="slow-note">
                     Still working… The free online models seem busy, so a backup model on this
-                    computer is answering. This can take up to a minute.
+                    computer is answering. This can take up to a minute. You can press Stop to
+                    edit your message.
                   </p>
                 )}
               </div>
@@ -258,7 +274,13 @@ export default function App({ initialAgent }) {
               📄
             </button>
           )}
-          <button type="submit" disabled={loading || (!input.trim() && !attachment)}>Send</button>
+          {loading ? (
+            <button type="button" className="stop-button" onClick={stop} title="Stop and edit your message">
+              ■ Stop
+            </button>
+          ) : (
+            <button type="submit" disabled={!input.trim() && !attachment}>Send</button>
+          )}
         </form>
       </footer>
     </div>

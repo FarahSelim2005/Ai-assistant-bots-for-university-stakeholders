@@ -415,6 +415,8 @@ a.choice-card { text-decoration: none; }
   transition: border-color 0.15s;
 }
 .composer:focus-within { border-color: var(--giu-red); }
+.stop-button { background: var(--giu-black); }
+.stop-button:hover:not(:disabled) { background: #000; }
 .composer input {
   flex: 1;
   font: inherit;

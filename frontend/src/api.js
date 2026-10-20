@@ -1,11 +1,13 @@
 // All calls to the backend live here. Change API_URL if the backend runs elsewhere.
 const API_URL = "http://localhost:8000";
 
-async function post(path, body) {
+// `signal` (optional) lets the caller cancel the request, e.g. the chat's Stop button.
+async function post(path, body, signal) {
   const response = await fetch(`${API_URL}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    signal,
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -21,12 +23,12 @@ export function startSession(userType, agent) {
 }
 
 // `attachment` is optional: { filename, dataUrl } where dataUrl is "data:<type>;base64,<content>".
-export function sendMessage(conversationId, query, attachment = null) {
+export function sendMessage(conversationId, query, attachment = null, signal = undefined) {
   const body = { conversation_id: conversationId, query };
   if (attachment) {
     body.attachment = { filename: attachment.filename, data_base64: attachment.dataUrl.split(",")[1] };
   }
-  return post("/chat", body); // -> { answer, sources, message_id }
+  return post("/chat", body, signal); // -> { answer, sources, message_id }
 }
 
 export function sendFeedback(messageId, rating) {
