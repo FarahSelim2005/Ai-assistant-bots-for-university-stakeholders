@@ -29,11 +29,15 @@ VISION_MODEL = os.getenv("VISION_MODEL", "")  # must accept images; used only wh
 # all must accept images): VISION_BACKUP_MODEL=model-one,model-two
 VISION_BACKUP_MODELS = [m.strip() for m in os.getenv("VISION_BACKUP_MODEL", "").split(",") if m.strip()]
 
-# Local models through Ollama (https://ollama.com): write them as "ollama/<name>",
-# e.g. LABS_MODEL=ollama/gemma4:e4b. Free and unlimited, but slow on a laptop.
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
-OLLAMA_TIMEOUT = 300.0  # seconds; a laptop CPU can need a minute or more per answer
-OLLAMA_MAX_TOKENS = 150  # local answers are kept short: a laptop writes only a few words per second
+# Local model through Ollama (https://ollama.com). Write "ollama" in a model list to use
+# OLLAMA_MODEL, e.g. LABS_BACKUP_MODEL=...,ollama. Free and unlimited, but slow on a laptop.
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:1b")  # switch back with OLLAMA_MODEL=gemma4:e4b
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_TIMEOUT = 120.0  # seconds
+OLLAMA_NUM_PREDICT = 100  # max answer tokens: a laptop writes only a few words per second
+OLLAMA_NUM_CTX = 2048  # context window; a small prompt is processed faster
+OLLAMA_MAX_CONTEXT_CHARS = 1200  # documents/attachment text sent to the local model (2500 took ~7-9 s)
+OLLAMA_HISTORY_MESSAGES = 2  # earlier messages sent to the local model (one question + answer)
 
 # Voice call, speech-to-text 1: Groq's hosted Whisper (fast, best Arabic, free tier).
 # Get a key at https://console.groq.com and put GROQ_API_KEY in .env; without a key

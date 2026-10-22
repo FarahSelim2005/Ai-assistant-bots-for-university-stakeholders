@@ -1,8 +1,9 @@
-"""Minimal chat-completions client for OpenRouter and for local Ollama models.
+"""Minimal chat client for OpenRouter and for a local Ollama model.
 
-Both speak the same OpenAI-style API. A model written as "ollama/<name>" (for example
-"ollama/gemma4:e4b") runs on this computer through Ollama: free, unlimited, offline,
-but slower. Every other model name goes to OpenRouter.
+The model name "ollama" (or "ollama/<name>") runs on this computer through Ollama:
+free, unlimited and offline, but slow on a laptop, so local requests are kept small
+(short prompt, short answer, thinking off, model kept in memory). Every other model
+name goes to OpenRouter's chat-completions API.
 """
 import logging
 import time
@@ -15,7 +16,6 @@ OLLAMA_PREFIX = "ollama/"
 log = logging.getLogger("uvicorn.error")  # shows up in the backend terminal
 
 # Shared clients reuse their connections, which saves time on every call.
-# Local models on a laptop are slow, so Ollama gets a much longer timeout.
 _openrouter = httpx.Client(base_url=config.OPENROUTER_BASE_URL, timeout=30.0)
 _ollama = httpx.Client(base_url=config.OLLAMA_BASE_URL, timeout=config.OLLAMA_TIMEOUT)
 
@@ -33,26 +33,16 @@ def chat(messages: list[dict], model: str,
     """
     if not model:
         raise RuntimeError("No chat model given. Set LABS_MODEL in backend/.env")
+    if model == "ollama" or model.startswith(OLLAMA_PREFIX):
+        return chat_ollama(messages, model.removeprefix(OLLAMA_PREFIX).removeprefix("ollama"))
+    if not config.OPENROUTER_API_KEY:
+        raise RuntimeError("OPENROUTER_API_KEY is not set in backend/.env")
 
-    body = {"messages": messages, "temperature": temperature, "max_tokens": max_tokens}
-    if model.startswith(OLLAMA_PREFIX):
-        client, headers = _ollama, {}
-        body["model"] = model.removeprefix(OLLAMA_PREFIX)
-        # Models like Gemma 4 otherwise "think" silently first: ~300 tokens instead
-        # of ~40, which took 2 minutes instead of 35 seconds on a laptop.
-        body["reasoning_effort"] = "none"
-        # A laptop writes only a few words per second, so keep local answers short, and
-        # ask for a short answer so it ends naturally instead of being cut off.
-        # (Measured: 300 tokens took ~90 s; this gives a complete ~100-token answer in ~16 s.)
-        body["max_tokens"] = min(max_tokens, config.OLLAMA_MAX_TOKENS)
-        body["messages"] = ask_for_short_answer(messages)
-    else:
-        if not config.OPENROUTER_API_KEY:
-            raise RuntimeError("OPENROUTER_API_KEY is not set in backend/.env")
-        client, headers = _openrouter, {"Authorization": f"Bearer {config.OPENROUTER_API_KEY}"}
-        body["model"] = model
-
-    response = client.post("/chat/completions", headers=headers, json=body)
+    response = _openrouter.post(
+        "/chat/completions",
+        headers={"Authorization": f"Bearer {config.OPENROUTER_API_KEY}"},
+        json={"model": model, "messages": messages, "temperature": temperature, "max_tokens": max_tokens},
+    )
     response.raise_for_status()
     data = response.json()
     # OpenRouter can answer "200 OK" with an error instead of choices (e.g. the provider
@@ -104,12 +94,67 @@ def describe(error: Exception) -> str:
     return str(error) or type(error).__name__
 
 
-SHORT_ANSWER = ("\n\nKeep the answer as short as possible: one or two sentences for a simple "
-                "question, at most 5 short lines otherwise. Do not add extra information.")
+# Short instructions for the small local model (the agents' full prompts are long).
+LOCAL_SYSTEM_PROMPT = (
+    "You are a GIU university assistant. Answer only from the CONTEXT below; if the answer "
+    "is not there, say you don't have that information. Answer in 1-3 short sentences. "
+    "No lists or headings unless asked. Reply in the language of the question and keep "
+    "room codes such as M005 as written."
+)
 
 
-def ask_for_short_answer(messages: list[dict]) -> list[dict]:
-    """A copy of the messages whose system message also asks for a short answer."""
-    if messages and messages[0]["role"] == "system":
-        return [{**messages[0], "content": messages[0]["content"] + SHORT_ANSWER}, *messages[1:]]
-    return [{"role": "system", "content": SHORT_ANSWER.strip()}, *messages]
+def chat_ollama(messages: list[dict], model: str = "") -> str:
+    """Ask the local Ollama model (OLLAMA_MODEL unless a name is given) with a small prompt."""
+    model = model or config.OLLAMA_MODEL
+    started = time.perf_counter()
+    response = _ollama.post("/api/chat", json={
+        "model": model,
+        "messages": small_prompt(messages),
+        "think": False,      # no hidden "thinking" before the answer
+        "keep_alive": -1,    # keep the model loaded between questions
+        "stream": False,     # the backend needs the whole answer (saving, map, backups)
+        "options": {"num_predict": config.OLLAMA_NUM_PREDICT, "num_ctx": config.OLLAMA_NUM_CTX,
+                    "temperature": 0.1},
+    })
+    response.raise_for_status()
+    content = (response.json().get("message") or {}).get("content", "")
+    log.info("Ollama %s answered in %.1f s", model, time.perf_counter() - started)
+    if not content.strip():
+        raise LLMError(f"Local model '{model}' returned an empty answer.")
+    return content.strip()
+
+
+def small_prompt(messages: list[dict]) -> list[dict]:
+    """The agent's messages made small for a laptop: short instructions, a cut-down
+    context, the last few history messages, and text only (no images)."""
+    system, *rest = messages
+    context = system["content"].split("CONTEXT:", 1)[-1].strip()[:config.OLLAMA_MAX_CONTEXT_CHARS]
+    *history, question = rest
+    history = history[-config.OLLAMA_HISTORY_MESSAGES:] if config.OLLAMA_HISTORY_MESSAGES else []
+    content = question["content"]
+    if isinstance(content, list):  # picture questions: keep only the text part
+        content = " ".join(part["text"] for part in content if part.get("type") == "text")
+    return [
+        {"role": "system", "content": f"{LOCAL_SYSTEM_PROMPT}\n\nCONTEXT:\n{context}"},
+        *history,
+        {"role": "user", "content": content},
+    ]
+
+
+def warm_up_ollama() -> None:
+    """Load the local model into memory at start-up, so the first real question does not
+    have to wait for it. Does nothing if Ollama is not running."""
+    started = time.perf_counter()
+    try:
+        _ollama.post("/api/chat", json={
+            # Same start as every real prompt, so Ollama can reuse the work on it.
+            "model": config.OLLAMA_MODEL,
+            "messages": [{"role": "system", "content": f"{LOCAL_SYSTEM_PROMPT}\n\nCONTEXT:\n"},
+                         {"role": "user", "content": "hi"}],
+            # Same num_ctx as real questions: a different value makes Ollama reload the model.
+            "think": False, "keep_alive": -1, "stream": False,
+            "options": {"num_predict": 1, "num_ctx": config.OLLAMA_NUM_CTX},
+        }).raise_for_status()
+        log.info("Ollama %s loaded in %.1f s", config.OLLAMA_MODEL, time.perf_counter() - started)
+    except httpx.HTTPError as error:
+        log.warning("Ollama warm-up skipped: %s", describe(error))

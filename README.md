@@ -110,15 +110,18 @@ Open `backend/.env` and fill in:
 
 `.env` is ignored by git. Never commit it.
 
-**Local models (Ollama):** any model written as `ollama/<name>` runs on your own
-computer through [Ollama](https://ollama.com) instead of OpenRouter: free, unlimited and
-offline, but slower. Measured on a laptop with a 4-thread CPU and a GeForce 940MX,
-`ollama/gemma4:e4b` scored 17/18 with ~27 s per answer (Nemotron on OpenRouter: ~2 s).
-It works best as the **last backup**, so the chat keeps answering after the free
-OpenRouter limit is reached:
-`LABS_BACKUP_MODEL=nvidia/nemotron-3-super-120b-a12b:free,ollama/gemma4:e4b`.
-Ollama must be running (`ollama serve`, or the Ollama app). Thinking is turned off for
-local models in `backend/app/llm/client.py`, which makes Gemma 4 about 3x faster.
+**Local model (Ollama):** writing `ollama` in a model list (e.g.
+`LABS_BACKUP_MODEL=...,ollama`) runs `OLLAMA_MODEL` on your own computer through
+[Ollama](https://ollama.com): free, unlimited and offline. It is the last backup, used
+when the online models fail. Default `OLLAMA_MODEL=gemma3:1b` (switch back with
+`OLLAMA_MODEL=gemma4:e4b`, better in Arabic but ~30-50 s per answer on a laptop). Local
+requests in `backend/app/llm/client.py` use Ollama's own `/api/chat` with thinking off
+(`think: false`), the model kept loaded (`keep_alive: -1`), short answers
+(`num_predict: 100`, `num_ctx: 2048`, "1-3 short sentences"), at most 1,200 characters of
+documents and the last 2 history messages, and a warm-up when the backend starts.
+Measured on a laptop with a GeForce 940MX: gemma3:1b answers in ~3-5 s. Each request's
+time is logged ("Ollama gemma3:1b answered in 3.4 s"). Ollama must be running
+(`ollama serve`, or the Ollama app).
 
 **Choosing `LABS_MODEL`:** lab questions are simple lookups, so pick a fast,
 cheap, *non-reasoning* model ("flash-lite", "nano", "mini"). Reasoning/"thinking"
