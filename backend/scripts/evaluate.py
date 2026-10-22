@@ -11,6 +11,7 @@ Run from the backend folder:
 """
 import argparse
 import csv
+import sys
 import time
 
 import httpx
@@ -23,7 +24,9 @@ DEFAULT_CSV = config.BACKEND_DIR / "data" / "test_questions.csv"
 
 
 def normalize(text: str) -> str:
-    """Lowercase and use straight apostrophes, so "Don’t" matches "don't"."""
+    """Lowercase, straight apostrophes, plain spaces and hyphens, so "Don’t" matches
+    "don't" and "north\u2011east" (a special hyphen some models write) matches "north-east"."""
+    text = text.replace("\u202f", " ").replace("\u00a0", " ").replace("\u2011", "-")
     return text.lower().replace("’", "'")
 
 
@@ -38,6 +41,7 @@ def main() -> None:
     parser.add_argument("--user-type", default="student", choices=["student", "staff"])
     parser.add_argument("--out", help="optional CSV file to save every answer and result")
     args = parser.parse_args()
+    sys.stdout.reconfigure(encoding="utf-8")  # Arabic answers in the Windows terminal
 
     with open(args.csv, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))

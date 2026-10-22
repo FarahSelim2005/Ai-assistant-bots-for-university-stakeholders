@@ -111,10 +111,11 @@ Open `backend/.env` and fill in:
 `.env` is ignored by git. Never commit it.
 
 **Groq models:** writing `groq/<name>` in a model list (e.g.
-`LABS_BACKUP_MODEL=...,groq/llama-3.3-70b-versatile`) sends that request to
+`LABS_BACKUP_MODEL=...,groq/openai/gpt-oss-120b`) sends that request to
 [Groq](https://console.groq.com) with `GROQ_API_KEY` (the key also used for voice). Groq's
-free tier is separate from OpenRouter's daily limit, and Llama 3.3 70B answers in about
-1-2 s, so it is a good last backup. It reads text only, so it is not used for pictures.
+free tier is separate from OpenRouter's daily limit, and GPT-OSS 120B answers in about
+1-3 s (Groq retired Llama 3.3 70B). The free tier allows 8,000 tokens per minute, about
+6 questions a minute; above that the next model in the list answers. It reads text only, so it is not used for pictures.
 
 **Local model (Ollama):** writing `ollama` in a model list (e.g.
 `LABS_BACKUP_MODEL=...,ollama`) runs `OLLAMA_MODEL` on your own computer through
