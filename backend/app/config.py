@@ -31,6 +31,7 @@ VISION_BACKUP_MODELS = [m.strip() for m in os.getenv("VISION_BACKUP_MODEL", "").
 
 # Local model through Ollama (https://ollama.com). Write "ollama" in a model list to use
 # OLLAMA_MODEL, e.g. LABS_BACKUP_MODEL=...,ollama. Free and unlimited, but slow on a laptop.
+# "groq/<name>" in a model list uses Groq with GROQ_API_KEY, e.g. groq/llama-3.3-70b-versatile.
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:1b")  # switch back with OLLAMA_MODEL=gemma4:e4b
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_TIMEOUT = 120.0  # seconds

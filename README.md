@@ -110,6 +110,12 @@ Open `backend/.env` and fill in:
 
 `.env` is ignored by git. Never commit it.
 
+**Groq models:** writing `groq/<name>` in a model list (e.g.
+`LABS_BACKUP_MODEL=...,groq/llama-3.3-70b-versatile`) sends that request to
+[Groq](https://console.groq.com) with `GROQ_API_KEY` (the key also used for voice). Groq's
+free tier is separate from OpenRouter's daily limit, and Llama 3.3 70B answers in about
+1-2 s, so it is a good last backup. It reads text only, so it is not used for pictures.
+
 **Local model (Ollama):** writing `ollama` in a model list (e.g.
 `LABS_BACKUP_MODEL=...,ollama`) runs `OLLAMA_MODEL` on your own computer through
 [Ollama](https://ollama.com): free, unlimited and offline. It is the last backup, used

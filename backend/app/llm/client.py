@@ -3,7 +3,8 @@
 The model name "ollama" (or "ollama/<name>") runs on this computer through Ollama:
 free, unlimited and offline, but slow on a laptop, so local requests are kept small
 (short prompt, short answer, thinking off, model kept in memory). Every other model
-name goes to OpenRouter's chat-completions API.
+name goes to OpenRouter's chat-completions API, except "groq/<name>", which goes to
+Groq (same format, free tier, very fast; uses GROQ_API_KEY).
 """
 import logging
 import time
@@ -13,10 +14,12 @@ import httpx
 from app import config
 
 OLLAMA_PREFIX = "ollama/"
+GROQ_PREFIX = "groq/"
 log = logging.getLogger("uvicorn.error")  # shows up in the backend terminal
 
 # Shared clients reuse their connections, which saves time on every call.
 _openrouter = httpx.Client(base_url=config.OPENROUTER_BASE_URL, timeout=30.0)
+_groq = httpx.Client(base_url=config.GROQ_BASE_URL, timeout=30.0)
 _ollama = httpx.Client(base_url=config.OLLAMA_BASE_URL, timeout=config.OLLAMA_TIMEOUT)
 
 
@@ -35,13 +38,19 @@ def chat(messages: list[dict], model: str,
         raise RuntimeError("No chat model given. Set LABS_MODEL in backend/.env")
     if model == "ollama" or model.startswith(OLLAMA_PREFIX):
         return chat_ollama(messages, model.removeprefix(OLLAMA_PREFIX).removeprefix("ollama"))
-    if not config.OPENROUTER_API_KEY:
-        raise RuntimeError("OPENROUTER_API_KEY is not set in backend/.env")
+    if model.startswith(GROQ_PREFIX):  # e.g. groq/llama-3.3-70b-versatile
+        client, api_key, key_name = _groq, config.GROQ_API_KEY, "GROQ_API_KEY"
+    else:
+        client, api_key, key_name = _openrouter, config.OPENROUTER_API_KEY, "OPENROUTER_API_KEY"
+    if not api_key:
+        raise RuntimeError(f"{key_name} is not set in backend/.env")
 
-    response = _openrouter.post(
+    # Groq and OpenRouter use the same request format; Groq wants the name without "groq/".
+    response = client.post(
         "/chat/completions",
-        headers={"Authorization": f"Bearer {config.OPENROUTER_API_KEY}"},
-        json={"model": model, "messages": messages, "temperature": temperature, "max_tokens": max_tokens},
+        headers={"Authorization": f"Bearer {api_key}"},
+        json={"model": model.removeprefix(GROQ_PREFIX), "messages": messages,
+              "temperature": temperature, "max_tokens": max_tokens},
     )
     response.raise_for_status()
     data = response.json()
