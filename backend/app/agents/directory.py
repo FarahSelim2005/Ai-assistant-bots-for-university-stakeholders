@@ -93,6 +93,7 @@ def suggest_agent(question: str, current_agent: str, user_type: str,
     best, second = np.argsort(scores)[::-1][:2]
     agent = AGENT_DIRECTORY[best]
     if (scores[best] - scores[second] < min_gap
+            or scores[best] < config.AGENT_LINK_MIN_SCORE
             or (built_only and not agent.built)
             or agent.key == current_agent
             or user_type not in agent.user_types):

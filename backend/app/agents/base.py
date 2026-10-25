@@ -65,15 +65,20 @@ class BaseAgent:
         asked_rooms = rooms_in_question(question)
         if asked_rooms:
             relevant.insert(0, RetrievedChunk(room_facts(asked_rooms), ROOM_FACTS_SOURCE, 1.0))
-        if not relevant and attachment is None and not self.answers_without_documents:
-            return AgentResponse(answer=self.fallback_for(question), sources=[],
-                                 redirect=suggest_agent(search_question, self.name, user_type))
+        if not relevant and attachment is None:
+            redirect = suggest_agent(search_question, self.name, user_type)
+            # An agent that may answer without documents (Career) still sends the user
+            # on when the question clearly belongs to another agent (e.g. credit hours).
+            if redirect or not self.answers_without_documents:
+                return AgentResponse(answer=self.fallback_for(question), sources=[], redirect=redirect)
         # A question that only weakly matches this agent's documents but clearly belongs
         # to another built agent is handed over to it instead of being answered here.
+        # Career also hands over to agents not built yet: otherwise its model would
+        # give general advice on e.g. credit hours instead of pointing to Graduation.
         best_score = max((c.score for c in chunks), default=0.0)
         if attachment is None and not asked_rooms and best_score < config.HANDOVER_MAX_SCORE:
-            owner = suggest_agent(search_question, self.name, user_type,
-                                  min_gap=config.HANDOVER_MIN_GAP, built_only=True)
+            owner = suggest_agent(search_question, self.name, user_type, min_gap=config.HANDOVER_MIN_GAP,
+                                  built_only=not self.answers_without_documents)
             if owner:
                 return AgentResponse(answer=self.fallback_for(question), sources=[], redirect=owner)
         # 4. Generate

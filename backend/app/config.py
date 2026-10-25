@@ -65,6 +65,9 @@ TOP_K = 4                    # how many chunks the retriever returns
 # Suggest another agent only when it clearly wins: its description must match the
 # question at least this much better than the second-best agent (tuned for bge-m3).
 AGENT_LINK_MIN_GAP = 0.05
+# ...and match it at least this well: off-topic questions ("capital of France?", "tell
+# me a joke") score 0.25-0.38 against every agent, real ones 0.42 and more.
+AGENT_LINK_MIN_SCORE = 0.40
 # Hand a question over to another BUILT agent (fallback + link) when that agent clearly
 # owns it (gap >= HANDOVER_MIN_GAP) and this agent's best document is only a weak
 # match (score < HANDOVER_MAX_SCORE). E.g. "How do I apply for an internship?" asked
