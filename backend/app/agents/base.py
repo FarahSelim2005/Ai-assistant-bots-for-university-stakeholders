@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass, field
 
 from app import config
-from app.agents.directory import AgentLink, suggest_agent
+from app.agents.directory import AGENT_DIRECTORY, AgentLink, suggest_agent
 from app.attachments import Attachment
 from app.campus import Location, Place, find_locations, find_places, room_facts, rooms_in_question
 from app.llm.client import chat_with_backup
@@ -55,8 +55,8 @@ class BaseAgent:
         # form added, so the search and place detection understand them.
         search_question = with_english_terms(question)
         # 2. Retrieve (filtered by this agent and the user's type)
-        chunks = retrieve_best([self.search_text(q, history) for q in search_variants(question)],
-                               self.name, user_type)
+        search_texts = [self.search_text(q, history) for q in search_variants(question)]
+        chunks = retrieve_best(search_texts, self.name, user_type)
         # 3. Validate: with no relevant chunk and no attachment, skip the model and
         #    return the fallback, with a link to the agent that probably can answer
         relevant = self.validate(chunks)
@@ -65,20 +65,25 @@ class BaseAgent:
         asked_rooms = rooms_in_question(question)
         if asked_rooms:
             relevant.insert(0, RetrievedChunk(room_facts(asked_rooms), ROOM_FACTS_SOURCE, 1.0))
+        best_score = max((c.score for c in chunks), default=0.0)
         if not relevant and attachment is None:
-            redirect = suggest_agent(search_question, self.name, user_type)
+            # Prefer a built agent whose documents have the answer (the gym is in Labs'
+            # documents), then the agent whose description fits best.
+            redirect = (self.owner_by_documents(search_texts, user_type, best_score)
+                        or suggest_agent(search_question, self.name, user_type))
             # An agent that may answer without documents (Career) still sends the user
             # on when the question clearly belongs to another agent (e.g. credit hours).
             if redirect or not self.answers_without_documents:
                 return AgentResponse(answer=self.fallback_for(question), sources=[], redirect=redirect)
         # A question that only weakly matches this agent's documents but clearly belongs
-        # to another built agent is handed over to it instead of being answered here.
+        # to another agent is handed over to it instead of being answered here: first a
+        # built agent whose documents answer it better, then by the agents' descriptions.
         # Career also hands over to agents not built yet: otherwise its model would
         # give general advice on e.g. credit hours instead of pointing to Graduation.
-        best_score = max((c.score for c in chunks), default=0.0)
         if attachment is None and not asked_rooms and best_score < config.HANDOVER_MAX_SCORE:
-            owner = suggest_agent(search_question, self.name, user_type, min_gap=config.HANDOVER_MIN_GAP,
-                                  built_only=not self.answers_without_documents)
+            owner = (self.owner_by_documents(search_texts, user_type, best_score)
+                     or suggest_agent(search_question, self.name, user_type, min_gap=config.HANDOVER_MIN_GAP,
+                                      built_only=not self.answers_without_documents))
             if owner:
                 return AgentResponse(answer=self.fallback_for(question), sources=[], redirect=owner)
         # 4. Generate
@@ -101,6 +106,19 @@ class BaseAgent:
             raise ValueError(f"The question is longer than {MAX_QUESTION_LENGTH} characters.")
         if attachment and attachment.is_image and not self.vision_model:
             raise ValueError("Image questions are not available yet. Please upload a PDF or text file.")
+
+    def owner_by_documents(self, search_texts: list[str], user_type: str,
+                           own_best: float) -> AgentLink | None:
+        """Another built agent whose documents answer the question clearly better than
+        ours, e.g. "Where is the admission office?" asked to Career -> Labs & Research
+        (its documents list the offices)."""
+        for other in AGENT_DIRECTORY:
+            if not other.built or other.key == self.name or user_type not in other.user_types:
+                continue
+            best = max((c.score for c in retrieve_best(search_texts, other.key, user_type)), default=0.0)
+            if best >= config.SIMILARITY_THRESHOLD and best - own_best >= config.HANDOVER_MIN_GAP:
+                return AgentLink(agent=other.key, name=other.name, url=f"/?agent={other.key}")
+        return None
 
     def search_text(self, question: str, history: list[dict] | None) -> str:
         """Text used for retrieval. For follow-ups like "when is it open?", the previous

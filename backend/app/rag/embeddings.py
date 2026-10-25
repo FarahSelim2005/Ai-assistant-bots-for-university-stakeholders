@@ -1,4 +1,6 @@
 """Turn text into embedding vectors through the OpenRouter embeddings API."""
+from functools import lru_cache
+
 import httpx
 
 from app import config
@@ -30,6 +32,8 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     return vectors
 
 
+@lru_cache(maxsize=512)
 def embed_text(text: str) -> list[float]:
-    """Embed a single text (for example, a user question)."""
+    """Embed a single text (for example, a user question). Remembered, because one
+    question is searched in several agents' documents."""
     return embed_texts([text])[0]
