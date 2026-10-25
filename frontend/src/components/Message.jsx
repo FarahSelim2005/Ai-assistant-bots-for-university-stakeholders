@@ -25,7 +25,7 @@ export default function Message({ message, onRate }) {
     <div className="message assistant">
       <div className="avatar">GIU</div>
       <div className="assistant-body">
-        <div className="bubble" dir="auto">{message.content}</div>
+        {!message.mapOnly && <div className="bubble" dir="auto">{message.content}</div>}
 
         {(message.locations?.length > 0 || message.places?.length > 0) && (
           <CampusMap locations={message.locations} places={message.places} />

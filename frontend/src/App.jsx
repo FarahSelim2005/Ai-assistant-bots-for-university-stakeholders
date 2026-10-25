@@ -9,6 +9,8 @@ import StartScreen from "./components/StartScreen.jsx";
 const ACCEPTED_FILES = ".pdf,.txt,.md,.png,.jpg,.jpeg,.webp";
 const MAX_UPLOAD_MB = 5;
 const CV_QUESTION = "Please analyze my CV and suggest improvements.";
+// Questions that ask where a place is or how to get there, in English or Egyptian Arabic.
+const WHERE_QUESTION = /\b(where|location|located|direction|directions|how (do|can) i (get|go|reach|find))\b|فين|وين|اين|أين|مكان|اروح|أروح|اوصل|أوصل/i;
 
 export default function App({ initialAgent }) {
   const [userType, setUserType] = useState(null);
@@ -120,6 +122,10 @@ export default function App({ initialAgent }) {
           locations: data.locations,
           places: data.places,
           redirect: data.redirect,
+          // "Where is the gym?": the map card already gives the walking directions, so
+          // the text answer would only repeat them; show just the card. Other questions
+          // about a place ("gym opening hours?") keep their text answer.
+          mapOnly: data.places?.length > 0 && WHERE_QUESTION.test(query),
           messageId: data.message_id,
         },
       ]);
