@@ -140,7 +140,8 @@ export default function App({ initialAgent }) {
   // so it can be edited and sent again. The backend then does not save it either.
   // It always resets the screen, even if the request cannot be found (for example after
   // the page was updated while a slow answer was still running).
-  function stop() {
+  function stop(event) {
+    event?.preventDefault(); // this click must never also send the form
     const request = requestRef.current;
     requestRef.current = null; // any answer that still arrives is ignored
     request?.controller.abort();
@@ -284,12 +285,15 @@ export default function App({ initialAgent }) {
               📄
             </button>
           )}
+          {/* Different keys make these two separate buttons. With one shared button, a
+              click on Stop turned it back into Send during the click, and the browser
+              then sent the question again. */}
           {loading ? (
-            <button type="button" className="stop-button" onClick={stop} title="Stop and edit your message">
+            <button key="stop" type="button" className="stop-button" onClick={stop} title="Stop and edit your message">
               ■ Stop
             </button>
           ) : (
-            <button type="submit" disabled={!input.trim() && !attachment}>Send</button>
+            <button key="send" type="submit" disabled={!input.trim() && !attachment}>Send</button>
           )}
         </form>
       </footer>
