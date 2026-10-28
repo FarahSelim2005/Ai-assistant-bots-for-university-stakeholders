@@ -30,10 +30,11 @@ AGENT_DIRECTORY = [
         "which courses to take next semester, GPA, graduation timeline, graduation "
         "requirements, academic advising and advisors, the advising list, probation, adding "
         "hours, makeup exams, electives, Bachelor thesis and internship eligibility, memos "
-        "and graduation plans, the courses and ECTS of each semester (Computer Science and "
-        "Business Informatics curriculum). "
+        "and graduation plans, the courses and ECTS of each semester (Computer Science, "
+        "Business Informatics and Business Administration majors curriculum), which courses a major "
+        "or program has, the majors of each program. "
         "التخرج، الساعات المعتمدة، المواد، الخطة الدراسية، الجي بي إيه، المرشد الأكاديمي، "
-        "الادفايزنج، البروبيشن، تزويد الساعات، الميك اب، الباتشلر، مواد كل ترم، المنهج.",
+        "الادفايزنج، البروبيشن، تزويد الساعات، الميك اب، الباتشلر، مواد كل ترم، مواد التخصص، المنهج، التخصصات.",
         ("student", "staff"), built=True,
     ),
     AgentInfo(
@@ -86,12 +87,8 @@ def suggest_agent(question: str, current_agent: str, user_type: str,
     """The agent whose description best matches the question, or None when the best
     match is the current agent, an agent this user may not use, or no agent clearly
     wins (off-topic questions match all agents about equally)."""
-    global _description_vectors
-    try:
-        if _description_vectors is None:
-            _description_vectors = np.array(embed_texts([a.description for a in AGENT_DIRECTORY]))
-        scores = cosine_similarity(np.array(embed_text(question)), _description_vectors)
-    except httpx.HTTPError:
+    scores = description_scores(question)
+    if scores is None:
         return None  # no link is better than a broken answer
 
     best, second = np.argsort(scores)[::-1][:2]
@@ -103,3 +100,20 @@ def suggest_agent(question: str, current_agent: str, user_type: str,
             or user_type not in agent.user_types):
         return None
     return AgentLink(agent=agent.key, name=agent.name, url=f"/?agent={agent.key}")
+
+
+def closest_agent(question: str) -> str | None:
+    """Key of the agent whose description matches the question best (None if unknown)."""
+    scores = description_scores(question)
+    return None if scores is None else AGENT_DIRECTORY[int(np.argmax(scores))].key
+
+
+def description_scores(question: str) -> np.ndarray | None:
+    """Similarity of the question to every agent's description (None if embedding fails)."""
+    global _description_vectors
+    try:
+        if _description_vectors is None:
+            _description_vectors = np.array(embed_texts([a.description for a in AGENT_DIRECTORY]))
+        return cosine_similarity(np.array(embed_text(question)), _description_vectors)
+    except httpx.HTTPError:
+        return None

@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass, field
 
 from app import config
-from app.agents.directory import AGENT_DIRECTORY, AgentLink, suggest_agent
+from app.agents.directory import AGENT_DIRECTORY, AgentLink, closest_agent, suggest_agent
 from app.attachments import Attachment
 from app.campus import Location, Place, find_locations, find_places, room_facts, rooms_in_question
 from app.llm.client import chat_with_backup
@@ -69,7 +69,7 @@ class BaseAgent:
         if not relevant and attachment is None:
             # Prefer a built agent whose documents have the answer (the gym is in Labs'
             # documents), then the agent whose description fits best.
-            redirect = (self.owner_by_documents(search_texts, user_type, best_score)
+            redirect = (self.owner_by_documents(search_question, search_texts, user_type, best_score)
                         or suggest_agent(search_question, self.name, user_type))
             # An agent that may answer without documents (Career) still sends the user
             # on when the question clearly belongs to another agent (e.g. credit hours).
@@ -81,7 +81,7 @@ class BaseAgent:
         # Career also hands over to agents not built yet: otherwise its model would
         # give general advice on e.g. credit hours instead of pointing to Graduation.
         if attachment is None and not asked_rooms and best_score < config.HANDOVER_MAX_SCORE:
-            owner = (self.owner_by_documents(search_texts, user_type, best_score)
+            owner = (self.owner_by_documents(search_question, search_texts, user_type, best_score)
                      or suggest_agent(search_question, self.name, user_type, min_gap=config.HANDOVER_MIN_GAP,
                                       built_only=not self.answers_without_documents))
             if owner:
@@ -107,11 +107,15 @@ class BaseAgent:
         if attachment and attachment.is_image and not self.vision_model:
             raise ValueError("Image questions are not available yet. Please upload a PDF or text file.")
 
-    def owner_by_documents(self, search_texts: list[str], user_type: str,
+    def owner_by_documents(self, question: str, search_texts: list[str], user_type: str,
                            own_best: float) -> AgentLink | None:
         """Another built agent whose documents answer the question clearly better than
         ours, e.g. "Where is the admission office?" asked to Career -> Labs & Research
-        (its documents list the offices)."""
+        (its documents list the offices). Not when the question fits this agent's own
+        topic best: "How do I get a job in digital marketing?" stays with Career even
+        though the Digital Marketing major's description is in Advising's documents."""
+        if closest_agent(question) == self.name:
+            return None
         for other in AGENT_DIRECTORY:
             if not other.built or other.key == self.name or user_type not in other.user_types:
                 continue

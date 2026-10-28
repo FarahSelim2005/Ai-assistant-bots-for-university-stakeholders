@@ -182,6 +182,11 @@ The documents:
 - `graduation_advising/business_informatics_curriculum.md`: the Business Informatics
   program: description, courses and ECTS per semester (240 ECTS), and one section per
   course, all with Arabic.
+- `graduation_advising/business_administration_curriculum.md`: the seven Business
+  Administration majors (International Business; Finance, Banking & Accounting; Digital
+  Marketing; Entrepreneurship & SMEs; Supply Chain Management; Real Estate Management;
+  Tourism & Hospitality Management): shared and major-specific semesters (240 ECTS),
+  descriptions, core competencies and job profiles, and one section per course, with Arabic.
 - `internship_career/career_guide.md`: GIU facts from GIU's official news pages (Career
   Fair 2025 on November 14 with 95 exhibitors and its employers, the five-month GIU
   Internship Semester, the first fair in 2022 and the GIU Career Center, with sources),
@@ -320,7 +325,7 @@ and maximum response time, and how many answers took over 2 seconds.
 python -m scripts.evaluate --user-type staff --out data/results.csv   # save every answer
 ```
 
-The 42 included questions (17 Labs & Research, 8 Internship & Career, 17 Graduation &
+The 45 included questions (17 Labs & Research, 8 Internship & Career, 20 Graduation &
 Advising) are placeholders based on the documents. Three of them (the AI lab's phone number, renewing a
 passport, a paid internship semester) ask for information that is not in the documents
 and expect `don't have`, to check the agents do not invent answers. Questions for an
