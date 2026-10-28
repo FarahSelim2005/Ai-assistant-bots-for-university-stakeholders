@@ -187,6 +187,9 @@ The documents:
   Marketing; Entrepreneurship & SMEs; Supply Chain Management; Real Estate Management;
   Tourism & Hospitality Management): shared and major-specific semesters (240 ECTS),
   descriptions, core competencies and job profiles, and one section per course, with Arabic.
+- `graduation_advising/design_curriculum.md`: the three Design majors (Digital Media and
+  Communication Design, Fashion Design, Industrial Design): semesters (1, 7 and 8 shared,
+  30 ECTS each, 240 in total), descriptions and one section per course, with Arabic.
 - `internship_career/career_guide.md`: GIU facts from GIU's official news pages (Career
   Fair 2025 on November 14 with 95 exhibitors and its employers, the five-month GIU
   Internship Semester, the first fair in 2022 and the GIU Career Center, with sources),
@@ -325,7 +328,7 @@ and maximum response time, and how many answers took over 2 seconds.
 python -m scripts.evaluate --user-type staff --out data/results.csv   # save every answer
 ```
 
-The 45 included questions (17 Labs & Research, 8 Internship & Career, 20 Graduation &
+The 48 included questions (17 Labs & Research, 8 Internship & Career, 23 Graduation &
 Advising) are placeholders based on the documents. Three of them (the AI lab's phone number, renewing a
 passport, a paid internship semester) ask for information that is not in the documents
 and expect `don't have`, to check the agents do not invent answers. Questions for an

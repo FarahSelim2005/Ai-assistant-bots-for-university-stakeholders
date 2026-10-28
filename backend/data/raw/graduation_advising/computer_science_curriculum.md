@@ -17,6 +17,7 @@ ECTS credits, not credit hours. Changes may occur to this curriculum without pri
 
 ## First semester (semester 1), all Computer Science programs: 28 ECTS
 
+بالعربي: مواد الترم الأول في First semester (semester 1), all Computer Science programs، كل مواد السيمستر 1:
 The first semester is the same for Data Science, Software Engineering, IT Security and Media
 Informatics:
 - Mathematics I: 8 ECTS
@@ -33,6 +34,7 @@ Total: 28 ECTS.
 
 ## Second semester (semester 2), all Computer Science programs: 30 ECTS
 
+بالعربي: مواد الترم التاني في Second semester (semester 2), all Computer Science programs، كل مواد السيمستر 2:
 The second semester is the same for all four Computer Science programs:
 - Mathematics II: 4 ECTS
 - Programming II: 7 ECTS
@@ -50,6 +52,7 @@ Methods) 2، ألماني 2 (German 2) 2.
 
 ## Third semester (semester 3), all Computer Science programs: 32 ECTS
 
+بالعربي: مواد الترم التالت في Third semester (semester 3), all Computer Science programs، كل مواد السيمستر 3:
 The third semester is the same for all four Computer Science programs:
 - Mathematics III: 4 ECTS
 - Programming III: 7 ECTS
@@ -67,6 +70,7 @@ Presentation Skills) 2، ألماني 3 (German 3) 2.
 
 ## Fourth semester (semester 4), all Computer Science programs: 28 ECTS
 
+بالعربي: مواد الترم الرابع في Fourth semester (semester 4), all Computer Science programs، كل مواد السيمستر 4:
 The fourth semester is the same for all four Computer Science programs:
 - Mathematics IV: 4 ECTS
 - Software Engineering: 4 ECTS
@@ -101,6 +105,7 @@ manage big data in an optimized way, through a highly practice-oriented curricul
 
 ## Data Science: fifth semester (semester 5): 30 ECTS
 
+بالعربي: مواد الترم الخامس في داتا ساينس، كل مواد السيمستر 5:
 - Software Project I: 5 ECTS
 - Elective I: 5 ECTS
 - Elective II: 5 ECTS
@@ -116,6 +121,7 @@ Learning) 5.
 
 ## Data Science: sixth semester (semester 6): 32 ECTS
 
+بالعربي: مواد الترم السادس في داتا ساينس، كل مواد السيمستر 6:
 - Project Management: 2 ECTS
 - Elective III: 6 ECTS
 - Elective IV: 6 ECTS
@@ -148,6 +154,7 @@ and compiler construction, computer graphics and game programming.
 
 ## Software Engineering: fifth semester (semester 5): 30 ECTS
 
+بالعربي: مواد الترم الخامس في سوفتوير انجينيرنج، كل مواد السيمستر 5:
 - Software Project I: 5 ECTS
 - Elective I: 5 ECTS
 - Elective II: 5 ECTS
@@ -163,6 +170,7 @@ Engineering) 5، سوفتوير ديزاين آند أركيتكتشر (Software
 
 ## Software Engineering: sixth semester (semester 6): 32 ECTS
 
+بالعربي: مواد الترم السادس في سوفتوير انجينيرنج، كل مواد السيمستر 6:
 - Project Management: 2 ECTS
 - Elective III: 6 ECTS
 - Elective IV: 6 ECTS
@@ -194,6 +202,7 @@ pentesting (choosing and running penetration tests to evaluate protective measur
 
 ## IT Security: fifth semester (semester 5): 30 ECTS
 
+بالعربي: مواد الترم الخامس في آي تي سيكيوريتي، كل مواد السيمستر 5:
 - Software Project I: 5 ECTS
 - Elective I: 5 ECTS
 - Elective II: 5 ECTS
@@ -209,6 +218,7 @@ Forensics) 5.
 
 ## IT Security: sixth semester (semester 6): 32 ECTS
 
+بالعربي: مواد الترم السادس في آي تي سيكيوريتي، كل مواد السيمستر 6:
 - Project Management: 2 ECTS
 - Elective III: 6 ECTS
 - Elective IV: 6 ECTS
@@ -237,6 +247,7 @@ consulting firms, software houses and classical manufacturing industries (e.g. a
 
 ## Media Informatics: fifth semester (semester 5): 30 ECTS
 
+بالعربي: مواد الترم الخامس في ميديا انفورماتكس، كل مواد السيمستر 5:
 - Software Project I: 5 ECTS
 - Elective I: 5 ECTS
 - Elective II: 5 ECTS
@@ -251,6 +262,7 @@ Total: 30 ECTS.
 
 ## Media Informatics: sixth semester (semester 6): 32 ECTS
 
+بالعربي: مواد الترم السادس في ميديا انفورماتكس، كل مواد السيمستر 6:
 - Project Management: 2 ECTS
 - Elective III: 6 ECTS
 - Elective IV: 6 ECTS
@@ -265,6 +277,7 @@ Total: 32 ECTS.
 
 ## Seventh semester (semester 7), all Computer Science programs: 30 ECTS
 
+بالعربي: مواد الترم السابع في Seventh semester (semester 7), all Computer Science programs، كل مواد السيمستر 7:
 The seventh semester is the same for all four Computer Science programs:
 - Bachelor Thesis and Colloquium: 20 ECTS
 - Research Methodology: 5 ECTS
@@ -277,6 +290,7 @@ Colloquium) 20، ريسيرش ميثودولوجي (Research Methodology) 5، و
 
 ## Eighth semester (semester 8), all Computer Science programs: 30 ECTS
 
+بالعربي: مواد الترم التامن في Eighth semester (semester 8), all Computer Science programs، كل مواد السيمستر 8:
 The eighth semester is the same for all four Computer Science programs:
 - Internship: 20 ECTS
 - Internship-accompanying Seminar: 5 ECTS

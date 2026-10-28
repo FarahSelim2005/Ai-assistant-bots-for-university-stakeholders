@@ -31,7 +31,7 @@ AGENT_DIRECTORY = [
         "requirements, academic advising and advisors, the advising list, probation, adding "
         "hours, makeup exams, electives, Bachelor thesis and internship eligibility, memos "
         "and graduation plans, the courses and ECTS of each semester (Computer Science, "
-        "Business Informatics and Business Administration majors curriculum), which courses a major "
+        "Business Informatics, Business Administration and Design majors curriculum), which courses a major "
         "or program has, the majors of each program. "
         "التخرج، الساعات المعتمدة، المواد، الخطة الدراسية، الجي بي إيه، المرشد الأكاديمي، "
         "الادفايزنج، البروبيشن، تزويد الساعات، الميك اب، الباتشلر، مواد كل ترم، مواد التخصص، المنهج، التخصصات.",

@@ -74,7 +74,7 @@ GLOSSARY = {
     "security": ["سيكيوريتي", "سكيوريتي"],
     "data science": ["داتا ساينس", "داتا ساينز"],
     "software engineering": ["سوفتوير انجينيرنج", "سوفت وير انجينيرنج", "سوفتوير"],
-    "media informatics": ["ميديا انفورماتكس", "ميديا انفورماتيكس", "ميديا"],
+    "media informatics": ["ميديا انفورماتكس", "ميديا انفورماتيكس"],
     "computer science": ["كمبيوتر ساينس", "كومبيوتر ساينس"],
     "semester": ["سيمستر", "سمستر"],
     "ECTS": ["اي سي تي اس"],
@@ -103,6 +103,17 @@ GLOSSARY = {
     "taxation": ["تاكسيشن"],
     "microeconomics": ["مايكرو"],
     "macroeconomics": ["ماكرو"],
+    "digital media": ["ديجيتال ميديا"],
+    "fashion design": ["فاشون ديزاين", "فاشن ديزاين"],
+    "fashion": ["فاشون", "فاشن"],
+    "industrial design": ["اندستريال ديزاين", "إندستريال ديزاين"],
+    "design": ["ديزاين", "ديزاين"],
+    "animation": ["انيميشن", "أنيميشن"],
+    "motion graphics": ["موشن جرافيكس", "موشن جرافيك"],
+    "cinematography": ["سينماتوجرافي"],
+    "typography": ["تايبوجرافي"],
+    "portfolio": ["بورتفوليو"],
+    "textile": ["تكستايل"],
     "project management": ["بروجكت مانجمنت", "بروجيكت مانجمنت"],
     "databases": ["داتابيز", "داتا بيز", "داتابيس"],
     "programming": ["بروجرامنج", "بروجرامينج"],
@@ -155,6 +166,16 @@ _PHRASES = sorted(
 )
 
 
+# Very short words leave a skeleton of only 1-2 letters, which many everyday words share
+# ("مواد" and "ميديا" are both "مد", "ماما" and "ميمو" both "مم"). Those glossary words
+# must be written exactly as listed.
+_EXACT_SHORT = {}
+for _spellings in GLOSSARY.values():
+    for _spelling in _spellings:
+        if " " not in _spelling and len(skeleton(_spelling)) <= 2:
+            _EXACT_SHORT.setdefault(skeleton(_spelling), set()).add(_strip_prefix(normalize_arabic(_spelling))[0])
+
+
 def _looks_like_a_place(words: list[str], had_article: bool) -> bool:
     return had_article or any(_strip_prefix(w)[0] in PLACE_CUES or w in PLACE_CUES for w in words)
 
@@ -171,6 +192,8 @@ def _matches(text: str) -> list[tuple[int, int, str]]:
                 continue
             had_article = _strip_prefix(words[i])[1]
             if n == 1 and phrase[0] in AMBIGUOUS and not _looks_like_a_place(words, had_article):
+                continue
+            if n == 1 and phrase[0] in _EXACT_SHORT and _strip_prefix(words[i])[0] not in _EXACT_SHORT[phrase[0]]:
                 continue
             found.append((i, n, english))
             i += n

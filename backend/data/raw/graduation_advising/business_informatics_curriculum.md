@@ -22,6 +22,7 @@ ECTS (الساعات الأوروبية) مش كريدت أورز.
 
 ## Business Informatics: first semester (semester 1): 29 ECTS
 
+بالعربي: مواد الترم الأول في بيزنس إنفورماتكس، كل مواد السيمستر 1:
 - German Language I: 2 ECTS
 - English for Academic Purposes and Study Skills: 2 ECTS
 - Principles of Financial Accounting I: 5 ECTS
@@ -35,6 +36,7 @@ Total: 29 ECTS.
 
 ## Business Informatics: second semester (semester 2): 29 ECTS
 
+بالعربي: مواد الترم التاني في بيزنس إنفورماتكس، كل مواد السيمستر 2:
 - German Language II: 2 ECTS
 - Critical Thinking & Scientific Methods: 2 ECTS
 - Principles of Economics: 5 ECTS
@@ -48,6 +50,7 @@ Total: 29 ECTS.
 
 ## Business Informatics: third semester (semester 3): 30 ECTS
 
+بالعربي: مواد الترم التالت في بيزنس إنفورماتكس، كل مواد السيمستر 3:
 - German Language III: 2 ECTS
 - Communication & Presentation Skills: 2 ECTS
 - Math III: Probability and Statistics: 5 ECTS
@@ -61,6 +64,7 @@ Total: 30 ECTS.
 
 ## Business Informatics: fourth semester (semester 4): 30 ECTS
 
+بالعربي: مواد الترم الرابع في بيزنس إنفورماتكس، كل مواد السيمستر 4:
 - German Language IV: 2 ECTS
 - Research Paper Writing: 2 ECTS
 - Applied Econometrics: 4 ECTS
@@ -75,6 +79,7 @@ Total: 30 ECTS.
 
 ## Business Informatics: fifth semester (semester 5): 30 ECTS
 
+بالعربي: مواد الترم الخامس في بيزنس إنفورماتكس، كل مواد السيمستر 5:
 - Research Methodology for Business Informatics: 4 ECTS
 - Auditing Analytics: 4 ECTS
 - Artificial Intelligence in Business: 4 ECTS
@@ -88,6 +93,7 @@ Total: 30 ECTS.
 
 ## Business Informatics: sixth semester (semester 6): 32 ECTS
 
+بالعربي: مواد الترم السادس في بيزنس إنفورماتكس، كل مواد السيمستر 6:
 - IT Project Management: 4 ECTS
 - Cybersecurity: 4 ECTS
 - Big Data and NoSQL: 6 ECTS
@@ -101,6 +107,7 @@ Total: 32 ECTS.
 
 ## Business Informatics: seventh semester (semester 7): 30 ECTS
 
+بالعربي: مواد الترم السابع في بيزنس إنفورماتكس، كل مواد السيمستر 7:
 - Bachelor Thesis and Colloquium: 20 ECTS
 - Business Simulation: 5 ECTS
 - Workplace & Internship Readiness: 5 ECTS
@@ -110,6 +117,7 @@ Total: 30 ECTS.
 
 ## Business Informatics: eighth semester (semester 8): 30 ECTS
 
+بالعربي: مواد الترم التامن في بيزنس إنفورماتكس، كل مواد السيمستر 8:
 - Internship: 20 ECTS
 - Internship-accompanying Seminar: 5 ECTS
 - Business Ethics: 5 ECTS

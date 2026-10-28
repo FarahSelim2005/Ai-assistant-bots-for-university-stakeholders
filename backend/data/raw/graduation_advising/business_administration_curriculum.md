@@ -18,6 +18,7 @@ credit hours. Changes may occur to this curriculum without prior notice.
 
 ## Business Administration, all majors: first semester (semester 1): 30 ECTS
 
+بالعربي: مواد الترم الأول في بيزنس أدمنستريشن، كل التخصصات، كل مواد السيمستر 1:
 This semester is the same for all seven Business Administration majors:
 - Mathematics I: 6 ECTS
 - Principles of Financial Accounting I: 5 ECTS
@@ -32,6 +33,7 @@ Total: 30 ECTS.
 
 ## Business Administration, all majors: second semester (semester 2): 30 ECTS
 
+بالعربي: مواد الترم التاني في بيزنس أدمنستريشن، كل التخصصات، كل مواد السيمستر 2:
 This semester is the same for all seven Business Administration majors:
 - Computer Science II: 5 ECTS
 - Mathematics II: 6 ECTS
@@ -46,6 +48,7 @@ Total: 30 ECTS.
 
 ## Business Administration, all majors: third semester (semester 3): 29 ECTS
 
+بالعربي: مواد الترم التالت في بيزنس أدمنستريشن، كل التخصصات، كل مواد السيمستر 3:
 This semester is the same for all seven Business Administration majors:
 - International Management: 5 ECTS
 - Microeconomics: 5 ECTS
@@ -60,6 +63,7 @@ Total: 29 ECTS.
 
 ## Business Administration, all majors: fourth semester (semester 4): 30 ECTS
 
+بالعربي: مواد الترم الرابع في بيزنس أدمنستريشن، كل التخصصات، كل مواد السيمستر 4:
 This semester is the same for all seven Business Administration majors:
 - Macroeconomics: 5 ECTS
 - Principles of Corporate Finance: 5 ECTS
@@ -84,6 +88,7 @@ Job profiles: Import/Export manager or compliance specialist; International Mark
 
 ## International Business major: fifth semester (semester 5): 31 ECTS
 
+بالعربي: مواد الترم الخامس في إنترناشونال بيزنس (الأعمال الدولية)، كل مواد السيمستر 5:
 - Management Accounting: 5 ECTS
 - Project Management: 5 ECTS
 - Research Methodology: 6 ECTS
@@ -96,6 +101,7 @@ Total: 31 ECTS.
 
 ## International Business major: sixth semester (semester 6): 30 ECTS
 
+بالعربي: مواد الترم السادس في إنترناشونال بيزنس (الأعمال الدولية)، كل مواد السيمستر 6:
 - Company Taxation: 5 ECTS
 - Information Management: 5 ECTS
 - Strategic Management: 5 ECTS
@@ -118,6 +124,7 @@ Job profiles: Accountant / International Accountant; External Auditor; Purchasin
 
 ## Finance, Banking & Accounting major: fifth semester (semester 5): 31 ECTS
 
+بالعربي: مواد الترم الخامس في فاينانس وبانكنج وأكاونتنج (التمويل والبنوك والمحاسبة)، كل مواد السيمستر 5:
 - Management Accounting: 5 ECTS
 - Project Management: 5 ECTS
 - Research Methodology: 6 ECTS
@@ -130,6 +137,7 @@ Total: 31 ECTS.
 
 ## Finance, Banking & Accounting major: sixth semester (semester 6): 30 ECTS
 
+بالعربي: مواد الترم السادس في فاينانس وبانكنج وأكاونتنج (التمويل والبنوك والمحاسبة)، كل مواد السيمستر 6:
 - Company Taxation: 5 ECTS
 - Information Management: 5 ECTS
 - Financial Markets, Institutions & Investments: 5 ECTS
@@ -152,6 +160,7 @@ Job profiles: Marketing Specialist / Research; Online/Digital Marketing Manager;
 
 ## Digital Marketing major: fifth semester (semester 5): 31 ECTS
 
+بالعربي: مواد الترم الخامس في ديجيتال ماركتنج (التسويق الرقمي)، كل مواد السيمستر 5:
 - Management Accounting: 5 ECTS
 - Project Management: 5 ECTS
 - Research Methodology: 6 ECTS
@@ -164,6 +173,7 @@ Total: 31 ECTS.
 
 ## Digital Marketing major: sixth semester (semester 6): 30 ECTS
 
+بالعربي: مواد الترم السادس في ديجيتال ماركتنج (التسويق الرقمي)، كل مواد السيمستر 6:
 - Company Taxation: 5 ECTS
 - Information Management: 5 ECTS
 - Market Research: 5 ECTS
@@ -186,6 +196,7 @@ Job profiles: Successful Entrepreneur; SME Manager; Family Business Specialist; 
 
 ## Entrepreneurship, Small and Medium Enterprises major: fifth semester (semester 5): 31 ECTS
 
+بالعربي: مواد الترم الخامس في ريادة الأعمال والمشروعات الصغيرة والمتوسطة (إنتربرنرشيب و SMEs)، كل مواد السيمستر 5:
 - Management Accounting: 5 ECTS
 - Project Management: 5 ECTS
 - Research Methodology: 6 ECTS
@@ -198,6 +209,7 @@ Total: 31 ECTS.
 
 ## Entrepreneurship, Small and Medium Enterprises major: sixth semester (semester 6): 30 ECTS
 
+بالعربي: مواد الترم السادس في ريادة الأعمال والمشروعات الصغيرة والمتوسطة (إنتربرنرشيب و SMEs)، كل مواد السيمستر 6:
 - Company Taxation: 5 ECTS
 - Information Management: 5 ECTS
 - Managing SMEs: 5 ECTS
@@ -220,6 +232,7 @@ Job profiles: Global Supply Chain Manager; Distribution and Logistics Specialist
 
 ## Supply Chain Management major: fifth semester (semester 5): 31 ECTS
 
+بالعربي: مواد الترم الخامس في سبلاي تشين مانجمنت (إدارة سلاسل الإمداد)، كل مواد السيمستر 5:
 - Management Accounting: 5 ECTS
 - Project Management: 5 ECTS
 - Research Methodology: 6 ECTS
@@ -232,6 +245,7 @@ Total: 31 ECTS.
 
 ## Supply Chain Management major: sixth semester (semester 6): 30 ECTS
 
+بالعربي: مواد الترم السادس في سبلاي تشين مانجمنت (إدارة سلاسل الإمداد)، كل مواد السيمستر 6:
 - Company Taxation: 5 ECTS
 - Information Management: 5 ECTS
 - Auditing & Accountability: 5 ECTS
@@ -250,6 +264,7 @@ Real Estate Management is a major of the Business Administration program. The cu
 
 ## Real Estate Management major: fifth semester (semester 5): 31 ECTS
 
+بالعربي: مواد الترم الخامس في ريل استيت مانجمنت (إدارة العقارات)، كل مواد السيمستر 5:
 - Management Accounting: 5 ECTS
 - Project Management: 5 ECTS
 - Research Methodology: 6 ECTS
@@ -262,6 +277,7 @@ Total: 31 ECTS.
 
 ## Real Estate Management major: sixth semester (semester 6): 30 ECTS
 
+بالعربي: مواد الترم السادس في ريل استيت مانجمنت (إدارة العقارات)، كل مواد السيمستر 6:
 - Company Taxation: 5 ECTS
 - Information Management: 5 ECTS
 - Digital Real Estate Management: 5 ECTS
@@ -280,6 +296,7 @@ Tourism & Hospitality Management is a major of the Business Administration progr
 
 ## Tourism & Hospitality Management major: fifth semester (semester 5): 31 ECTS
 
+بالعربي: مواد الترم الخامس في إدارة السياحة والضيافة (توريزم آند هوسبيتاليتي مانجمنت)، كل مواد السيمستر 5:
 - Management Accounting: 5 ECTS
 - Project Management: 5 ECTS
 - Research Methodology: 6 ECTS
@@ -292,6 +309,7 @@ Total: 31 ECTS.
 
 ## Tourism & Hospitality Management major: sixth semester (semester 6): 30 ECTS
 
+بالعربي: مواد الترم السادس في إدارة السياحة والضيافة (توريزم آند هوسبيتاليتي مانجمنت)، كل مواد السيمستر 6:
 - Company Taxation: 5 ECTS
 - Information Management: 5 ECTS
 - Marketing, Revenue Management and E-Business in Tourism & Hospitality: 5 ECTS
@@ -304,6 +322,7 @@ Total: 30 ECTS.
 
 ## Business Administration, all majors: seventh semester (semester 7): 30 ECTS
 
+بالعربي: مواد الترم السابع في بيزنس أدمنستريشن، كل التخصصات، كل مواد السيمستر 7:
 This semester is the same for all seven Business Administration majors:
 - Bachelor Thesis & Colloquium: 20 ECTS
 - Business Simulation: 5 ECTS
@@ -314,6 +333,7 @@ Total: 30 ECTS.
 
 ## Business Administration, all majors: eighth semester (semester 8): 30 ECTS
 
+بالعربي: مواد الترم التامن في بيزنس أدمنستريشن، كل التخصصات، كل مواد السيمستر 8:
 This semester is the same for all seven Business Administration majors:
 - Internship: 20 ECTS
 - Internship-accompanying Seminar: 5 ECTS
