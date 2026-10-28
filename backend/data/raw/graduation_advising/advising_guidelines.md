@@ -99,10 +99,13 @@ When building an advising schedule, courses are chosen in this order:
 Eligibility for the Bachelor thesis (B.Sc.) or the Internship depends on the failed or missing
 courses before the 7th semester:
 
-- Clear eligibility: total failed/missing courses before the 7th semester → 4 courses,
-  distributed as 2+2.
-- Exceptional eligibility: total failed/missing courses before the 7th semester → 4 courses,
-  distributed as 0+3, 0+4, 1+3 or 3+1.
+- Clear eligibility: a maximum of 4 failed/missing courses in total before the 7th semester
+  (4 courses or fewer), distributed as 2+2.
+- Exceptional eligibility: a maximum of 4 failed/missing courses in total before the 7th
+  semester (4 courses or fewer), distributed as 0+3, 0+4, 1+3 or 3+1.
+- A student with more than 4 failed/missing courses before the 7th semester is not eligible.
+
+Arabic: عشان تبقى مؤهل للباتشلر أو الانترنشيب، أقصى حاجة 4 مواد ساقط فيهم أو ناقصينك قبل الترم السابع.
 - Irregular B.Sc./Internship cases have to be reviewed with the supervisors of the advising
   committee, and a declaration is needed.
 
