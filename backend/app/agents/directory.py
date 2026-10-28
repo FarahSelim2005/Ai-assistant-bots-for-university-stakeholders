@@ -1,4 +1,4 @@
-"""All four GIU agents, and which one a question probably belongs to.
+"""All five GIU agents, and which one a question probably belongs to.
 
 Used when an agent has no answer: instead of a dead end, the user gets a link to
 the agent that handles that topic. The match uses the same embeddings as retrieval
@@ -28,9 +28,12 @@ AGENT_DIRECTORY = [
         "graduation_advising", "Graduation & Advising Assistant",
         "Degree requirements, credit hours, prerequisites, course planning, study plan, "
         "which courses to take next semester, GPA, graduation timeline, graduation "
-        "requirements, academic advising and advisors. "
-        "التخرج، الساعات المعتمدة، المواد، الخطة الدراسية، الجي بي إيه، المرشد الأكاديمي.",
-        ("student", "staff"),
+        "requirements, academic advising and advisors, the advising list, probation, adding "
+        "hours, makeup exams, electives, Bachelor thesis and internship eligibility, memos "
+        "and graduation plans. "
+        "التخرج، الساعات المعتمدة، المواد، الخطة الدراسية، الجي بي إيه، المرشد الأكاديمي، "
+        "الادفايزنج، البروبيشن، تزويد الساعات، الميك اب، الباتشلر.",
+        ("student", "staff"), built=True,
     ),
     AgentInfo(
         "hr_policies", "HR & Policies Assistant",

@@ -24,3 +24,11 @@ What should I bring to the career fair?,CV,internship_career
 How should I answer behavioural interview questions?,STAR,internship_career
 Is the GIU Internship Semester paid?,don't have,internship_career
 الكارير فير كان امتى؟,14,internship_career
+What GPA puts a student on probation?,3.7,graduation_advising
+What is the minimum load a student can take?,60%,graduation_advising
+What are the steps of the advising process?,appointment;meeting,graduation_advising
+Which courses are selected first: failed or unattended courses?,failed,graduation_advising
+Can a schedule clash be allowed?,graduation,graduation_advising
+How many failed courses before the 7th semester still allow the Bachelor thesis?,4,graduation_advising
+What are the consequences of being on probation?,don't have,graduation_advising
+البروبيشن بيبقى امتى؟,3.7,graduation_advising

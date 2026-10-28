@@ -6,9 +6,18 @@ export const AGENTS = [
   {
     key: "graduation_advising",
     name: "Graduation & Advising Assistant",
-    handles: "Degree requirements, course planning, graduation timeline and advising",
+    handles: "Advising, probation, adding hours, B.Sc./internship eligibility, memos",
     userTypes: ["student", "staff"],
-    ready: false,
+    ready: true,
+    subtitle: "Answers from the GIU advising guidelines",
+    welcome: "Ask about advising, probation, adding hours or B.Sc. eligibility, or try one of these:",
+    placeholder: "Ask about advising, probation, adding hours, eligibility...",
+    examples: [
+      "Why was I put on the advising list?",
+      "Can a probation student add hours?",
+      "What is the minimum load I can take?",
+      "Am I eligible for the Bachelor thesis?",
+    ],
   },
   {
     key: "hr_policies",

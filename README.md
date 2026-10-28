@@ -12,8 +12,12 @@ slices (database, backend, frontend and evaluation):
   from its documents**; general career advice may also come from the model's own
   knowledge and is marked "General advice:". It can **analyse an uploaded CV**
   ("📄 Analyze my CV").
+- **Graduation & Advising** (students and staff): the advising process, the advising
+  list, probation, adding hours, schedule rules, electives, B.Sc./internship eligibility,
+  memos and graduation plans, answered **only from its documents** (the Academic
+  Performance Department's advising guidelines), like Labs & Research.
 
-The other three (Graduation & Advising, HR & Policies, Orientation) show a "coming soon"
+The other two (HR & Policies, Orientation) show a "coming soon"
 page.
 
 ## How it works
@@ -148,7 +152,7 @@ possible, and always report which model ID you used.
 ## 3. Ingest documents
 
 Each agent has its own folder: put `.pdf`, `.txt` or `.md` files in
-`backend/data/raw/labs_research/` or `backend/data/raw/internship_career/`, then:
+`backend/data/raw/<agent>/` (`labs_research`, `internship_career`, `graduation_advising`), then:
 
 ```bash
 python -m scripts.ingest                            # every agent's folder
@@ -163,6 +167,12 @@ deleted are removed.
 
 The documents:
 
+- `graduation_advising/advising_guidelines.md`: the slides "Advising Process – General
+  Guidelines" (Heba El Mougy, Academic Performance Department) written out as text: what
+  advising means, reasons for the advising list, probation (GPA > 3.7), the process steps,
+  order of courses, adding hours (minimum load 60%), schedule constraints, electives,
+  B.Sc./internship eligibility, ticketing and memos, graduation plans. Topics the slides
+  only name (e.g. consequences of probation, timeline dates) are listed as not covered.
 - `internship_career/career_guide.md`: GIU facts from GIU's official news pages (Career
   Fair 2025 on November 14 with 95 exhibitors and its employers, the five-month GIU
   Internship Semester, the first fair in 2022 and the GIU Career Center, with sources),
@@ -301,8 +311,8 @@ and maximum response time, and how many answers took over 2 seconds.
 python -m scripts.evaluate --user-type staff --out data/results.csv   # save every answer
 ```
 
-The 25 included questions (17 Labs & Research, 8 Internship & Career) are placeholders
-based on the two documents. Three of them (the AI lab's phone number, renewing a
+The 33 included questions (17 Labs & Research, 8 Internship & Career, 8 Graduation &
+Advising) are placeholders based on the three documents. Three of them (the AI lab's phone number, renewing a
 passport, a paid internship semester) ask for information that is not in the documents
 and expect `don't have`, to check the agents do not invent answers. Questions for an
 agent the chosen user type may not use (Career for staff) are skipped.
@@ -334,7 +344,7 @@ backend/
     db.py                PostgreSQL connection
     schemas.py           request/response models
     routers/             session.py, chat.py, feedback.py, speech.py
-    agents/              base.py (shared flow), labs_research.py, internship_career.py, directory.py
+    agents/              base.py (shared flow), labs_research.py, internship_career.py, graduation_advising.py, directory.py
     rag/                 embeddings.py, retriever.py, prompts.py, transliteration.py
     llm/client.py        chat completions (OpenRouter or local Ollama)
   scripts/
