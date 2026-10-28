@@ -300,101 +300,258 @@ which elective courses are offered.
 في الترم الخامس (5 لكل واحد) و3 و4 في الترم السادس (6 لكل واحد). المنهج مش بيقول إيه مواد الإليكتيف
 المتاحة.
 
-## Course index part 1: which semester and how many ECTS each course has
+## Course: Digital Logic Design (ديجيتال لوجيك ديزاين): semester and ECTS
 
-Which semester a course is taught in, its ECTS, and which Computer Science programs take it.
-بالعربي: المادة دي بتتاخد في انهي ترم؟ امتى باخد المادة؟ كام ECTS؟ وأنهي برنامج بياخدها:
-- Digital Logic Design: 1st semester, 5 ECTS (all Computer Science programs).
-- English for Academic Purposes and Study Skills: 1st semester, 2 ECTS (all Computer Science programs).
-- German 1: 1st semester, 2 ECTS (all Computer Science programs).
-- Mathematics I: 1st semester, 8 ECTS (all Computer Science programs).
-- Physics: 1st semester, 5 ECTS (all Computer Science programs).
-- Programming I: 1st semester, 6 ECTS (all Computer Science programs).
-- Computer Networks: 2nd semester, 5 ECTS (all Computer Science programs).
-- Computer Organization: 2nd semester, 5 ECTS (all Computer Science programs).
-- German 2: 2nd semester, 2 ECTS (all Computer Science programs).
-- Mathematics II: 2nd semester, 4 ECTS (all Computer Science programs).
+Digital Logic Design (ديجيتال لوجيك ديزاين): 1st semester, 5 ECTS (all Computer Science programs). بالعربي: ديجيتال لوجيك ديزاين بتتاخد في الترم الأول، 5 ECTS (كل برامج الكمبيوتر ساينس).
 
-## Course index part 2: which semester and how many ECTS each course has
+## Course: English for Academic Purposes and Study Skills (إنجليزي أكاديمي وستادي سكيلز): semester and ECTS
 
-Which semester a course is taught in, its ECTS, and which Computer Science programs take it.
-بالعربي: المادة دي بتتاخد في انهي ترم؟ امتى باخد المادة؟ كام ECTS؟ وأنهي برنامج بياخدها:
-- Programming II: 2nd semester, 7 ECTS (all Computer Science programs).
-- Scientific Methods: 2nd semester, 2 ECTS (all Computer Science programs).
-- Theoretical Computer Science: 2nd semester, 5 ECTS (all Computer Science programs).
-- Communication and Presentation Skills: 3rd semester, 2 ECTS (all Computer Science programs).
-- Data Structures & Algorithms: 3rd semester, 6 ECTS (all Computer Science programs).
-- Databases: 3rd semester, 6 ECTS (all Computer Science programs).
-- German 3: 3rd semester, 2 ECTS (all Computer Science programs).
-- Mathematics III: 3rd semester, 4 ECTS (all Computer Science programs).
-- Operating Systems: 3rd semester, 5 ECTS (all Computer Science programs).
-- Programming III: 3rd semester, 7 ECTS (all Computer Science programs).
+English for Academic Purposes and Study Skills (إنجليزي أكاديمي وستادي سكيلز): 1st semester, 2 ECTS (all Computer Science programs). بالعربي: إنجليزي أكاديمي وستادي سكيلز بتتاخد في الترم الأول، 2 ECTS (كل برامج الكمبيوتر ساينس).
 
-## Course index part 3: which semester and how many ECTS each course has
+## Course: German 1 (ألماني 1): semester and ECTS
 
-Which semester a course is taught in, its ECTS, and which Computer Science programs take it.
-بالعربي: المادة دي بتتاخد في انهي ترم؟ امتى باخد المادة؟ كام ECTS؟ وأنهي برنامج بياخدها:
-- Analysis and Design of Algorithms: 4th semester, 4 ECTS (all Computer Science programs).
-- German 4: 4th semester, 2 ECTS (all Computer Science programs).
-- Information Security: 4th semester, 4 ECTS (all Computer Science programs).
-- Introduction to Data Science: 4th semester, 4 ECTS (all Computer Science programs).
-- Introduction to Media Informatics: 4th semester, 4 ECTS (all Computer Science programs).
-- Mathematics IV: 4th semester, 4 ECTS (all Computer Science programs).
-- Research Paper Writing: 4th semester, 2 ECTS (all Computer Science programs).
-- Software Engineering: 4th semester, 4 ECTS (all Computer Science programs).
-- Computer Graphics: 5th semester, 5 ECTS (Media Informatics).
-- Cryptography: 5th semester, 5 ECTS (IT Security).
+German 1 (ألماني 1): 1st semester, 2 ECTS (all Computer Science programs). بالعربي: ألماني 1 بتتاخد في الترم الأول، 2 ECTS (كل برامج الكمبيوتر ساينس).
 
-## Course index part 4: which semester and how many ECTS each course has
+## Course: Mathematics I (ماث 1): semester and ECTS
 
-Which semester a course is taught in, its ECTS, and which Computer Science programs take it.
-بالعربي: المادة دي بتتاخد في انهي ترم؟ امتى باخد المادة؟ كام ECTS؟ وأنهي برنامج بياخدها:
-- Data Engineering and Visualization: 5th semester, 5 ECTS (Data Science).
-- Database Programming: 5th semester, 5 ECTS (Data Science).
-- Digital Forensics: 5th semester, 5 ECTS (IT Security).
-- Elective I: 5th semester, 5 ECTS (all Computer Science programs).
-- Elective II: 5th semester, 5 ECTS (all Computer Science programs).
-- Human Computer Interaction: 5th semester, 5 ECTS (Media Informatics).
-- Machine Learning: 5th semester, 5 ECTS (Data Science).
-- Requirements Engineering: 5th semester, 5 ECTS (Software Engineering).
-- Software Construction and Testing: 5th semester, 5 ECTS (Software Engineering).
-- Software Design and Architecture: 5th semester, 5 ECTS (Software Engineering).
+Mathematics I (ماث 1): 1st semester, 8 ECTS (all Computer Science programs). بالعربي: ماث 1 بتتاخد في الترم الأول، 8 ECTS (كل برامج الكمبيوتر ساينس).
 
-## Course index part 5: which semester and how many ECTS each course has
+## Course: Physics (فيزيا): semester and ECTS
 
-Which semester a course is taught in, its ECTS, and which Computer Science programs take it.
-بالعربي: المادة دي بتتاخد في انهي ترم؟ امتى باخد المادة؟ كام ECTS؟ وأنهي برنامج بياخدها:
-- Software Project I: 5th semester, 5 ECTS (all Computer Science programs).
-- Software and Mobile Devices Security: 5th semester, 5 ECTS (IT Security).
-- Web Programming: 5th semester, 5 ECTS (Media Informatics).
-- 3D Design: 6th semester, 6 ECTS (Media Informatics).
-- Advanced Machine Learning: 6th semester, 6 ECTS (Data Science).
-- Big Data and NoSQL: 6th semester, 6 ECTS (Data Science).
-- Business Continuity and Risk Management: 6th semester, 6 ECTS (IT Security).
-- Elective III: 6th semester, 6 ECTS (all Computer Science programs).
-- Elective IV: 6th semester, 6 ECTS (all Computer Science programs).
-- Ethical Hacking and Penetration Testing: 6th semester, 6 ECTS (IT Security).
+Physics (فيزيا): 1st semester, 5 ECTS (all Computer Science programs). بالعربي: فيزيا بتتاخد في الترم الأول، 5 ECTS (كل برامج الكمبيوتر ساينس).
 
-## Course index part 6: which semester and how many ECTS each course has
+## Course: Programming I (برمجة 1): semester and ECTS
 
-Which semester a course is taught in, its ECTS, and which Computer Science programs take it.
-بالعربي: المادة دي بتتاخد في انهي ترم؟ امتى باخد المادة؟ كام ECTS؟ وأنهي برنامج بياخدها:
-- Introduction to Image Processing and Computer Vision: 6th semester, 6 ECTS (Data Science).
-- Media Informatics Project: 6th semester, 6 ECTS (Media Informatics).
-- Mobile Development: 6th semester, 6 ECTS (Media Informatics).
-- Network Security: 6th semester, 6 ECTS (IT Security).
-- Project Management: 6th semester, 2 ECTS (all Computer Science programs).
-- Software Cloud Computing: 6th semester, 6 ECTS (Software Engineering).
-- Software Mobile Development: 6th semester, 6 ECTS (Software Engineering).
-- Software Project II: 6th semester, 6 ECTS (Software Engineering).
-- Bachelor Thesis and Colloquium: 7th semester, 20 ECTS (all Computer Science programs).
-- Research Methodology: 7th semester, 5 ECTS (all Computer Science programs).
+Programming I (برمجة 1): 1st semester, 6 ECTS (all Computer Science programs). بالعربي: برمجة 1 بتتاخد في الترم الأول، 6 ECTS (كل برامج الكمبيوتر ساينس).
 
-## Course index part 7: which semester and how many ECTS each course has
+## Course: Computer Networks (نتوركس (كمبيوتر نتوركس)): semester and ECTS
 
-Which semester a course is taught in, its ECTS, and which Computer Science programs take it.
-بالعربي: المادة دي بتتاخد في انهي ترم؟ امتى باخد المادة؟ كام ECTS؟ وأنهي برنامج بياخدها:
-- Workplace & Internship Readiness: 7th semester, 5 ECTS (all Computer Science programs).
-- Business Ethics: 8th semester, 5 ECTS (all Computer Science programs).
-- Internship: 8th semester, 20 ECTS (all Computer Science programs).
-- Internship-accompanying Seminar: 8th semester, 5 ECTS (all Computer Science programs).
+Computer Networks (نتوركس (كمبيوتر نتوركس)): 2nd semester, 5 ECTS (all Computer Science programs). بالعربي: نتوركس (كمبيوتر نتوركس) بتتاخد في الترم التاني، 5 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Computer Organization (كمبيوتر أورجانيزيشن): semester and ECTS
+
+Computer Organization (كمبيوتر أورجانيزيشن): 2nd semester, 5 ECTS (all Computer Science programs). بالعربي: كمبيوتر أورجانيزيشن بتتاخد في الترم التاني، 5 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: German 2 (ألماني 2): semester and ECTS
+
+German 2 (ألماني 2): 2nd semester, 2 ECTS (all Computer Science programs). بالعربي: ألماني 2 بتتاخد في الترم التاني، 2 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Mathematics II (ماث 2): semester and ECTS
+
+Mathematics II (ماث 2): 2nd semester, 4 ECTS (all Computer Science programs). بالعربي: ماث 2 بتتاخد في الترم التاني، 4 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Programming II (برمجة 2): semester and ECTS
+
+Programming II (برمجة 2): 2nd semester, 7 ECTS (all Computer Science programs). بالعربي: برمجة 2 بتتاخد في الترم التاني، 7 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Scientific Methods (ساينتيفيك ميثودز): semester and ECTS
+
+Scientific Methods (ساينتيفيك ميثودز): 2nd semester, 2 ECTS (all Computer Science programs). بالعربي: ساينتيفيك ميثودز بتتاخد في الترم التاني، 2 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Theoretical Computer Science (ثيوريتيكال كمبيوتر ساينس): semester and ECTS
+
+Theoretical Computer Science (ثيوريتيكال كمبيوتر ساينس): 2nd semester, 5 ECTS (all Computer Science programs). بالعربي: ثيوريتيكال كمبيوتر ساينس بتتاخد في الترم التاني، 5 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Communication and Presentation Skills (كوميونيكيشن آند بريزنتيشن سكيلز): semester and ECTS
+
+Communication and Presentation Skills (كوميونيكيشن آند بريزنتيشن سكيلز): 3rd semester, 2 ECTS (all Computer Science programs). بالعربي: كوميونيكيشن آند بريزنتيشن سكيلز بتتاخد في الترم التالت، 2 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Data Structures & Algorithms (داتا ستراكتشرز وألجوريزمز): semester and ECTS
+
+Data Structures & Algorithms (داتا ستراكتشرز وألجوريزمز): 3rd semester, 6 ECTS (all Computer Science programs). بالعربي: داتا ستراكتشرز وألجوريزمز بتتاخد في الترم التالت، 6 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Databases (داتابيز): semester and ECTS
+
+Databases (داتابيز): 3rd semester, 6 ECTS (all Computer Science programs). بالعربي: داتابيز بتتاخد في الترم التالت، 6 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: German 3 (ألماني 3): semester and ECTS
+
+German 3 (ألماني 3): 3rd semester, 2 ECTS (all Computer Science programs). بالعربي: ألماني 3 بتتاخد في الترم التالت، 2 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Mathematics III (ماث 3): semester and ECTS
+
+Mathematics III (ماث 3): 3rd semester, 4 ECTS (all Computer Science programs). بالعربي: ماث 3 بتتاخد في الترم التالت، 4 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Operating Systems (أوبريتنج سيستمز): semester and ECTS
+
+Operating Systems (أوبريتنج سيستمز): 3rd semester, 5 ECTS (all Computer Science programs). بالعربي: أوبريتنج سيستمز بتتاخد في الترم التالت، 5 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Programming III (برمجة 3): semester and ECTS
+
+Programming III (برمجة 3): 3rd semester, 7 ECTS (all Computer Science programs). بالعربي: برمجة 3 بتتاخد في الترم التالت، 7 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Analysis and Design of Algorithms (أناليسيس آند ديزاين أوف ألجوريزمز): semester and ECTS
+
+Analysis and Design of Algorithms (أناليسيس آند ديزاين أوف ألجوريزمز): 4th semester, 4 ECTS (all Computer Science programs). بالعربي: أناليسيس آند ديزاين أوف ألجوريزمز بتتاخد في الترم الرابع، 4 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: German 4 (ألماني 4): semester and ECTS
+
+German 4 (ألماني 4): 4th semester, 2 ECTS (all Computer Science programs). بالعربي: ألماني 4 بتتاخد في الترم الرابع، 2 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Information Security (إنفورميشن سيكيوريتي): semester and ECTS
+
+Information Security (إنفورميشن سيكيوريتي): 4th semester, 4 ECTS (all Computer Science programs). بالعربي: إنفورميشن سيكيوريتي بتتاخد في الترم الرابع، 4 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Introduction to Data Science (مقدمة داتا ساينس): semester and ECTS
+
+Introduction to Data Science (مقدمة داتا ساينس): 4th semester, 4 ECTS (all Computer Science programs). بالعربي: مقدمة داتا ساينس بتتاخد في الترم الرابع، 4 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Introduction to Media Informatics (مقدمة ميديا انفورماتكس): semester and ECTS
+
+Introduction to Media Informatics (مقدمة ميديا انفورماتكس): 4th semester, 4 ECTS (all Computer Science programs). بالعربي: مقدمة ميديا انفورماتكس بتتاخد في الترم الرابع، 4 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Mathematics IV (ماث 4): semester and ECTS
+
+Mathematics IV (ماث 4): 4th semester, 4 ECTS (all Computer Science programs). بالعربي: ماث 4 بتتاخد في الترم الرابع، 4 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Research Paper Writing (ريسيرش بيبر رايتنج): semester and ECTS
+
+Research Paper Writing (ريسيرش بيبر رايتنج): 4th semester, 2 ECTS (all Computer Science programs). بالعربي: ريسيرش بيبر رايتنج بتتاخد في الترم الرابع، 2 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Software Engineering (سوفتوير انجينيرنج (المادة)): semester and ECTS
+
+Software Engineering (سوفتوير انجينيرنج (المادة)): 4th semester, 4 ECTS (all Computer Science programs). بالعربي: سوفتوير انجينيرنج (المادة) بتتاخد في الترم الرابع، 4 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Computer Graphics (كمبيوتر جرافيكس): semester and ECTS
+
+Computer Graphics (كمبيوتر جرافيكس): 5th semester, 5 ECTS (Media Informatics). بالعربي: كمبيوتر جرافيكس بتتاخد في الترم الخامس، 5 ECTS (ميديا انفورماتكس).
+
+## Course: Cryptography (كريبتوجرافي): semester and ECTS
+
+Cryptography (كريبتوجرافي): 5th semester, 5 ECTS (IT Security). بالعربي: كريبتوجرافي بتتاخد في الترم الخامس، 5 ECTS (آي تي سيكيوريتي).
+
+## Course: Data Engineering and Visualization (داتا انجينيرنج آند فيجوالايزيشن): semester and ECTS
+
+Data Engineering and Visualization (داتا انجينيرنج آند فيجوالايزيشن): 5th semester, 5 ECTS (Data Science). بالعربي: داتا انجينيرنج آند فيجوالايزيشن بتتاخد في الترم الخامس، 5 ECTS (داتا ساينس).
+
+## Course: Database Programming (داتابيز بروجرامنج): semester and ECTS
+
+Database Programming (داتابيز بروجرامنج): 5th semester, 5 ECTS (Data Science). بالعربي: داتابيز بروجرامنج بتتاخد في الترم الخامس، 5 ECTS (داتا ساينس).
+
+## Course: Digital Forensics (ديجيتال فورينزكس): semester and ECTS
+
+Digital Forensics (ديجيتال فورينزكس): 5th semester, 5 ECTS (IT Security). بالعربي: ديجيتال فورينزكس بتتاخد في الترم الخامس، 5 ECTS (آي تي سيكيوريتي).
+
+## Course: Elective I (إليكتيف 1): semester and ECTS
+
+Elective I (إليكتيف 1): 5th semester, 5 ECTS (all Computer Science programs). بالعربي: إليكتيف 1 بتتاخد في الترم الخامس، 5 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Elective II (إليكتيف 2): semester and ECTS
+
+Elective II (إليكتيف 2): 5th semester, 5 ECTS (all Computer Science programs). بالعربي: إليكتيف 2 بتتاخد في الترم الخامس، 5 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Human Computer Interaction (هيومان كمبيوتر إنتراكشن): semester and ECTS
+
+Human Computer Interaction (هيومان كمبيوتر إنتراكشن): 5th semester, 5 ECTS (Media Informatics). بالعربي: هيومان كمبيوتر إنتراكشن بتتاخد في الترم الخامس، 5 ECTS (ميديا انفورماتكس).
+
+## Course: Machine Learning (ماشين ليرنينج): semester and ECTS
+
+Machine Learning (ماشين ليرنينج): 5th semester, 5 ECTS (Data Science). بالعربي: ماشين ليرنينج بتتاخد في الترم الخامس، 5 ECTS (داتا ساينس).
+
+## Course: Requirements Engineering (ريكوايرمنتس انجينيرنج): semester and ECTS
+
+Requirements Engineering (ريكوايرمنتس انجينيرنج): 5th semester, 5 ECTS (Software Engineering). بالعربي: ريكوايرمنتس انجينيرنج بتتاخد في الترم الخامس، 5 ECTS (سوفتوير انجينيرنج).
+
+## Course: Software Construction and Testing (سوفتوير كونستراكشن آند تيستنج): semester and ECTS
+
+Software Construction and Testing (سوفتوير كونستراكشن آند تيستنج): 5th semester, 5 ECTS (Software Engineering). بالعربي: سوفتوير كونستراكشن آند تيستنج بتتاخد في الترم الخامس، 5 ECTS (سوفتوير انجينيرنج).
+
+## Course: Software Design and Architecture (سوفتوير ديزاين آند أركيتكتشر): semester and ECTS
+
+Software Design and Architecture (سوفتوير ديزاين آند أركيتكتشر): 5th semester, 5 ECTS (Software Engineering). بالعربي: سوفتوير ديزاين آند أركيتكتشر بتتاخد في الترم الخامس، 5 ECTS (سوفتوير انجينيرنج).
+
+## Course: Software Project I (سوفتوير بروجكت 1): semester and ECTS
+
+Software Project I (سوفتوير بروجكت 1): 5th semester, 5 ECTS (all Computer Science programs). بالعربي: سوفتوير بروجكت 1 بتتاخد في الترم الخامس، 5 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Software and Mobile Devices Security (سوفتوير آند موبايل ديفايسز سيكيوريتي): semester and ECTS
+
+Software and Mobile Devices Security (سوفتوير آند موبايل ديفايسز سيكيوريتي): 5th semester, 5 ECTS (IT Security). بالعربي: سوفتوير آند موبايل ديفايسز سيكيوريتي بتتاخد في الترم الخامس، 5 ECTS (آي تي سيكيوريتي).
+
+## Course: Web Programming (ويب بروجرامنج): semester and ECTS
+
+Web Programming (ويب بروجرامنج): 5th semester, 5 ECTS (Media Informatics). بالعربي: ويب بروجرامنج بتتاخد في الترم الخامس، 5 ECTS (ميديا انفورماتكس).
+
+## Course: 3D Design (ثري دي ديزاين): semester and ECTS
+
+3D Design (ثري دي ديزاين): 6th semester, 6 ECTS (Media Informatics). بالعربي: ثري دي ديزاين بتتاخد في الترم السادس، 6 ECTS (ميديا انفورماتكس).
+
+## Course: Advanced Machine Learning (أدفانسد ماشين ليرنينج): semester and ECTS
+
+Advanced Machine Learning (أدفانسد ماشين ليرنينج): 6th semester, 6 ECTS (Data Science). بالعربي: أدفانسد ماشين ليرنينج بتتاخد في الترم السادس، 6 ECTS (داتا ساينس).
+
+## Course: Big Data and NoSQL (بيج داتا آند نو إس كيو إل): semester and ECTS
+
+Big Data and NoSQL (بيج داتا آند نو إس كيو إل): 6th semester, 6 ECTS (Data Science). بالعربي: بيج داتا آند نو إس كيو إل بتتاخد في الترم السادس، 6 ECTS (داتا ساينس).
+
+## Course: Business Continuity and Risk Management (بيزنس كونتينيويتي آند ريسك مانجمنت): semester and ECTS
+
+Business Continuity and Risk Management (بيزنس كونتينيويتي آند ريسك مانجمنت): 6th semester, 6 ECTS (IT Security). بالعربي: بيزنس كونتينيويتي آند ريسك مانجمنت بتتاخد في الترم السادس، 6 ECTS (آي تي سيكيوريتي).
+
+## Course: Elective III (إليكتيف 3): semester and ECTS
+
+Elective III (إليكتيف 3): 6th semester, 6 ECTS (all Computer Science programs). بالعربي: إليكتيف 3 بتتاخد في الترم السادس، 6 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Elective IV (إليكتيف 4): semester and ECTS
+
+Elective IV (إليكتيف 4): 6th semester, 6 ECTS (all Computer Science programs). بالعربي: إليكتيف 4 بتتاخد في الترم السادس، 6 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Ethical Hacking and Penetration Testing (إيثيكال هاكينج وبنتستنج): semester and ECTS
+
+Ethical Hacking and Penetration Testing (إيثيكال هاكينج وبنتستنج): 6th semester, 6 ECTS (IT Security). بالعربي: إيثيكال هاكينج وبنتستنج بتتاخد في الترم السادس، 6 ECTS (آي تي سيكيوريتي).
+
+## Course: Introduction to Image Processing and Computer Vision (مقدمة إيميج بروسيسنج وكمبيوتر فيجن): semester and ECTS
+
+Introduction to Image Processing and Computer Vision (مقدمة إيميج بروسيسنج وكمبيوتر فيجن): 6th semester, 6 ECTS (Data Science). بالعربي: مقدمة إيميج بروسيسنج وكمبيوتر فيجن بتتاخد في الترم السادس، 6 ECTS (داتا ساينس).
+
+## Course: Media Informatics Project (ميديا انفورماتكس بروجكت): semester and ECTS
+
+Media Informatics Project (ميديا انفورماتكس بروجكت): 6th semester, 6 ECTS (Media Informatics). بالعربي: ميديا انفورماتكس بروجكت بتتاخد في الترم السادس، 6 ECTS (ميديا انفورماتكس).
+
+## Course: Mobile Development (موبايل ديفيلوبمنت): semester and ECTS
+
+Mobile Development (موبايل ديفيلوبمنت): 6th semester, 6 ECTS (Media Informatics). بالعربي: موبايل ديفيلوبمنت بتتاخد في الترم السادس، 6 ECTS (ميديا انفورماتكس).
+
+## Course: Network Security (نتورك سيكيوريتي): semester and ECTS
+
+Network Security (نتورك سيكيوريتي): 6th semester, 6 ECTS (IT Security). بالعربي: نتورك سيكيوريتي بتتاخد في الترم السادس، 6 ECTS (آي تي سيكيوريتي).
+
+## Course: Project Management (بروجكت مانجمنت): semester and ECTS
+
+Project Management (بروجكت مانجمنت): 6th semester, 2 ECTS (all Computer Science programs). بالعربي: بروجكت مانجمنت بتتاخد في الترم السادس، 2 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Software Cloud Computing (سوفتوير كلاود كمبيوتنج): semester and ECTS
+
+Software Cloud Computing (سوفتوير كلاود كمبيوتنج): 6th semester, 6 ECTS (Software Engineering). بالعربي: سوفتوير كلاود كمبيوتنج بتتاخد في الترم السادس، 6 ECTS (سوفتوير انجينيرنج).
+
+## Course: Software Mobile Development (سوفتوير موبايل ديفيلوبمنت): semester and ECTS
+
+Software Mobile Development (سوفتوير موبايل ديفيلوبمنت): 6th semester, 6 ECTS (Software Engineering). بالعربي: سوفتوير موبايل ديفيلوبمنت بتتاخد في الترم السادس، 6 ECTS (سوفتوير انجينيرنج).
+
+## Course: Software Project II (سوفتوير بروجكت 2): semester and ECTS
+
+Software Project II (سوفتوير بروجكت 2): 6th semester, 6 ECTS (Software Engineering). بالعربي: سوفتوير بروجكت 2 بتتاخد في الترم السادس، 6 ECTS (سوفتوير انجينيرنج).
+
+## Course: Bachelor Thesis and Colloquium (الباتشلر (البكالوريوس) والكولوكيوم): semester and ECTS
+
+Bachelor Thesis and Colloquium (الباتشلر (البكالوريوس) والكولوكيوم): 7th semester, 20 ECTS (all Computer Science programs). بالعربي: الباتشلر (البكالوريوس) والكولوكيوم بتتاخد في الترم السابع، 20 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Research Methodology (ريسيرش ميثودولوجي): semester and ECTS
+
+Research Methodology (ريسيرش ميثودولوجي): 7th semester, 5 ECTS (all Computer Science programs). بالعربي: ريسيرش ميثودولوجي بتتاخد في الترم السابع، 5 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Workplace & Internship Readiness (وورك بليس آند انترنشيب ريدينس): semester and ECTS
+
+Workplace & Internship Readiness (وورك بليس آند انترنشيب ريدينس): 7th semester, 5 ECTS (all Computer Science programs). بالعربي: وورك بليس آند انترنشيب ريدينس بتتاخد في الترم السابع، 5 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Business Ethics (بيزنس إيثيكس): semester and ECTS
+
+Business Ethics (بيزنس إيثيكس): 8th semester, 5 ECTS (all Computer Science programs). بالعربي: بيزنس إيثيكس بتتاخد في الترم التامن، 5 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Internship (الانترنشيب): semester and ECTS
+
+Internship (الانترنشيب): 8th semester, 20 ECTS (all Computer Science programs). بالعربي: الانترنشيب بتتاخد في الترم التامن، 20 ECTS (كل برامج الكمبيوتر ساينس).
+
+## Course: Internship-accompanying Seminar (سيمينار الانترنشيب): semester and ECTS
+
+Internship-accompanying Seminar (سيمينار الانترنشيب): 8th semester, 5 ECTS (all Computer Science programs). بالعربي: سيمينار الانترنشيب بتتاخد في الترم التامن، 5 ECTS (كل برامج الكمبيوتر ساينس).

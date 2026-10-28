@@ -177,8 +177,8 @@ The documents:
 - `graduation_advising/computer_science_curriculum.md`: the four Computer Science
   programs (Data Science, Software Engineering, IT Security, Media Informatics): courses
   and ECTS per semester (semesters 1-4 and 7-8 shared, 5-6 per program, 240 ECTS each),
-  program descriptions, and a course index (each course's semester, ECTS and programs),
-  with Arabic.
+  program descriptions, and one short section per course (its Arabic name, semester, ECTS
+  and programs), all with Arabic.
 - `internship_career/career_guide.md`: GIU facts from GIU's official news pages (Career
   Fair 2025 on November 14 with 95 exhibitors and its employers, the five-month GIU
   Internship Semester, the first fair in 2022 and the GIU Career Center, with sources),
