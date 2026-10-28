@@ -6,7 +6,7 @@ export const AGENTS = [
   {
     key: "graduation_advising",
     name: "Graduation & Advising Assistant",
-    handles: "Advising, probation, adding hours, B.Sc./internship eligibility, memos",
+    handles: "Advising, probation, course plans and ECTS, B.Sc./internship eligibility",
     userTypes: ["student", "staff"],
     ready: true,
     subtitle: "Answers from the GIU advising guidelines",

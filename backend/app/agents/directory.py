@@ -30,9 +30,10 @@ AGENT_DIRECTORY = [
         "which courses to take next semester, GPA, graduation timeline, graduation "
         "requirements, academic advising and advisors, the advising list, probation, adding "
         "hours, makeup exams, electives, Bachelor thesis and internship eligibility, memos "
-        "and graduation plans. "
+        "and graduation plans, the courses and ECTS of each semester (Computer Science and "
+        "Business Informatics curriculum). "
         "التخرج، الساعات المعتمدة، المواد، الخطة الدراسية، الجي بي إيه، المرشد الأكاديمي، "
-        "الادفايزنج، البروبيشن، تزويد الساعات، الميك اب، الباتشلر.",
+        "الادفايزنج، البروبيشن، تزويد الساعات، الميك اب، الباتشلر، مواد كل ترم، المنهج.",
         ("student", "staff"), built=True,
     ),
     AgentInfo(

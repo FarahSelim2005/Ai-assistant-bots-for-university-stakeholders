@@ -179,6 +179,9 @@ The documents:
   and ECTS per semester (semesters 1-4 and 7-8 shared, 5-6 per program, 240 ECTS each),
   program descriptions, and one short section per course (its Arabic name, semester, ECTS
   and programs), all with Arabic.
+- `graduation_advising/business_informatics_curriculum.md`: the Business Informatics
+  program: description, courses and ECTS per semester (240 ECTS), and one section per
+  course, all with Arabic.
 - `internship_career/career_guide.md`: GIU facts from GIU's official news pages (Career
   Fair 2025 on November 14 with 95 exhibitors and its employers, the five-month GIU
   Internship Semester, the first fair in 2022 and the GIU Career Center, with sources),
@@ -317,7 +320,7 @@ and maximum response time, and how many answers took over 2 seconds.
 python -m scripts.evaluate --user-type staff --out data/results.csv   # save every answer
 ```
 
-The 39 included questions (17 Labs & Research, 8 Internship & Career, 14 Graduation &
+The 42 included questions (17 Labs & Research, 8 Internship & Career, 17 Graduation &
 Advising) are placeholders based on the documents. Three of them (the AI lab's phone number, renewing a
 passport, a paid internship semester) ask for information that is not in the documents
 and expect `don't have`, to check the agents do not invent answers. Questions for an
