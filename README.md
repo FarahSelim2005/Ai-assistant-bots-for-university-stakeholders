@@ -173,6 +173,12 @@ The documents:
   order of courses, adding hours (minimum load 60%), schedule constraints, electives,
   B.Sc./internship eligibility, ticketing and memos, graduation plans. Topics the slides
   only name (e.g. consequences of probation, timeline dates) are listed as not covered.
+  Every section also has an Egyptian Arabic version.
+- `graduation_advising/computer_science_curriculum.md`: the four Computer Science
+  programs (Data Science, Software Engineering, IT Security, Media Informatics): courses
+  and ECTS per semester (semesters 1-4 and 7-8 shared, 5-6 per program, 240 ECTS each),
+  program descriptions, and a course index (each course's semester, ECTS and programs),
+  with Arabic.
 - `internship_career/career_guide.md`: GIU facts from GIU's official news pages (Career
   Fair 2025 on November 14 with 95 exhibitors and its employers, the five-month GIU
   Internship Semester, the first fair in 2022 and the GIU Career Center, with sources),
@@ -311,8 +317,8 @@ and maximum response time, and how many answers took over 2 seconds.
 python -m scripts.evaluate --user-type staff --out data/results.csv   # save every answer
 ```
 
-The 33 included questions (17 Labs & Research, 8 Internship & Career, 8 Graduation &
-Advising) are placeholders based on the three documents. Three of them (the AI lab's phone number, renewing a
+The 39 included questions (17 Labs & Research, 8 Internship & Career, 14 Graduation &
+Advising) are placeholders based on the documents. Three of them (the AI lab's phone number, renewing a
 passport, a paid internship semester) ask for information that is not in the documents
 and expect `don't have`, to check the agents do not invent answers. Questions for an
 agent the chosen user type may not use (Career for staff) are skipped.

@@ -32,3 +32,9 @@ Can a schedule clash be allowed?,graduation,graduation_advising
 How many failed courses before the 7th semester still allow the Bachelor thesis?,4,graduation_advising
 What are the consequences of being on probation?,don't have,graduation_advising
 البروبيشن بيبقى امتى؟,3.7,graduation_advising
+What courses are in the first semester of Computer Science?,Mathematics I;Programming I,graduation_advising
+How many ECTS is the Bachelor Thesis and Colloquium?,20,graduation_advising
+What are the 5th semester courses in Data Science?,Machine Learning,graduation_advising
+Which courses do IT Security students take in the 6th semester?,Network Security,graduation_advising
+How many ECTS is the whole Computer Science program?,240,graduation_advising
+مواد الترم السادس سوفتوير انجينيرنج ايه؟,Cloud,graduation_advising
