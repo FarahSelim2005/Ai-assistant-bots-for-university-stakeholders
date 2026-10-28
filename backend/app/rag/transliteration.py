@@ -58,6 +58,17 @@ GLOSSARY = {
     "career center": ["كارير سنتر"],
     "career": ["كارير"],
     "skills": ["سكيلز", "سكيل"],
+    # advising (Graduation & Advising agent)
+    "IT": ["اي تي", "آي تي"],
+    "advising": ["ادفايزنج", "ادفايزينج", "ادفيزنج"],
+    "advisor": ["ادفايزر", "ادفيزر"],
+    "probation": ["بروبيشن", "بروبيجن"],
+    "memo": ["ميمو"],
+    "clash": ["كلاش"],
+    "electives": ["اليكتيف", "الكتيف", "اليكتيفز"],
+    "makeup exam": ["ميك اب", "ميكاب"],
+    "GPA": ["جي بي ايه", "جي بي اي"],
+    "Bachelor thesis": ["باتشلر", "باتشلور"],
     # Egyptian question words, so "فين بسكت بال" can also be searched as "where is basketball"
     "where is": ["فين"],
     "when": ["امتي"],
