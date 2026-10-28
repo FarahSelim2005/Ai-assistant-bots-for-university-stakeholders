@@ -190,6 +190,10 @@ The documents:
 - `graduation_advising/design_curriculum.md`: the three Design majors (Digital Media and
   Communication Design, Fashion Design, Industrial Design): semesters (1, 7 and 8 shared,
   30 ECTS each, 240 in total), descriptions and one section per course, with Arabic.
+- `graduation_advising/engineering_curriculum.md`: the five Engineering majors (Automotive
+  Mechatronics, Manufacturing, Robotics and Automation, Automation and Control, Electrical
+  Power Systems): semesters (1, 2, 7, 8 shared by all; 3-4 shared within the mechatronics and
+  the electrical groups), six electives, descriptions and one section per course, with Arabic.
 - `internship_career/career_guide.md`: GIU facts from GIU's official news pages (Career
   Fair 2025 on November 14 with 95 exhibitors and its employers, the five-month GIU
   Internship Semester, the first fair in 2022 and the GIU Career Center, with sources),
@@ -328,7 +332,7 @@ and maximum response time, and how many answers took over 2 seconds.
 python -m scripts.evaluate --user-type staff --out data/results.csv   # save every answer
 ```
 
-The 48 included questions (17 Labs & Research, 8 Internship & Career, 23 Graduation &
+The 51 included questions (17 Labs & Research, 8 Internship & Career, 26 Graduation &
 Advising) are placeholders based on the documents. Three of them (the AI lab's phone number, renewing a
 passport, a paid internship semester) ask for information that is not in the documents
 and expect `don't have`, to check the agents do not invent answers. Questions for an
