@@ -196,6 +196,9 @@ The documents:
   the electrical groups), six electives, descriptions and one section per course, with Arabic.
 - `graduation_advising/biotechnology_curriculum.md`: the Biotechnology program: courses and
   ECTS per semester (240 ECTS), four electives and one section per course, with Arabic.
+- `graduation_advising/physical_therapy_curriculum.md`: the Physical Therapy program: 10
+  semesters of 30 ECTS (300 ECTS), Bachelor thesis in semester 8, four electives in semesters
+  9-10, and one section per course, with Arabic.
 - `internship_career/career_guide.md`: GIU facts from GIU's official news pages (Career
   Fair 2025 on November 14 with 95 exhibitors and its employers, the five-month GIU
   Internship Semester, the first fair in 2022 and the GIU Career Center, with sources),
@@ -334,7 +337,7 @@ and maximum response time, and how many answers took over 2 seconds.
 python -m scripts.evaluate --user-type staff --out data/results.csv   # save every answer
 ```
 
-The 54 included questions (17 Labs & Research, 8 Internship & Career, 29 Graduation &
+The 57 included questions (17 Labs & Research, 8 Internship & Career, 32 Graduation &
 Advising) are placeholders based on the documents. Three of them (the AI lab's phone number, renewing a
 passport, a paid internship semester) ask for information that is not in the documents
 and expect `don't have`, to check the agents do not invent answers. Questions for an
