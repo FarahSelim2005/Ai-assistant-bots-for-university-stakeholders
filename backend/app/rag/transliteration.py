@@ -151,6 +151,13 @@ GLOSSARY = {
     "neurology": ["نيورولوجي"],
     "orthopedic": ["اورثوبيديك", "أورثو"],
     "pediatrics": ["بيدياتركس"],
+    "architecture": ["اركيتكتشر", "آركيتكتشر", "اركيتكشر"],
+    "interior architecture": ["انتيريور اركيتكتشر", "إنتيريور أركيتكتشر"],
+    "interior": ["انتيريور", "إنتيريور"],
+    "design studio": ["ديزاين ستوديو", "ديزاين استوديو"],
+    "pharmaceutical engineering": ["فارماسيوتيكال انجينيرنج", "فارما انجينيرنج"],
+    "pharmaceutical": ["فارماسيوتيكال", "فارماسوتيكال"],
+    "pharma": ["فارما"],
     "project management": ["بروجكت مانجمنت", "بروجيكت مانجمنت"],
     "databases": ["داتابيز", "داتا بيز", "داتابيس"],
     "programming": ["بروجرامنج", "بروجرامينج"],
@@ -204,12 +211,13 @@ _PHRASES = sorted(
 
 
 # Very short words leave a skeleton of only 1-2 letters, which many everyday words share
-# ("مواد" and "ميديا" are both "مد", "ماما" and "ميمو" both "مم"). Those glossary words
-# must be written exactly as listed.
+# ("مواد" and "ميديا" are both "مد", "ماما" and "ميمو" both "مم"). Those glossary words,
+# and the ones in EXACT_ONLY, must be written exactly as listed.
+EXACT_ONLY = {"فارما"}  # same skeleton as "فورم" (form)
 _EXACT_SHORT = {}
 for _spellings in GLOSSARY.values():
     for _spelling in _spellings:
-        if " " not in _spelling and len(skeleton(_spelling)) <= 2:
+        if " " not in _spelling and (len(skeleton(_spelling)) <= 2 or _spelling in EXACT_ONLY):
             _EXACT_SHORT.setdefault(skeleton(_spelling), set()).add(_strip_prefix(normalize_arabic(_spelling))[0])
 
 
