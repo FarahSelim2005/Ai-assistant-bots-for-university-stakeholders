@@ -26,7 +26,7 @@ from pypdf.errors import PdfReadError
 
 from app import config
 
-DOCUMENT_TYPES = {".pdf", ".txt", ".md"}
+DOCUMENT_TYPES = {".pdf", ".txt", ".md", ".docx", ".xlsx", ".pptx"}
 IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}
 MAX_PDF_PAGES_AS_IMAGES = 2  # a CV is 1-2 pages; more would make the request slow
 
@@ -47,7 +47,7 @@ def read_attachment(filename: str, data_base64: str) -> Attachment:
     """Decode and check an uploaded file. Raises ValueError with a user-friendly message."""
     extension = Path(filename).suffix.lower()
     if extension not in DOCUMENT_TYPES and extension not in IMAGE_TYPES:
-        raise ValueError("Unsupported file type. Upload a PDF, TXT, MD, PNG, JPG or WEBP file.")
+        raise ValueError("Unsupported file type. Upload a PDF, Word, Excel, PowerPoint, TXT, MD, PNG, JPG or WEBP file.")
 
     try:
         data = base64.b64decode(data_base64, validate=True)
@@ -72,7 +72,10 @@ def read_attachment(filename: str, data_base64: str) -> Attachment:
 
 
 def extract_text(extension: str, data: bytes) -> str:
-    """Plain text of a PDF, TXT or MD file."""
+    """Plain text of a PDF, Word, Excel, PowerPoint, TXT or MD file."""
+    if extension in (".docx", ".xlsx", ".pptx"):
+        from app.documents.formats import check_file, plain_text  # the document editor reads these
+        return plain_text(check_file("file" + extension, data, config.MAX_UPLOAD_MB), data)
     if extension == ".pdf":
         try:
             return pdf_text_in_reading_order(data)

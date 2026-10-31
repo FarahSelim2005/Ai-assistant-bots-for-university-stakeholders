@@ -581,3 +581,76 @@ a.choice-card { text-decoration: none; }
   .assistant-body, .user-body { max-width: 88%; }
   .map-body { grid-template-columns: 1fr; }
 }
+
+/* ================= Document editor ================= */
+/* "Edit this file" switch on an attached file */
+.edit-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fdf3dc;
+  color: #8a6510;
+  border: 1px solid #f1dca6;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.edit-toggle input { margin: 0; accent-color: var(--giu-red); }
+
+/* The document being edited, above the message box */
+.doc-bar {
+  max-width: 920px;
+  margin: 0 auto 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--giu-gold);
+  border-radius: 12px;
+  font-size: 14px;
+}
+.doc-bar-text { flex: 1; min-width: 0; }
+.doc-bar button { padding: 6px 14px; }
+.doc-download {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 10px;
+  background: var(--giu-red);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.doc-download:hover { background: var(--giu-red-dark); }
+
+/* Download card and before/after list under an edit answer */
+.file-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.file-card-icon { font-size: 22px; }
+.file-card-name { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.changes { margin-top: 8px; font-size: 14px; }
+.changes summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+.changes ul { margin: 8px 0 0; padding-left: 18px; }
+.changes li { margin-bottom: 6px; line-height: 1.5; }
+.change-before { color: var(--muted); text-decoration: line-through; }
+.change-after { color: #1e6b32; }
+
+@media (max-width: 640px) {
+  .doc-bar { flex-wrap: wrap; }
+  .doc-bar-text .muted:last-child { display: none; }
+}

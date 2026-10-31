@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { findAgent } from "./agents.js";
-import { sendFeedback, sendMessage, startSession } from "./api.js";
+import { closeDocument, editDocument, fileUrl, sendFeedback, sendMessage, startSession } from "./api.js";
 import CallScreen, { callSupported } from "./components/CallScreen.jsx";
 import Message from "./components/Message.jsx";
 import StartScreen from "./components/StartScreen.jsx";
 
-// Must match the backend (app/attachments.py and MAX_UPLOAD_MB in config.py).
-const ACCEPTED_FILES = ".pdf,.txt,.md,.png,.jpg,.jpeg,.webp";
-const MAX_UPLOAD_MB = 5;
+// Must match the backend (app/attachments.py, MAX_UPLOAD_MB and DOC_EDIT_MAX_MB in config.py).
+const ACCEPTED_FILES = ".pdf,.txt,.md,.docx,.xlsx,.pptx,.png,.jpg,.jpeg,.webp";
+const MAX_UPLOAD_MB = 10; // files to edit; questions about a file allow 5 MB (checked by the backend)
+// Files the document editor can change, and those it edits by default when attached (Office
+// files; a PDF, TXT or MD file is often just asked about, e.g. "Analyze my CV").
+const EDITABLE_FILE = /\.(docx|xlsx|pptx|pdf|txt|md)$/i;
+const EDIT_BY_DEFAULT = /\.(docx|xlsx|pptx)$/i;
 const CV_QUESTION = "Please analyze my CV and suggest improvements.";
 // Questions that ask where a place is or how to get there, in English or Egyptian Arabic.
 const WHERE_QUESTION = /\b(where|location|located|direction|directions|how (do|can) i (get|go|reach|find))\b|فين|وين|اين|أين|مكان|اروح|أروح|اوصل|أوصل/i;
@@ -19,8 +23,13 @@ export default function App({ initialAgent }) {
   // Each message: { role, content, attachment?, sources?, locations?, places?, redirect?, messageId?, rating? }
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  // File chosen for the next message: { filename, dataUrl, isImage }
+  // File chosen for the next message: { filename, dataUrl, isImage, edit }; edit = send it to
+  // the document editor instead of asking about it.
   const [attachment, setAttachment] = useState(null);
+  // The document being edited in this chat: { filename, download_name, url, version, token }.
+  // While it is set, messages are editing instructions for it.
+  const [activeDoc, setActiveDoc] = useState(null);
+  const [editing, setEditing] = useState(false); // the current request edits a document
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [calling, setCalling] = useState(false);
@@ -73,7 +82,8 @@ export default function App({ initialAgent }) {
     // Read the file as a data URL ("data:<type>;base64,<content>") to send it as JSON.
     const reader = new FileReader();
     reader.onload = () => {
-      const chosen = { filename: file.name, dataUrl: reader.result, isImage: file.type.startsWith("image/") };
+      const chosen = { filename: file.name, dataUrl: reader.result, isImage: file.type.startsWith("image/"),
+                       edit: EDIT_BY_DEFAULT.test(file.name) };
       if (cvReviewRef.current) {
         cvReviewRef.current = false;
         send(CV_QUESTION, chosen); // "Analyze my CV": send the CV straight away
@@ -94,9 +104,19 @@ export default function App({ initialAgent }) {
 
   function handleSubmit(event) {
     event.preventDefault();
+    if (attachment?.edit && !input.trim()) {
+      setError("Write what to change in the document, e.g. \"correct the grammar\".");
+      return;
+    }
     // A file can be sent without typing; then the agent is asked to explain it.
     const query = input.trim() || (attachment ? "Please explain this file." : "");
     send(query, attachment);
+  }
+
+  // "Stop editing": back to normal questions; the backend deletes the document's files.
+  function stopEditing() {
+    if (activeDoc) closeDocument(conversationId, activeDoc.token).catch(() => {});
+    setActiveDoc(null);
   }
 
   // Sends a question and returns the answer text (or null), so the call screen can speak it.
@@ -110,7 +130,19 @@ export default function App({ initialAgent }) {
     setError("");
     const request = { controller: new AbortController(), query, file };
     requestRef.current = request;
+    // A file attached with "Edit this file" on, or a message while a document is open.
+    const editRequest = file ? Boolean(file.edit) : Boolean(activeDoc);
+    setEditing(editRequest);
     try {
+      if (editRequest) {
+        const data = await editDocument(conversationId, query, file, file ? null : activeDoc.token, request.controller.signal);
+        if (requestRef.current !== request) return null; // stopped meanwhile
+        const edited = { ...data.file, url: fileUrl(data.file.url), token: data.file.url.split("/").pop() };
+        setActiveDoc(edited);
+        setMessages((prev) => [...prev, { role: "assistant", content: data.answer, file: edited,
+                                         changes: data.changes, messageId: data.message_id }]);
+        return data.answer;
+      }
       const data = await sendMessage(conversationId, query, file, request.controller.signal);
       if (requestRef.current !== request) return null; // stopped meanwhile: ignore the late answer
       setMessages((prev) => [
@@ -170,6 +202,7 @@ export default function App({ initialAgent }) {
   }
 
   function newChat() {
+    stopEditing();
     setUserType(null);
     setAgentKey(null);
     setConversationId(null);
@@ -233,7 +266,12 @@ export default function App({ initialAgent }) {
               <div className="avatar">GIU</div>
               <div className="assistant-body">
                 <div className="bubble typing"><span /><span /><span /></div>
-                {slow && (
+                {editing && (
+                  <p className="slow-note">
+                    Editing your document… Long documents are edited in parts, which can take a minute.
+                  </p>
+                )}
+                {slow && !editing && (
                   <p className="slow-note">
                     Still working… The free online models seem busy, so a backup model on this
                     computer is answering. This can take up to a minute. You can press Stop to
@@ -249,6 +287,17 @@ export default function App({ initialAgent }) {
 
       <footer className="composer-area">
         {error && <p className="error">{error}</p>}
+        {activeDoc && (
+          <div className="doc-bar">
+            <span className="doc-bar-text">
+              📝 Editing <b>{activeDoc.filename}</b>
+              {activeDoc.version > 0 && <span className="muted"> · version {activeDoc.version}</span>}
+              <span className="muted"> · your messages now change this document. Attach a file to replace it.</span>
+            </span>
+            <a className="doc-download" href={activeDoc.url} download={activeDoc.download_name}>Download</a>
+            <button type="button" className="secondary" onClick={stopEditing} disabled={loading}>Stop editing</button>
+          </div>
+        )}
         {attachment && (
           <div className="pending-file">
             {attachment.isImage ? (
@@ -257,6 +306,13 @@ export default function App({ initialAgent }) {
               <span className="file-icon">📄</span>
             )}
             <span className="pending-name">{attachment.filename}</span>
+            {!attachment.isImage && EDITABLE_FILE.test(attachment.filename) && (
+              <label className="edit-toggle" title="Edit this file and download the changed version">
+                <input type="checkbox" checked={attachment.edit}
+                       onChange={(e) => setAttachment({ ...attachment, edit: e.target.checked })} />
+                ✏️ Edit this file
+              </label>
+            )}
             <button type="button" onClick={() => setAttachment(null)} aria-label="Remove file">×</button>
           </div>
         )}
@@ -280,7 +336,9 @@ export default function App({ initialAgent }) {
           <input
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder={attachment ? "Ask about your file..." : agent.placeholder}
+            placeholder={attachment?.edit ? "What should I change? e.g. correct the grammar, translate to Arabic..."
+              : attachment ? "Ask about your file..."
+              : activeDoc ? "What else should I change in the document?" : agent.placeholder}
             maxLength={1000}
             dir="auto"
             autoFocus

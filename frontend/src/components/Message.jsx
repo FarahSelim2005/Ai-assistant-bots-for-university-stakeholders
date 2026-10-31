@@ -27,6 +27,31 @@ export default function Message({ message, onRate }) {
       <div className="assistant-body">
         {!message.mapOnly && <div className="bubble" dir="auto">{message.content}</div>}
 
+        {message.file && (
+          <div className="file-card">
+            <span className="file-card-icon">📄</span>
+            <span className="file-card-name">
+              {message.file.download_name}
+              {message.file.version > 0 && <span className="muted"> · version {message.file.version}</span>}
+            </span>
+            <a className="doc-download" href={message.file.url} download={message.file.download_name}>Download</a>
+          </div>
+        )}
+        {message.changes?.length > 0 && (
+          <details className="changes">
+            <summary>Show changes ({message.changes.length})</summary>
+            <ul>
+              {message.changes.map((change, i) => (
+                <li key={i} dir="auto">
+                  {change.before && <span className="change-before">{change.before}</span>}
+                  {change.before && change.after && <span className="change-arrow"> → </span>}
+                  {change.after && <span className="change-after">{change.before ? "" : "Added: "}{change.after}</span>}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+
         {(message.locations?.length > 0 || message.places?.length > 0) && (
           <CampusMap locations={message.locations} places={message.places} />
         )}

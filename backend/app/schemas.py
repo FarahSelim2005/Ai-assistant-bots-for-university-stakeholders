@@ -54,6 +54,42 @@ class ChatResponse(BaseModel):
     message_id: int  # id of the saved assistant message, used for feedback
 
 
+class DocumentIn(BaseModel):
+    filename: str = Field(min_length=1, max_length=255)
+    # base64 text of a document to edit (10 MB is about 13.4 million characters); the exact
+    # limit (DOC_EDIT_MAX_MB) is checked in app/documents/formats.py.
+    data_base64: str = Field(min_length=1, max_length=14_000_000)
+
+
+class DocumentEditRequest(BaseModel):
+    conversation_id: int
+    instruction: str = Field(min_length=1, max_length=2000)
+    # A new document to edit; without it, the conversation's current document is edited again,
+    # and `document_token` (the random token of its latest version) must be sent: only the
+    # browser that edited the document knows it, so others cannot edit or read it.
+    document: DocumentIn | None = None
+    document_token: str | None = Field(default=None, max_length=64)
+
+
+class DocumentFileOut(BaseModel):
+    filename: str       # the uploaded file's name
+    download_name: str  # e.g. "report_edited.docx"
+    url: str            # "/documents/<conversation>/<random token>": download link
+    version: int        # 1 = first edit
+
+
+class ChangeOut(BaseModel):
+    before: str
+    after: str
+
+
+class DocumentEditResponse(BaseModel):
+    answer: str                  # what was changed, and notes (e.g. converted to Word)
+    file: DocumentFileOut
+    changes: list[ChangeOut] = []  # a few before/after examples
+    message_id: int
+
+
 class TranscribeRequest(BaseModel):
     # Recorded audio (webm/ogg/wav...) as base64 text; the size is checked in the router.
     audio_base64: str = Field(min_length=1, max_length=15_000_000)

@@ -39,7 +39,8 @@ Question ──► Rules ──► Retrieve ──► Validate ──► Generat
 | LLM | `backend/app/llm/client.py` | Chat completions through OpenRouter, or a local Ollama model (`ollama/<name>`) |
 | Database | PostgreSQL `giu-bots` | Chunks with embeddings, conversations, messages, feedback |
 
-**Stack:** Python 3.13, FastAPI, psycopg 3 (raw SQL), httpx, numpy, PyMuPDF (PDF text in reading order, link URLs) with pypdf as fallback ·
+**Stack:** Python 3.13, FastAPI, psycopg 3 (raw SQL), httpx, numpy, PyMuPDF (PDF text in reading order, link URLs) with pypdf as fallback, python-docx /
+openpyxl / python-pptx (document editor) ·
 PostgreSQL 18 · OpenRouter (`baai/bge-m3` multilingual embeddings, chat
 model set in `.env`) · React + Vite.
 
@@ -325,6 +326,60 @@ Scanned PDFs have no text; upload them as images instead.
 The backend URL is set in `frontend/src/api.js`. The backend only accepts requests
 from `http://localhost:5173` (CORS, set in `backend/app/config.py`).
 
+## Document editor
+
+Users can attach a **.docx, .xlsx, .pptx, .pdf, .txt or .md** file (up to 10 MB), switch on
+**"✏️ Edit this file"** (on by default for Word, Excel and PowerPoint) and write what to change:
+*"correct the grammar"*, *"make it more professional"*, *"translate it to Arabic"*, *"shorten
+section 2"*, *"add my new internship at Valeo"*, *"fill in the form with: name Sara, ID 123"*,
+*"convert this PDF to Word"*. The answer says what changed (with a "Show changes" list) and has a
+**Download** button. A bar above the message box shows the open document: further messages edit
+the same document (version 2, 3, ...) without uploading it again, until **Stop editing**.
+
+How it works (`backend/app/documents/`, route `app/routers/documents.py`):
+
+1. The file is checked: extension **and** content (a real Word/Excel/PowerPoint zip, a real PDF,
+   UTF-8 text), size, password protection, damage.
+2. It is split into numbered parts: paragraphs (also in tables, headers and footers), slide texts,
+   spreadsheet cells, PDF lines or text blocks.
+3. The model (`DOC_EDIT_MODEL`, default: the Labs models) gets the instruction and the parts, in
+   batches of about 6,000 characters for long documents, and answers **only with JSON edits**
+   (replace / insert after / delete a part). It never runs code or touches files. Unknown ids
+   are ignored; it is asked again once if its answer is not usable.
+4. The edits are applied to exactly those parts in the original file, so styles, fonts, tables,
+   pictures, headers, numbering, layout, formulas and slide layouts stay as they were. The new
+   file is opened once more to make sure it is valid, then offered for download.
+
+Per format:
+
+| Format | What is edited | Limits |
+|---|---|---|
+| .docx | paragraphs, table cells, headers, footers | a changed paragraph takes the font of its first run |
+| .xlsx | text and number cells, empty cells | formulas are never changed; no new rows/columns; charts and pictures are not kept (openpyxl) |
+| .pptx | all text in placeholders, text boxes, groups, tables | speaker notes are not edited |
+| .pdf | lines are replaced in place (same position, size, colour; Helvetica) | no new lines and no Arabic inside a PDF: ask to **convert it to Word** |
+| scanned .pdf | read page by page by the vision model (no OCR program needed), saved as .docx | first 5 pages |
+| .txt / .md | blocks between blank lines; Markdown is kept | |
+
+Files are stored under random names in `backend/data/edits/<conversation>/` (not in git),
+at most 5 versions, and deleted after 60 minutes (`DOC_EDIT_KEEP_MINUTES`) or on **Stop editing**.
+Downloads need the random 32-character token from the answer; follow-up edits and Stop need
+the token of the latest version, so nobody can open or change another chat's document by
+guessing a conversation number. Document contents are never logged.
+
+Tests (no model, network or database needed; the model is replaced by a stand-in):
+
+```bash
+cd backend
+python -m unittest discover -s tests -v
+```
+
+To try each format by hand: start a chat with any assistant, attach a file, keep "Edit this
+file" on and try e.g. *Word*: "correct the spelling", *Excel*: "translate the item names to
+Arabic and set B3 to 30", *PowerPoint*: "fix the typos and add a step: Evaluate the model",
+*PDF*: "fix the spelling" (stays a PDF) or "convert to Word and translate to Arabic",
+*Markdown*: "add a Next steps section".
+
 ## 6. Evaluate
 
 ```bash
@@ -374,10 +429,13 @@ backend/
     speech.py            speech-to-text for the voice call (Groq Whisper, local fallback)
     db.py                PostgreSQL connection
     schemas.py           request/response models
-    routers/             session.py, chat.py, feedback.py, speech.py
+    routers/             session.py, chat.py, feedback.py, speech.py, documents.py (document editor)
+    documents/           document editor: formats.py (read/edit/save each format), editor.py (model -> JSON edits), storage.py
     agents/              base.py (shared flow), labs_research.py, internship_career.py, graduation_advising.py, directory.py
     rag/                 embeddings.py, retriever.py, prompts.py, transliteration.py
     llm/client.py        chat completions (OpenRouter or local Ollama)
+  tests/
+    test_documents.py    document editor tests (python -m unittest discover -s tests)
   scripts/
     ingest.py            load documents into the chunks table
     evaluate.py          accuracy and response time on test questions

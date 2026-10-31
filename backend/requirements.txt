@@ -9,3 +9,6 @@ pypdf==6.19.0  # fallback for PDFs PyMuPDF cannot read, and page pictures
 pymupdf==1.28.2  # PDF text in reading order (two-column CVs) and link URLs
 faster-whisper==1.2.1
 av==18.1.0  # av 19 removed an option that faster-whisper 1.2.1 still uses
+python-docx==1.2.0  # document editor: Word files
+openpyxl==3.1.5  # document editor: Excel files
+python-pptx==1.0.2  # document editor: PowerPoint files

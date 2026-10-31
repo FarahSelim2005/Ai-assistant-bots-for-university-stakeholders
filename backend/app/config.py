@@ -65,6 +65,20 @@ MAX_AUDIO_MB = 10
 MAX_UPLOAD_MB = 5
 MAX_ATTACHMENT_CHARS = 12000  # longer documents are cut to keep answers fast
 
+# Document editor (app/documents): edit an uploaded .docx/.xlsx/.pptx/.pdf/.txt/.md with an
+# instruction and download the result. It uses the Labs models unless DOC_EDIT_MODEL is set
+# (not the fine-tuned CV model: it was trained only to rewrite CVs).
+DOC_EDIT_MODEL = os.getenv("DOC_EDIT_MODEL", "") or LABS_MODEL
+DOC_EDIT_BACKUP_MODELS = ([m.strip() for m in os.getenv("DOC_EDIT_BACKUP_MODEL", "").split(",") if m.strip()]
+                          or LABS_BACKUP_MODELS)
+DOC_EDIT_MAX_MB = 10            # upload limit for documents to edit
+DOC_EDIT_MAX_CHARS = 40000      # longer documents must be split (each edit asks the model per batch)
+DOC_EDIT_BATCH_CHARS = 6000     # document text sent to the model at once
+DOC_EDIT_MAX_TOKENS = 4000      # answer limit per batch (a translated batch is about as long as the batch)
+DOC_EDIT_SCAN_PAGES = 5         # pages of a scanned PDF read by the vision model
+DOC_EDIT_KEEP_MINUTES = 60      # uploaded and edited files are deleted after this time
+EDITS_DIR = BACKEND_DIR / "data" / "edits"  # one folder per conversation; not in git
+
 # API
 FRONTEND_ORIGIN = "http://localhost:5173"  # the Vite dev server, allowed by CORS
 
