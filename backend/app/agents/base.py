@@ -43,6 +43,9 @@ class BaseAgent:
     # True: the model may still give general advice without documents (Career).
     answers_without_documents: bool = False
     max_answer_tokens: int = 400  # longer for agents that write long answers (CV reviews)
+    # True: a local Ollama model gets this agent's full prompt and max_answer_tokens instead
+    # of the small, short-answer prompt (Career's fine-tuned CV model was trained on it).
+    full_local_prompt: bool = False
 
     def run(self, question: str, user_type: str, history: list[dict] | None = None,
             attachment: Attachment | None = None) -> AgentResponse:
@@ -149,7 +152,8 @@ class BaseAgent:
         if attachment and attachment.is_image:
             return chat_with_backup(messages, [self.vision_model, *self.vision_backup_models],
                                     self.max_answer_tokens)
-        return chat_with_backup(messages, [self.model, *self.backup_models], self.max_answer_tokens)
+        return chat_with_backup(messages, [self.model, *self.backup_models], self.max_answer_tokens,
+                                full_prompt=self.full_local_prompt)
 
 
 def unique_sources(chunks: list[RetrievedChunk]) -> list[str]:

@@ -7,6 +7,7 @@ name goes to OpenRouter's chat-completions API, except "groq/<name>", which goes
 Groq (same format, free tier, very fast; uses GROQ_API_KEY).
 """
 import logging
+import re
 import time
 
 import httpx
@@ -28,16 +29,19 @@ class LLMError(Exception):
 
 
 def chat(messages: list[dict], model: str,
-         temperature: float = 0.1, max_tokens: int = 400) -> str:
+         temperature: float = 0.1, max_tokens: int = 400, full_prompt: bool = False) -> str:
     """Send chat messages to `model` and return the reply text.
 
     `messages` uses the OpenAI format: [{"role": "system"|"user"|"assistant", "content": "..."}].
     A low temperature keeps answers close to the given context.
+    `full_prompt`: a local Ollama model gets the messages exactly as given and `max_tokens`,
+    instead of the small, short-answer prompt (used by Career's fine-tuned CV model).
     """
     if not model:
         raise RuntimeError("No chat model given. Set LABS_MODEL in backend/.env")
     if model == "ollama" or model.startswith(OLLAMA_PREFIX):
-        return chat_ollama(messages, model.removeprefix(OLLAMA_PREFIX).removeprefix("ollama"))
+        name = model.removeprefix(OLLAMA_PREFIX).removeprefix("ollama")
+        return chat_ollama(messages, name, max_tokens if full_prompt else None)
     if model.startswith(GROQ_PREFIX):  # e.g. groq/llama-3.3-70b-versatile
         client, api_key, key_name = _groq, config.GROQ_API_KEY, "GROQ_API_KEY"
     else:
@@ -60,14 +64,24 @@ def chat(messages: list[dict], model: str,
         reason = (data.get("error") or {}).get("message", "no choices in the response")
         raise LLMError(f"Model '{model}' returned no answer: {reason}")
     # Content can be empty, e.g. when a reasoning model spends all tokens on thinking.
-    content = data["choices"][0].get("message", {}).get("content")
-    if not content or not content.strip():
+    content = without_thinking(data["choices"][0].get("message", {}).get("content") or "")
+    if not content:
         raise LLMError(f"Model '{model}' returned an empty answer.")
-    return content.strip()
+    return content
+
+
+def without_thinking(text: str) -> str:
+    """The answer without "<think>...</think>" blocks or a leading "Thinking..." line,
+    which Qwen3 models sometimes write (often an empty thinking block), and without stray
+    "<tool_call>" tags (giu-cv sometimes starts its answer with "</tool_call>")."""
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    text = re.sub(r"</?tool_call>", "", text)
+    text = re.sub(r"^\s*Thinking\.\.\.\s*", "", text)
+    return text.strip()
 
 
 def chat_with_backup(messages: list[dict], models: list[str], max_tokens: int = 400,
-                     rounds: int = 2) -> str:
+                     rounds: int = 2, full_prompt: bool = False) -> str:
     """Try the models in order and return the first answer.
 
     Free models are often rate-limited (daily limit or busy provider), so if one
@@ -82,7 +96,7 @@ def chat_with_backup(messages: list[dict], models: list[str], max_tokens: int = 
         for model in [m for m in models if m]:
             started = time.perf_counter()
             try:
-                answer = chat(messages, model, max_tokens=max_tokens)
+                answer = chat(messages, model, max_tokens=max_tokens, full_prompt=full_prompt)
                 log.info("Answered by %s in %.1f s", model, time.perf_counter() - started)
                 return answer
             except (httpx.HTTPError, LLMError) as error:
@@ -112,25 +126,32 @@ LOCAL_SYSTEM_PROMPT = (
 )
 
 
-def chat_ollama(messages: list[dict], model: str = "") -> str:
-    """Ask the local Ollama model (OLLAMA_MODEL unless a name is given) with a small prompt."""
+def chat_ollama(messages: list[dict], model: str = "", max_tokens: int | None = None) -> str:
+    """Ask the local Ollama model (OLLAMA_MODEL unless a name is given).
+
+    Without `max_tokens`: a small prompt and a short answer (fast on a laptop).
+    With `max_tokens`: the messages exactly as given and up to `max_tokens` answer tokens,
+    e.g. for the fine-tuned CV model, which must get the prompt it was trained on.
+    """
     model = model or config.OLLAMA_MODEL
+    full = max_tokens is not None
     started = time.perf_counter()
     response = _ollama.post("/api/chat", json={
         "model": model,
-        "messages": small_prompt(messages),
+        "messages": messages if full else small_prompt(messages),
         "think": False,      # no hidden "thinking" before the answer
         "keep_alive": -1,    # keep the model loaded between questions
         "stream": False,     # the backend needs the whole answer (saving, map, backups)
-        "options": {"num_predict": config.OLLAMA_NUM_PREDICT, "num_ctx": config.OLLAMA_NUM_CTX,
+        "options": {"num_predict": max_tokens if full else config.OLLAMA_NUM_PREDICT,
+                    "num_ctx": config.OLLAMA_FULL_NUM_CTX if full else config.OLLAMA_NUM_CTX,
                     "temperature": 0.1},
     })
     response.raise_for_status()
-    content = (response.json().get("message") or {}).get("content", "")
+    content = without_thinking((response.json().get("message") or {}).get("content") or "")
     log.info("Ollama %s answered in %.1f s", model, time.perf_counter() - started)
-    if not content.strip():
+    if not content:
         raise LLMError(f"Local model '{model}' returned an empty answer.")
-    return content.strip()
+    return content
 
 
 def small_prompt(messages: list[dict]) -> list[dict]:

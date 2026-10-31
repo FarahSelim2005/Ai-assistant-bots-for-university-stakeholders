@@ -24,6 +24,11 @@ LABS_MODEL = os.getenv("LABS_MODEL", "")
 # Optional backups, tried in order when LABS_MODEL fails. Several can be given,
 # separated by commas: LABS_BACKUP_MODEL=model-one,model-two
 LABS_BACKUP_MODELS = [m.strip() for m in os.getenv("LABS_BACKUP_MODEL", "").split(",") if m.strip()]
+# The Internship & Career agent can use its own model, e.g. the fine-tuned CV model
+# CAREER_MODEL=ollama/giu-cv. Empty: the same models as Labs & Research.
+CAREER_MODEL = os.getenv("CAREER_MODEL", "") or LABS_MODEL
+CAREER_BACKUP_MODELS = ([m.strip() for m in os.getenv("CAREER_BACKUP_MODEL", "").split(",") if m.strip()]
+                        or LABS_BACKUP_MODELS)
 VISION_MODEL = os.getenv("VISION_MODEL", "")  # must accept images; used only when an image is attached
 # Optional backups for pictures, tried in order when VISION_MODEL fails (comma-separated,
 # all must accept images): VISION_BACKUP_MODEL=model-one,model-two
@@ -34,9 +39,12 @@ VISION_BACKUP_MODELS = [m.strip() for m in os.getenv("VISION_BACKUP_MODEL", "").
 # "groq/<name>" in a model list uses Groq with GROQ_API_KEY, e.g. groq/openai/gpt-oss-120b.
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:1b")  # switch back with OLLAMA_MODEL=gemma4:e4b
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_TIMEOUT = 120.0  # seconds
+OLLAMA_TIMEOUT = 300.0  # seconds; a full CV rewrite by the local CV model takes 1-3 minutes
 OLLAMA_NUM_PREDICT = 100  # max answer tokens: a laptop writes only a few words per second
 OLLAMA_NUM_CTX = 2048  # context window; a small prompt is processed faster
+# Context window for agents that send their full prompt to Ollama (Career with giu-cv):
+# the CV rules (~1,500 tokens) + a CV + a 1,500-token answer.
+OLLAMA_FULL_NUM_CTX = 8192
 OLLAMA_MAX_CONTEXT_CHARS = 1200  # documents/attachment text sent to the local model (2500 took ~7-9 s)
 OLLAMA_HISTORY_MESSAGES = 2  # earlier messages sent to the local model (one question + answer)
 
