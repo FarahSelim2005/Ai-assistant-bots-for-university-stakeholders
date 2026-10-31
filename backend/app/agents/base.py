@@ -90,7 +90,7 @@ class BaseAgent:
             if owner:
                 return AgentResponse(answer=self.fallback_for(question), sources=[], redirect=owner)
         # 4. Generate
-        answer = self.generate(question, relevant, history, attachment)
+        answer = self.generate(question, relevant, self.history_for(question, history, attachment), attachment)
         # Show only the places the user asked about (an answer about the gym may also
         # mention the supermarket next to it); use the answer only if the question
         # names no place, e.g. "where can I work out?".
@@ -126,6 +126,12 @@ class BaseAgent:
             if best >= config.SIMILARITY_THRESHOLD and best - own_best >= config.HANDOVER_MIN_GAP:
                 return AgentLink(agent=other.key, name=other.name, url=f"/?agent={other.key}")
         return None
+
+    def history_for(self, question: str, history: list[dict] | None,
+                    attachment: Attachment | None) -> list[dict] | None:
+        """Earlier messages sent to the model with this question. All of them by default;
+        an agent can leave them out for some requests (Career: CV rewrites)."""
+        return history
 
     def search_text(self, question: str, history: list[dict] | None) -> str:
         """Text used for retrieval. For follow-ups like "when is it open?", the previous

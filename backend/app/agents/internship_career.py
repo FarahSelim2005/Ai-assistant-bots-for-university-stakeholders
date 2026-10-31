@@ -3,9 +3,17 @@
 Unlike Labs & Research, it may give general career advice from the model's own knowledge
 (marked "General advice:"), but GIU facts still come only from its documents.
 """
+import re
+
 from app import config
 from app.agents.base import BaseAgent
+from app.attachments import Attachment
 from app.rag.prompts import CAREER_SYSTEM_PROMPT
+
+# Words of a "restructure my CV" request, as in the fine-tuning data: "Please rewrite my CV.",
+# "Can you fix my CV?", "Make my CV look professional.", "Use the London template ...",
+# "Can you put my CV in ...", "رتبلي السي في", "ظبطلي الـ CV".
+CV_REWRITE_WORDS = re.compile(r"rewrite|re-write|fix|restructure|template|professional|put my cv|رتب|ظبط", re.IGNORECASE)
 
 
 class InternshipCareerAgent(BaseAgent):
@@ -27,3 +35,12 @@ class InternshipCareerAgent(BaseAgent):
         "آسف، معنديش معلومات عن ده. "
         "من فضلك تواصل مع الكارير سنتر في الجامعة أو مع الكلية."
     )
+
+    def history_for(self, question: str, history: list[dict] | None,
+                    attachment: Attachment | None) -> list[dict] | None:
+        """No earlier messages for a CV rewrite with an attached document: the fine-tuned CV
+        model was trained without history, and with the previous CV answer in the history
+        it repeated that answer instead of reading the newly attached CV."""
+        if attachment and attachment.text and CV_REWRITE_WORDS.search(question):
+            return []
+        return history
