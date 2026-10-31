@@ -27,13 +27,6 @@ export const AGENTS = [
     ready: false,
   },
   {
-    key: "orientation",
-    name: "Orientation Assistant",
-    handles: "Campus map, buildings, registration and student services",
-    userTypes: ["student", "staff"],
-    ready: false,
-  },
-  {
     key: "internship_career",
     name: "Internship & Career Assistant",
     handles: "Internships, the career fair, CV review, interviews, skills and career paths",

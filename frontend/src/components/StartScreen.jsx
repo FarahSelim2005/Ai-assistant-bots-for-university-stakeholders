@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { AGENTS } from "../agents.js";
 
 const USER_TYPES = [
-  { value: "student", title: "Student", text: "Advising, orientation, careers, labs and research" },
+  { value: "student", title: "Student", text: "Advising, careers, labs and research" },
   { value: "staff", title: "Staff", text: "All assistants, including HR & Policies" },
 ];
 
@@ -64,8 +64,8 @@ export default function StartScreen({ onChoose, loading, error, initialAgent }) 
         <p className="eyebrow">AI Assistants</p>
         <h1>GIU Chatbot</h1>
         <p>
-          Five assistants for students and staff: graduation and advising, HR and policies,
-          orientation, internships and careers, and labs and research. University facts come
+          Four assistants for students and staff: graduation and advising, HR and policies,
+          internships and careers, and labs and research. University facts come
           only from official GIU documents.
         </p>
       </section>

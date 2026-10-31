@@ -40,9 +40,9 @@ class PlaceOut(BaseModel):
 
 
 class AgentLinkOut(BaseModel):
-    agent: str  # e.g. "orientation"
-    name: str   # e.g. "Orientation Assistant"
-    url: str    # e.g. "/?agent=orientation"
+    agent: str  # e.g. "labs_research"
+    name: str   # e.g. "Labs & Research Assistant"
+    url: str    # e.g. "/?agent=labs_research"
 
 
 class ChatResponse(BaseModel):

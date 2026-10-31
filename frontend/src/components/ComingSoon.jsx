@@ -1,5 +1,5 @@
 // Page for the GIU agents that are not built yet (opened from the start screen or from
-// a redirect link such as /?agent=orientation).
+// a redirect link such as /?agent=hr_policies).
 import { findAgent } from "../agents.js";
 
 export default function ComingSoon({ agentKey }) {

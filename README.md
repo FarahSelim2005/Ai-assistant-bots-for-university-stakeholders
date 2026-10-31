@@ -17,8 +17,7 @@ slices (database, backend, frontend and evaluation):
   memos and graduation plans, answered **only from its documents** (the Academic
   Performance Department's advising guidelines), like Labs & Research.
 
-The other two (HR & Policies, Orientation) show a "coming soon"
-page.
+HR & Policies (staff only) is not built yet and shows a "coming soon" page.
 
 ## How it works
 
@@ -251,9 +250,9 @@ npm run dev
 ```
 
 Open http://localhost:5173, choose **Student** or **Staff**, then choose an assistant:
-students see 3 (Graduation & Advising, Orientation, Labs & Research), staff see all 4
-(also HR & Policies). The list is in `frontend/src/agents.js`; only Labs & Research is
-built, the others open a "coming soon" page.
+students see 3 (Graduation & Advising, Internship & Career, Labs & Research), staff see 3
+(Graduation & Advising, HR & Policies, Labs & Research). The list is in
+`frontend/src/agents.js`; HR & Policies is not built yet and opens a "coming soon" page.
 Each answer shows its source files and a 1–5 rating.
 
 **Campus map:** when an answer mentions a room such as `M005` or `A312`, a map card
@@ -287,12 +286,12 @@ Google Maps walking navigation from the user's location to the building's entran
 The real GPS positions of the entrances (M: 2, A: 3, S: 1) are in
 `frontend/src/campusGeo.js`; no API key is needed.
 
-**Links to the other agents:** the GIU chatbot has five agents (Graduation & Advising,
-HR & Policies, Orientation, Internship & Career, Labs & Research). When an agent has no answer, the
+**Links to the other agents:** the GIU chatbot has four agents (Graduation & Advising,
+HR & Policies, Internship & Career, Labs & Research). When an agent has no answer, the
 question is compared with each agent's description (`backend/app/agents/directory.py`,
 embeddings only, no chat model call) and the fallback message gets a button to the
-best-matching agent. Students can be sent to Orientation and Graduation & Advising;
-staff also to HR & Policies. Nothing is suggested when no agent matches
+best-matching agent. Students can be sent to Graduation & Advising, Internship & Career and Labs &
+Research; staff to Graduation & Advising, HR & Policies and Labs & Research. Nothing is suggested when no agent matches
 (`AGENT_LINK_MIN_GAP` in `config.py`: the best agent must clearly beat the second best). Agents that are not built yet open a
 "coming soon" page (`/?agent=<key>`, `frontend/src/components/ComingSoon.jsx`); built
 ones open directly. A question that only weakly matches an agent's documents (best score

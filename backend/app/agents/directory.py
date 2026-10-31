@@ -1,4 +1,4 @@
-"""All five GIU agents, and which one a question probably belongs to.
+"""All four GIU agents, and which one a question probably belongs to.
 
 Used when an agent has no answer: instead of a dead end, the user gets a link to
 the agent that handles that topic. The match uses the same embeddings as retrieval
@@ -48,15 +48,6 @@ AGENT_DIRECTORY = [
         ("staff",),
     ),
     AgentInfo(
-        "orientation", "Orientation Assistant",
-        "New student orientation, campus map, buildings and facilities, how to find places "
-        "on campus, gym, cafeteria, parking, transportation, registration, student ID, "
-        "student services, clubs and activities. "
-        "الجيم، الكافيتيريا، الباركينج، المواصلات، الأتوبيس، خريطة الجامعة، المباني، "
-        "الكارنيه، الأنشطة الطلابية.",
-        ("student", "staff"),
-    ),
-    AgentInfo(
         "internship_career", "Internship & Career Assistant",
         "Internships, the GIU Internship Semester, the GIU Career Fair and employers, CV and "
         "resume writing, CV review, interview preparation, job applications, LinkedIn, "
@@ -76,8 +67,8 @@ AGENT_DIRECTORY = [
 
 @dataclass
 class AgentLink:
-    agent: str  # key, e.g. "orientation"
-    name: str   # e.g. "Orientation Assistant"
+    agent: str  # key, e.g. "labs_research"
+    name: str   # e.g. "Labs & Research Assistant"
     url: str    # where the frontend sends the user
 
 
