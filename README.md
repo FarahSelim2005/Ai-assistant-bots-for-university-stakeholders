@@ -40,7 +40,7 @@ Question ──► Rules ──► Retrieve ──► Validate ──► Generat
 | LLM | `backend/app/llm/client.py` | Chat completions through OpenRouter, or a local Ollama model (`ollama/<name>`) |
 | Database | PostgreSQL `giu-bots` | Chunks with embeddings, conversations, messages, feedback |
 
-**Stack:** Python 3.13, FastAPI, psycopg 3 (raw SQL), httpx, numpy, pypdf ·
+**Stack:** Python 3.13, FastAPI, psycopg 3 (raw SQL), httpx, numpy, PyMuPDF (PDF text in reading order, link URLs) with pypdf as fallback ·
 PostgreSQL 18 · OpenRouter (`baai/bge-m3` multilingual embeddings, chat
 model set in `.env`) · React + Vite.
 

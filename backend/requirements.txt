@@ -5,6 +5,7 @@ httpx==0.28.1
 pydantic==2.13.5
 numpy==2.5.3
 python-dotenv==1.2.4
-pypdf==6.19.0
+pypdf==6.19.0  # fallback for PDFs PyMuPDF cannot read, and page pictures
+pymupdf==1.28.2  # PDF text in reading order (two-column CVs) and link URLs
 faster-whisper==1.2.1
 av==18.1.0  # av 19 removed an option that faster-whisper 1.2.1 still uses
