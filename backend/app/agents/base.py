@@ -68,11 +68,16 @@ class BaseAgent:
         asked_rooms = rooms_in_question(question)
         if asked_rooms:
             relevant.insert(0, RetrievedChunk(room_facts(asked_rooms), ROOM_FACTS_SOURCE, 1.0))
-        best_score = max((c.score for c in chunks), default=0.0)
+        # Which agent a question belongs to is decided on the question alone: with the
+        # previous question added ("when is the career fair where is the student affairs"),
+        # a new topic would be judged by the old one.
+        question_texts = search_variants(question)
+        own_chunks = retrieve_best(question_texts, self.name, user_type) if history else chunks
+        best_score = max((c.score for c in own_chunks), default=0.0)
         if not relevant and attachment is None:
             # Prefer a built agent whose documents have the answer (the gym is in Labs'
             # documents), then the agent whose description fits best.
-            redirect = (self.owner_by_documents(search_question, search_texts, user_type, best_score)
+            redirect = (self.owner_by_documents(search_question, question_texts, user_type, best_score)
                         or suggest_agent(search_question, self.name, user_type))
             # An agent that may answer without documents (Career) still sends the user
             # on when the question clearly belongs to another agent (e.g. credit hours).
@@ -84,7 +89,7 @@ class BaseAgent:
         # Career also hands over to agents not built yet: otherwise its model would
         # give general advice on e.g. credit hours instead of pointing to Graduation.
         if attachment is None and not asked_rooms and best_score < config.HANDOVER_MAX_SCORE:
-            owner = (self.owner_by_documents(search_question, search_texts, user_type, best_score)
+            owner = (self.owner_by_documents(search_question, question_texts, user_type, best_score)
                      or suggest_agent(search_question, self.name, user_type, min_gap=config.HANDOVER_MIN_GAP,
                                       built_only=not self.answers_without_documents))
             if owner:

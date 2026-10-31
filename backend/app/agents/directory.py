@@ -59,7 +59,11 @@ AGENT_DIRECTORY = [
         "labs_research", "Labs & Research Assistant",
         "Lab access, lab rooms and opening hours, lab supervisors, equipment and booking, "
         "research funding and grants, research resources, thesis support and publications. "
-        "المعامل، الأجهزة، منحة البحث، البحث العلمي، الرسالة، النشر.",
+        "Where things are on campus: buildings A, M and S, rooms and floors, offices (admission, "
+        "student affairs, finance, academic coordinator), the library, the clinic, the gym, the "
+        "supermarket, sports courts, the food court and parking. "
+        "المعامل، الأجهزة، منحة البحث، البحث العلمي، الرسالة، النشر، فين المباني والأوض والمكاتب، "
+        "شئون الطلبة، الادميشن، المكتبة، العيادة، الجيم، الباركينج.",
         ("student", "staff"), built=True,
     ),
 ]
