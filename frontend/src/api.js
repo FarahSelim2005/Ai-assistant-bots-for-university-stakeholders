@@ -1,5 +1,5 @@
 // All calls to the backend live here. Change API_URL if the backend runs elsewhere.
-const API_URL = "http://localhost:8000";
+export const API_URL = "http://localhost:8000";
 
 // `signal` (optional) lets the caller cancel the request, e.g. the chat's Stop button.
 async function post(path, body, signal) {

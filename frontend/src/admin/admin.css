@@ -1,0 +1,62 @@
+/* Admin page: same colours, buttons and top bar as the chat (App.css) */
+.admin { min-height: 100%; display: flex; flex-direction: column; }
+.admin-main { width: 100%; max-width: 1000px; margin: 0 auto; padding: 32px; }
+
+.admin-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 24px 28px;
+}
+.admin-card h2 { margin: 0 0 16px; font-size: 20px; }
+.admin label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 14px; margin-bottom: 16px; }
+.admin input, .admin select, .admin textarea {
+  font: inherit;
+  font-weight: 400;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+.admin input:focus, .admin select:focus, .admin textarea:focus { outline: none; border-color: var(--giu-red); }
+.admin textarea { font-family: Consolas, "Courier New", monospace; font-size: 14px; resize: vertical; line-height: 1.5; }
+.admin .small { font-size: 13px; margin: -8px 0 16px; }
+.hint { font-weight: 400; font-size: 13px; color: var(--muted); }
+.notice { color: #1e6b32; background: #e8f5ec; border: 1px solid #bfe3c9; border-radius: 10px; padding: 10px 14px; margin: 0 0 16px; }
+
+.login-form { max-width: 380px; margin: 40px auto; }
+.login-form button { width: 100%; }
+
+.list-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.list-header h2 { flex: 1; margin: 0; }
+
+.doc-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.doc-table th { text-align: left; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.doc-table td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.row-actions { text-align: right; white-space: nowrap; }
+.row-actions button { padding: 6px 14px; margin-left: 6px; }
+button.danger { background: var(--surface); color: var(--giu-red); border: 1px solid #f0c4c6; }
+button.danger:hover:not(:disabled) { background: #fdecec; }
+
+.form-row { display: flex; gap: 12px; align-items: flex-end; }
+.form-row .grow { flex: 1; }
+.file-pick { cursor: pointer; }
+.button-like {
+  display: inline-block;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.button-like.secondary { background: var(--surface); border: 1px solid var(--border); }
+.button-like.secondary:hover { border-color: var(--giu-black); }
+.form-actions { display: flex; gap: 10px; }
+
+@media (max-width: 640px) {
+  .admin-main { padding: 16px; }
+  .admin-card { padding: 18px 16px; }
+  .form-row, .list-header { flex-wrap: wrap; }
+  .doc-table th:nth-child(3), .doc-table td:nth-child(3) { display: none; }
+}
