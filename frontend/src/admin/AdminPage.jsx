@@ -7,8 +7,13 @@ import DocumentForm from "./DocumentForm.jsx";
 import "./admin.css";
 
 const TOKEN_KEY = "adminToken"; // sessionStorage: kept while the tab is open
+// Login switched off for now (the backend has no /admin/login yet): the page opens the
+// documents part directly. Set to true to show the password form again.
+const LOGIN_REQUIRED = false;
+const NO_LOGIN_TOKEN = "no-login";
 
 function savedToken() {
+  if (!LOGIN_REQUIRED) return NO_LOGIN_TOKEN;
   try {
     return sessionStorage.getItem(TOKEN_KEY) || "";
   } catch {
@@ -31,6 +36,7 @@ export default function AdminPage() {
   }
 
   function loggedOut(message = "") {
+    if (!LOGIN_REQUIRED) return; // nothing to log out of
     saveToken("");
     setLoginError(message);
   }
@@ -43,7 +49,7 @@ export default function AdminPage() {
           <h1>Admin: documents</h1>
           <span>Add, edit and delete the documents the assistants answer from</span>
         </div>
-        {token && <button className="secondary" onClick={() => loggedOut()}>Log out</button>}
+        {token && LOGIN_REQUIRED && <button className="secondary" onClick={() => loggedOut()}>Log out</button>}
       </header>
       <div className="flag-stripe" />
       <main className="admin-main">
