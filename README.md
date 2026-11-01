@@ -326,6 +326,21 @@ Scanned PDFs have no text; upload them as images instead.
 The backend URL is set in `frontend/src/api.js`. The backend only accepts requests
 from `http://localhost:5173` (CORS, set in `backend/app/config.py`).
 
+## Admin page
+
+**http://localhost:5173/admin** lists the documents the agents answer from (`backend/data/raw/<agent>/`,
+`.md` and `.txt`), with a filter per agent. An admin can **add** a document (pick a file or paste
+Markdown; start each topic with a `## Heading`), **edit** it, **move** it to another agent and
+**delete** it. Every change is re-indexed at once (`app/routers/admin.py` uses `ingest_file` from
+`scripts/ingest.py`), so the agents answer from the new text right away; the message shows the
+number of chunks.
+
+Login: put `ADMIN_PASSWORD=...` in `backend/.env` and set `LOGIN_REQUIRED = true` in
+`frontend/src/admin/AdminPage.jsx`; a login then lasts 8 hours (`ADMIN_TOKEN_HOURS`), and a wrong
+password waits 1 second. Without a password the admin routes are open (the backend logs a
+warning at start-up): fine on your own computer, never on a server. File names are cleaned (no
+folders, only `.md` / `.txt`), and document ids cannot point outside `data/raw/<agent>/`.
+
 ## Document editor
 
 Users attach a **.docx, .xlsx, .pptx, .pdf, .txt or .md** file (up to 10 MB) and say what to
@@ -439,13 +454,14 @@ backend/
     speech.py            speech-to-text for the voice call (Groq Whisper, local fallback)
     db.py                PostgreSQL connection
     schemas.py           request/response models
-    routers/             session.py, chat.py, feedback.py, speech.py, documents.py (document editor)
+    routers/             session.py, chat.py, feedback.py, speech.py, documents.py (document editor), admin.py (admin page)
     documents/           document editor: formats.py (read/edit/save each format), editor.py (model -> JSON edits), storage.py
     agents/              base.py (shared flow), labs_research.py, internship_career.py, graduation_advising.py, directory.py
     rag/                 embeddings.py, retriever.py, prompts.py, transliteration.py
     llm/client.py        chat completions (OpenRouter or local Ollama)
   tests/
     test_documents.py    document editor tests (python -m unittest discover -s tests)
+    test_admin.py        admin route tests
   scripts/
     ingest.py            load documents into the chunks table
     evaluate.py          accuracy and response time on test questions

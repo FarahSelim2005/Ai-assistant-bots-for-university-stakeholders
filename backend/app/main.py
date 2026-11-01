@@ -4,6 +4,7 @@ Run from the backend folder:
     uvicorn app.main:app --reload
 Interactive docs: http://localhost:8000/docs
 """
+import logging
 import threading
 from contextlib import asynccontextmanager
 
@@ -13,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import config
 from app.llm.client import warm_up_ollama
 from app.documents.storage import remove_old_files
-from app.routers import chat, documents, feedback, session, speech
+from app.routers import admin, chat, documents, feedback, session, speech
 from app.speech import get_model
 
 
@@ -23,6 +24,9 @@ async def lifespan(app: FastAPI):
     # question does not have to wait for it (the first run also downloads it).
     threading.Thread(target=get_model, daemon=True).start()
     remove_old_files()  # documents left from editing before the restart
+    if not config.ADMIN_PASSWORD:
+        logging.getLogger("uvicorn.error").warning(
+            "ADMIN_PASSWORD is not set: the /admin routes are open to anyone who can reach this server.")
     # Same for the local Ollama model, if one of the configured models uses it.
     if any(m == "ollama" or m.startswith("ollama/") for m in [config.LABS_MODEL, *config.LABS_BACKUP_MODELS]):
         threading.Thread(target=warm_up_ollama, daemon=True).start()
@@ -43,3 +47,4 @@ app.include_router(chat.router)
 app.include_router(feedback.router)
 app.include_router(speech.router)
 app.include_router(documents.router)
+app.include_router(admin.router)

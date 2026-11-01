@@ -79,6 +79,12 @@ DOC_EDIT_SCAN_PAGES = 5         # pages of a scanned PDF read by the vision mode
 DOC_EDIT_KEEP_MINUTES = 60      # uploaded and edited files are deleted after this time
 EDITS_DIR = BACKEND_DIR / "data" / "edits"  # one folder per conversation; not in git
 
+# Admin page (/admin): manage the agents' documents. Without a password the admin routes are
+# open: fine on your own computer, never on a server.
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+ADMIN_TOKEN_HOURS = 8              # a login lasts this long
+ADMIN_MAX_DOCUMENT_CHARS = 500_000  # about 100 pages of text
+
 # API
 FRONTEND_ORIGIN = "http://localhost:5173"  # the Vite dev server, allowed by CORS
 
