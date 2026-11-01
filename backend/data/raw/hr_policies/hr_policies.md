@@ -112,6 +112,67 @@ after appointment or after the previous raise. Temporary exemptions for employer
 غير سبب بيتعتبر استقالة. لو العقد غير محدد المدة اتنهى من غير سبب مشروع: تعويض لا يقل عن شهرين عن كل
 سنة خدمة. لو العقد محدد المدة اتنهى بدري: شهر عن كل سنة خدمة. ملف الموظف بيتحفظ 5 سنين بعد انتهاء الشغل.
 
+## Official public holidays in Egypt: how they work
+
+Egypt's official public holidays are paid days off. The Prime Minister (Cabinet) issues a decree
+before each holiday with the exact days, and often moves a holiday that falls on a weekday to a
+Thursday or a Sunday to make a long weekend; the Ministry of Labour then issues the decree for
+the private sector. The dates of the Islamic holidays depend on the moon and are confirmed only a
+few days before, so the decree for each holiday is what counts. Whether GIU staff work on a
+holiday (for example during exams) and how such a day is compensated is decided by GIU and the
+labour law: ask GIU HR.
+
+بالعربي (الأجازات الرسمية في مصر، إزاي بتتحدد): الأجازات الرسمية في مصر أيام أجازة مدفوعة الأجر. رئيس
+الوزراء بيصدر قرار قبل كل أجازة بالأيام بالظبط، وكتير بينقل الأجازة اللي في وسط الأسبوع ليوم خميس أو أحد،
+ووزارة العمل بتصدر قرار للقطاع الخاص. مواعيد الأعياد الإسلامية بتتحدد برؤية الهلال، والقرار الرسمي هو اللي
+بيتعمل بيه. الشغل في الأجازات (زي أيام الامتحانات) وتعويضه: اسأل HR في الجامعة.
+
+## Official public holidays in Egypt: national holidays (same date every year)
+
+- Coptic Christmas: 7 January
+- January 25 Revolution and Police Day: 25 January
+- Sinai Liberation Day: 25 April
+- Labour Day: 1 May
+- June 30 Revolution Day: 30 June
+- July 23 Revolution Day: 23 July
+- Armed Forces Day: 6 October
+
+بالعربي (الأجازات القومية، نفس الميعاد كل سنة): عيد الميلاد المجيد 7 يناير، عيد ثورة 25 يناير وعيد الشرطة
+25 يناير، عيد تحرير سيناء 25 أبريل، عيد العمال 1 مايو، ذكرى ثورة 30 يونيو، عيد ثورة 23 يوليو، عيد القوات
+المسلحة 6 أكتوبر.
+
+## Official public holidays in Egypt: religious holidays (the date changes every year)
+
+- Eid al-Fitr (end of Ramadan): about three days off, sometimes more by decree
+- Sham el-Nessim: the Monday after Coptic (Orthodox) Easter
+- Arafat Day and Eid al-Adha: Arafat Day plus about three days of Eid
+- Islamic New Year (1 Muharram)
+- The Prophet's Birthday (Mawlid al-Nabi)
+
+بالعربي (الأجازات الدينية، ميعادها بيتغير كل سنة): عيد الفطر (حوالي 3 أيام وأحيانًا أكتر بقرار)، شم النسيم
+(الاتنين بعد عيد القيامة)، وقفة عرفات وعيد الأضحى (حوالي 3 أيام)، رأس السنة الهجرية، المولد النبوي الشريف.
+
+## Official public holidays in Egypt: expected dates in 2027 (to be confirmed by decree)
+
+- Coptic Christmas: Thursday 7 January 2027
+- January 25 Revolution and Police Day: Monday 25 January 2027 (may be moved to a Thursday)
+- Eid al-Fitr: about Tuesday 9 to Thursday 11 March 2027
+- Sinai Liberation Day: Sunday 25 April 2027
+- Labour Day: Saturday 1 May 2027
+- Sham el-Nessim: Monday 3 May 2027
+- Arafat Day: Saturday 15 May 2027; Eid al-Adha: about Sunday 16 to Tuesday 18 May 2027
+- Islamic New Year: about Sunday 6 June 2027
+- June 30 Revolution Day: Wednesday 30 June 2027
+- July 23 Revolution Day: Friday 23 July 2027
+- The Prophet's Birthday: about Saturday 14 August 2027
+- Armed Forces Day: Wednesday 6 October 2027
+
+بالعربي (مواعيد الأجازات الرسمية المتوقعة في 2027، لحد صدور القرار): عيد الميلاد الخميس 7 يناير، 25 يناير يوم
+الاتنين (ممكن يتنقل لخميس)، عيد الفطر حوالي من الثلاثاء 9 لحد الخميس 11 مارس، تحرير سيناء الأحد 25 أبريل، عيد
+العمال السبت 1 مايو، شم النسيم الاتنين 3 مايو، وقفة عرفات السبت 15 مايو وعيد الأضحى حوالي من الأحد 16 لحد
+الثلاثاء 18 مايو، رأس السنة الهجرية حوالي الأحد 6 يونيو، 30 يونيو يوم الأربع، 23 يوليو يوم الجمعة، المولد
+النبوي حوالي السبت 14 أغسطس، 6 أكتوبر يوم الأربع.
+
 ## Workplace conduct (by law)
 
 The law has rules against sexual harassment, bullying and violence at work, and requires a safe
@@ -125,10 +186,10 @@ determination as 5% of their workforce. Wages can be paid by bank transfer.
 
 These GIU-specific topics are not in this document, so there is no official answer here: salaries
 and salary scales, payday, medical insurance and other benefits, GIU working hours and weekly days
-off, official holidays, the probation period, sick leave rules, carrying over or paying out unused
+off, work on public holidays, the probation period, sick leave rules, carrying over or paying out unused
 leave, the staff complaints procedure, staff evaluation and promotion, the HR office location, its
 email and phone number, and the forms for leave requests. Ask the GIU Human Resources department.
 
 بالعربي (حاجات مش موجودة في الملف ده): المرتبات ومواعيد صرفها، التأمين الطبي والمزايا، مواعيد الشغل
-وأيام الأجازة الأسبوعية في الجامعة، الأجازات الرسمية، فترة الاختبار، الأجازة المرضية، ترحيل الأجازات،
+وأيام الأجازة الأسبوعية في الجامعة، الشغل في الأجازات الرسمية، فترة الاختبار، الأجازة المرضية، ترحيل الأجازات،
 الشكاوى، التقييم والترقيات، مكان مكتب HR وإيميله وتليفونه، ونماذج طلب الأجازة. اسأل إدارة الموارد البشرية.
