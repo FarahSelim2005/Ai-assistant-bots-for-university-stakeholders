@@ -3,7 +3,6 @@
 Each concrete agent only sets its name, allowed user types, prompt, models and
 fallback message. No HTTP code here: routers call `run()` and save the result.
 """
-import re
 from dataclasses import dataclass, field
 
 from app import config
@@ -11,13 +10,12 @@ from app.agents.directory import AGENT_DIRECTORY, AgentLink, closest_agent, sugg
 from app.attachments import Attachment
 from app.campus import BUILDINGS, Location, Place, buildings_asked, find_locations, find_places, room_facts, rooms_in_question
 from app.llm.client import chat_with_backup
-from app.rag.prompts import build_messages
+from app.rag.prompts import ARABIC_LETTERS, build_messages
 from app.rag.transliteration import search_variants, with_english_terms
 from app.rag.retriever import RetrievedChunk, retrieve_best
 
 MAX_QUESTION_LENGTH = 1000
 ROOM_FACTS_SOURCE = "Room numbering rules"
-ARABIC_LETTERS = re.compile(r"[؀-ۿ]")
 
 
 @dataclass

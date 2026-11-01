@@ -9,7 +9,7 @@ from unittest import mock
 import app.agents.base as base
 from app.agents import AGENTS
 from app.attachments import Attachment
-from app.rag.prompts import CAREER_SYSTEM_PROMPT
+from app.rag.prompts import ARABIC_LETTERS, CAREER_SYSTEM_PROMPT, ENGLISH_ONLY
 
 CV = Attachment("cv.txt", text="Mariam Hassan\nComputer Science student\nPython, SQL")
 HISTORY = [{"role": "user", "content": "old question"}, {"role": "assistant", "content": "old CV answer"}]
@@ -37,7 +37,8 @@ class CvRewrites(unittest.TestCase):
             self.career.run(request, "student", HISTORY, CV)
             self.assertEqual(self.sent[-1], [
                 {"role": "system", "content": f"{CAREER_SYSTEM_PROMPT}\n\nCONTEXT:\n(no matching GIU documents)"
-                                              f"\n\nATTACHMENT FROM THE USER (cv.txt):\n{CV.text}"},
+                                              f"\n\nATTACHMENT FROM THE USER (cv.txt):\n{CV.text}"
+                                              + ("" if ARABIC_LETTERS.search(request) else ENGLISH_ONLY)},
                 {"role": "user", "content": request},
             ])
         self.search.assert_not_called()

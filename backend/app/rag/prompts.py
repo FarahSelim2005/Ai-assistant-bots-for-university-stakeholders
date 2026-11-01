@@ -1,4 +1,6 @@
 """Prompts and the function that assembles the messages sent to the model."""
+import re
+
 from app.attachments import Attachment
 from app.rag.retriever import RetrievedChunk
 
@@ -228,9 +230,18 @@ Rules:
   reply in Egyptian Arabic and keep English terms (advising, probation, memo, B.Sc.) as they are."""
 
 
-def format_context(chunks: list[RetrievedChunk]) -> str:
-    """Join the chunks into one text block, each labelled with its source file."""
-    return "\n\n".join(f"[Source: {c.source}]\n{c.content}" for c in chunks)
+ARABIC_LETTERS = re.compile(r"[؀-ۿ]")
+# The Arabic copy of a section ("بالعربي: ..."), up to the next heading.
+ARABIC_COPY = re.compile(r"\s*بالعربي.*?(?=\s*## |\Z)", re.S)
+ENGLISH_ONLY = "\n\nThe question is in English: reply in English only."
+
+
+def format_context(chunks: list[RetrievedChunk], english: bool = False) -> str:
+    """Join the chunks into one text block, each labelled with its source file.
+    For an English question the Arabic copies are left out: the facts are the same,
+    and the Arabic made the model sometimes answer in Arabic."""
+    return "\n\n".join(f"[Source: {c.source}]\n{ARABIC_COPY.sub('', c.content) if english else c.content}"
+                       for c in chunks)
 
 
 def build_messages(system_prompt: str, question: str, chunks: list[RetrievedChunk],
@@ -244,9 +255,13 @@ def build_messages(system_prompt: str, question: str, chunks: list[RetrievedChun
     sent next to the question in the format vision models expect (one picture per
     page for PDFs that contain only pictures).
     """
-    system = f"{system_prompt}\n\nCONTEXT:\n{format_context(chunks) or '(no matching GIU documents)'}"
+    english = not ARABIC_LETTERS.search(question)
+    system = f"{system_prompt}\n\nCONTEXT:\n{format_context(chunks, english) or '(no matching GIU documents)'}"
     if attachment and attachment.text:
         system += f"\n\nATTACHMENT FROM THE USER ({attachment.filename}):\n{attachment.text}"
+    # Said last, after the context and attachment, so earlier Arabic text doesn't decide the language.
+    if english:
+        system += ENGLISH_ONLY
 
     user_content: str | list[dict] = question
     if attachment and attachment.is_image:
