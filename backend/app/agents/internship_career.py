@@ -15,7 +15,7 @@ from app import config
 from app.agents.base import AgentResponse, BaseAgent
 from app.attachments import Attachment
 from app.llm.client import chat_with_backup
-from app.rag.prompts import CAREER_SYSTEM_PROMPT, build_messages
+from app.rag.prompts import CAREER_SYSTEM_PROMPT, ENGLISH_ONLY, build_messages
 
 log = logging.getLogger("uvicorn.error")  # shows up in the backend terminal
 
@@ -40,6 +40,9 @@ URL = re.compile(r"(?<![@\w])(?:https?://)?(?:www\.)?(?:[a-z0-9-]+\.)+(?:com|net
 NUMBER = re.compile(r"\d[\d ./–-]*\d|\d")  # digits with spaces, dots, slashes or dashes inside
 YEAR = re.compile(r"(?<!\d)(?:19|20)\d\d(?!\d)")
 CHANGES_HEADINGS = ("What I changed:", "ما غيرته:")  # the model's own notes: not checked
+# GIU written into a CV that names another university (the model was trained on GIU CVs).
+GIU_NAME = re.compile(r"German International University(?:\s*\(GIU\))?|\bGIU\b", re.IGNORECASE)
+GIU_IN_CV = re.compile(r"German International|الجامعة الألمانية", re.IGNORECASE)
 
 
 def is_cv_rewrite(question: str, attachment: Attachment | None) -> bool:
@@ -115,6 +118,16 @@ def check_against_cv(answer: str, cv_text: str) -> str:
     return cv_part + answer[cut:]
 
 
+def check_university(answer: str, cv_text: str) -> str:
+    """Replace "German International University" / "GIU" in a rewritten CV whose text does
+    not mention GIU: the model must never swap the student's university for GIU."""
+    if GIU_IN_CV.search(cv_text) or not GIU_NAME.search(answer):
+        return answer
+    log.warning("CV check: GIU written into a CV from another university, replaced: %s",
+                sorted(set(GIU_NAME.findall(answer))))
+    return GIU_NAME.sub("[add your university]", answer)
+
+
 class InternshipCareerAgent(BaseAgent):
     name = "internship_career"
     allowed_user_types = ("student",)
@@ -165,10 +178,13 @@ class InternshipCareerAgent(BaseAgent):
         if attachment.is_image:
             attachment = Attachment(attachment.filename, text=self.transcribe(attachment))
         # The CV model gets the exact prompt it was trained on (full_prompt: no short local prompt).
+        # The "reply in English only" note is left out too: the CV is always in English.
         messages = build_messages(self.system_prompt, question, chunks, history, attachment)
+        messages[0]["content"] = messages[0]["content"].removesuffix(ENGLISH_ONLY)
         answer = chat_with_backup(messages, [config.CAREER_MODEL, *config.CAREER_BACKUP_MODELS],
                                   self.max_answer_tokens, full_prompt=True)
-        return check_against_cv(complete_links(answer, attachment.text), attachment.text)
+        answer = check_against_cv(complete_links(answer, attachment.text), attachment.text)
+        return check_university(answer, attachment.text)
 
     def transcribe(self, attachment: Attachment) -> str:
         """The text of a picture CV, written out by the vision model (and its backups)."""

@@ -9,7 +9,7 @@ from unittest import mock
 import app.agents.base as base
 from app.agents import AGENTS
 from app.attachments import Attachment
-from app.rag.prompts import ARABIC_LETTERS, CAREER_SYSTEM_PROMPT, ENGLISH_ONLY
+from app.rag.prompts import CAREER_SYSTEM_PROMPT
 
 CV = Attachment("cv.txt", text="Mariam Hassan\nComputer Science student\nPython, SQL")
 HISTORY = [{"role": "user", "content": "old question"}, {"role": "assistant", "content": "old CV answer"}]
@@ -37,8 +37,7 @@ class CvRewrites(unittest.TestCase):
             self.career.run(request, "student", HISTORY, CV)
             self.assertEqual(self.sent[-1], [
                 {"role": "system", "content": f"{CAREER_SYSTEM_PROMPT}\n\nCONTEXT:\n(no matching GIU documents)"
-                                              f"\n\nATTACHMENT FROM THE USER (cv.txt):\n{CV.text}"
-                                              + ("" if ARABIC_LETTERS.search(request) else ENGLISH_ONLY)},
+                                              f"\n\nATTACHMENT FROM THE USER (cv.txt):\n{CV.text}"},
                 {"role": "user", "content": request},
             ])
         self.search.assert_not_called()
@@ -51,6 +50,14 @@ class CvRewrites(unittest.TestCase):
 
 
 class CvFiles(unittest.TestCase):
+    def test_giu_is_not_written_into_another_universitys_cv(self):
+        from app.agents.internship_career import check_university
+        answer = "EDUCATION\nGERMAN INTERNATIONAL UNIVERSITY (GIU), 2022 - Present\n- GPA 3.5 at GIU"
+        self.assertEqual(check_university(answer, "Cairo University, Computer Science, 2022 - Present"),
+                         "EDUCATION\n[add your university], 2022 - Present\n- GPA 3.5 at [add your university]")
+        for cv in ["German International University, 2022", "الجامعة الألمانية الدولية"]:  # GIU students keep it
+            self.assertEqual(check_university(answer, cv), answer)
+
     def test_cut_links_are_completed_from_the_pdf_links(self):
         from app.agents.internship_career import complete_links
         cv = "\n".join(["Farah Selim", "github.com/FarahSelim", "",
