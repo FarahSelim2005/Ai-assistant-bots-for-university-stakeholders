@@ -129,13 +129,14 @@ class BaseAgent:
         though the Digital Marketing major's description is in Advising's documents."""
         if closest_agent(question) == self.name:
             return None
+        owner, owner_best = None, 0.0  # the agent whose documents match best (not just the first that passes)
         for other in AGENT_DIRECTORY:
             if not other.built or other.key == self.name or user_type not in other.user_types:
                 continue
             best = max((c.score for c in retrieve_best(search_texts, other.key, user_type)), default=0.0)
-            if best >= config.SIMILARITY_THRESHOLD and best - own_best >= config.HANDOVER_MIN_GAP:
-                return AgentLink(agent=other.key, name=other.name, url=f"/?agent={other.key}")
-        return None
+            if best >= config.SIMILARITY_THRESHOLD and best - own_best >= config.HANDOVER_MIN_GAP and best > owner_best:
+                owner, owner_best = other, best
+        return AgentLink(agent=owner.key, name=owner.name, url=f"/?agent={owner.key}") if owner else None
 
     def history_for(self, question: str, history: list[dict] | None,
                     attachment: Attachment | None) -> list[dict] | None:

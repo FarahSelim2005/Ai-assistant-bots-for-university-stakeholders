@@ -22,9 +22,18 @@ export const AGENTS = [
   {
     key: "hr_policies",
     name: "HR & Policies Assistant",
-    handles: "Leave types, benefits, staff policies and complaints",
+    handles: "Leave, public holidays, contracts, resignation and labour law",
     userTypes: ["staff"],
-    ready: false,
+    ready: true,
+    subtitle: "Egyptian labour law and GIU HR information",
+    welcome: "Ask about leave, public holidays, contracts or resignation, or try one of these:",
+    placeholder: "Ask about leave, holidays, contracts, notice period...",
+    examples: [
+      "How many days of annual leave do I get?",
+      "How long is maternity leave?",
+      "What are the official holidays in Egypt?",
+      "What is the notice period if I resign?",
+    ],
   },
   {
     key: "internship_career",

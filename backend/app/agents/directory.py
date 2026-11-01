@@ -41,11 +41,13 @@ AGENT_DIRECTORY = [
     ),
     AgentInfo(
         "hr_policies", "HR & Policies Assistant",
-        "Staff leave types (annual, sick, maternity and unpaid leave), salaries, benefits, "
-        "medical insurance for employees, staff policies and regulations, contracts, "
-        "working hours and staff complaints. "
-        "الإجازات، إجازة سنوية، إجازة مرضية، المرتبات، التأمين الطبي، لوائح الموظفين، الشكاوى.",
-        ("staff",),
+        "Staff leave types (annual, emergency, sick, maternity, paternity, childcare and unpaid "
+        "leave), official public holidays in Egypt, salaries and annual raise, benefits, medical "
+        "insurance for employees, staff policies, Egyptian labour law, contracts, resignation, "
+        "notice period, termination, working hours and staff complaints. "
+        "الإجازات، إجازة سنوية، إجازة عارضة، إجازة مرضية، إجازة وضع، الأجازات الرسمية، المرتبات، العلاوة، "
+        "التأمين الطبي، لوائح الموظفين، قانون العمل، العقد، الاستقالة، الشكاوى.",
+        ("staff",), built=True,
     ),
     AgentInfo(
         "internship_career", "Internship & Career Assistant",

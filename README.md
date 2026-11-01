@@ -17,7 +17,9 @@ slices (database, backend, frontend and evaluation):
   memos and graduation plans, answered **only from its documents** (the Academic
   Performance Department's advising guidelines), like Labs & Research.
 
-HR & Policies (staff only) is not built yet and shows a "coming soon" page.
+- **HR & Policies** (staff only): leave, public holidays, contracts, the annual raise,
+  resignation and notice, answered **only from its document** (Egyptian Labour Law No. 14 of 2025
+  and GIU facts; GIU's own HR policies are listed as "ask GIU HR" until they are added).
 
 ## How it works
 
@@ -253,7 +255,7 @@ npm run dev
 Open http://localhost:5173, choose **Student** or **Staff**, then choose an assistant:
 students see 3 (Graduation & Advising, Internship & Career, Labs & Research), staff see 3
 (Graduation & Advising, HR & Policies, Labs & Research). The list is in
-`frontend/src/agents.js`; HR & Policies is not built yet and opens a "coming soon" page.
+`frontend/src/agents.js`; all four assistants are built.
 Each answer shows its source files and a 1–5 rating.
 
 **Campus map:** when an answer mentions a room such as `M005` or `A312`, a map card
