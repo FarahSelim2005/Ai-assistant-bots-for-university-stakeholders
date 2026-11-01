@@ -23,7 +23,7 @@ log = logging.getLogger("uvicorn.error")  # never logs document contents, only s
 # Requests to change a document ("restructure my CV", "translate it", "ظبطلي الملف"). Used to
 # decide automatically whether a message with a file (or about the open document) is an edit.
 EDIT_REQUEST = re.compile(
-    r"\b(correct|fix|rewrit|re-writ|restructur|reorgani|edit|chang|translat|summari|shorten|expand|lengthen|"
+    r"\b(correct|fix|rewrit|re-writ|restructur|reorgani|edit|chang|translat|summari|short|longer|expand|lengthen|"
     r"add|insert|remov|delet|replac|updat|improv|enhanc|format|reformat|fill|convert|proofread|polish|reword|"
     r"paraphras|simplif|make|turn|put|use|appl|writ|professional)\w*\b|"
     r"عدل|عدّل|صحح|ترجم|لخص|اختصر|ضيف|زود|امسح|احذف|شيل|غير|حول|رتب|ظبط|اكتب|حسن|خلي",
@@ -37,6 +37,17 @@ QUESTION_START = re.compile(r"^\s*(what|how|why|when|where|who|which|whose|is|ar
 # in the chat, not by editing the file.
 REVIEW_REQUEST = re.compile(r"\b(analy[sz]|review|feedback|suggest|evaluat|assess|rate|opinion)\w*|قيم|راجع|رأيك|رايك",
                             re.IGNORECASE)
+
+
+# "Send it as pdf", "can I get it as a PDF", "حوله بي دي اف": a PDF version is wanted.
+# Questions about PDFs ("what is a pdf?", "is it a pdf?") are not requests.
+PDF_REQUEST = re.compile(r"\bpdf\b|بي دي اف|بى دى اف", re.IGNORECASE)
+PDF_QUESTION = re.compile(r"^\s*(what|why|how|is|are|does|do|did|which|when|where|ايه|إيه|ليه|ازاي|هل)\b", re.IGNORECASE)
+
+
+def is_pdf_request(text: str) -> bool:
+    """True if the message asks for a PDF version of the document."""
+    return bool(PDF_REQUEST.search(text)) and not PDF_QUESTION.search(text)
 
 
 def is_edit_request(text: str) -> bool:

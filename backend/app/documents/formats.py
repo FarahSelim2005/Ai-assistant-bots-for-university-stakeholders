@@ -485,28 +485,98 @@ class TextHandler:
 
 # ---------------------------------------------------------------- preview ("View" button)
 
-def preview_html(ext: str, data: bytes, title: str) -> str:
-    """A simple, safe HTML page showing a Word, PowerPoint or Excel file's content (the
-    browser cannot show these formats itself). All text is escaped."""
+def body_html(ext: str, data: bytes) -> str:
+    """A document's content as simple, escaped HTML: Word headings, lists and tables in
+    their order, slides, sheets as tables, Markdown headings and lists, text paragraphs."""
     import html
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+
     esc = html.escape
-    body = []
-    if ext == ".xlsx":
+    body: list[str] = []
+    in_list = False
+
+    def add(tag: str, text: str) -> None:
+        nonlocal in_list
+        if tag == "li" and not in_list:
+            body.append("<ul>")
+        elif tag != "li" and in_list:
+            body.append("</ul>")
+        in_list = tag == "li"
+        body.append(f'<{tag} dir="auto">{esc(text)}</{tag}>')
+
+    if ext == ".docx":
+        document = Document(io.BytesIO(data))
+        for element in document.element.body.iterchildren():
+            if element.tag == f"{{{W}}}p":
+                paragraph = Paragraph(element, document)
+                text, style = paragraph.text.strip(), (paragraph.style.name if paragraph.style is not None else "")
+                if text:
+                    add("h1" if style == "Title" else "h2" if style == "Heading 1" else "h3" if style.startswith("Heading")
+                        else "li" if style.startswith("List") else "p", text)
+            elif element.tag == f"{{{W}}}tbl":
+                add("p", "")
+                body.append("<table>" + "".join(
+                    "<tr>" + "".join(f"<td>{esc(cell.text)}</td>" for cell in row.cells) + "</tr>"
+                    for row in Table(element, document).rows) + "</table>")
+    elif ext == ".xlsx":
         workbook = load_workbook(io.BytesIO(data))
         for sheet in workbook.worksheets:
             body.append(f"<h2>{esc(sheet.title)}</h2><table>")
             for row in sheet.iter_rows(max_row=min(sheet.max_row, 300), values_only=True):
                 body.append("<tr>" + "".join(f"<td>{esc('' if v is None else str(v))}</td>" for v in row) + "</tr>")
             body.append("</table>")
+    elif ext in (".txt", ".md"):
+        for line in data.decode("utf-8-sig").splitlines():
+            line = line.strip()
+            if line.startswith("#"):
+                add("h2", line.lstrip("#").strip())
+            elif line.startswith(("- ", "* ", "• ")):
+                add("li", line[2:].strip())
+            elif line:
+                add("p", line)
     else:
-        handler = open_document(ext, data)
         current = None
-        for part in handler.parts():
+        for part in open_document(ext, data).parts():
             if ext == ".pptx" and part.where != current:
                 current = part.where
-                body.append(f"<h2>{esc(part.where.capitalize())}</h2>")
-            css = ' class="small"' if part.where in ("header", "footer") else ""
-            body.append(f"<p{css} dir=\"auto\">{esc(part.text)}</p>")
+                add("h2", part.where.capitalize())
+            add("p", part.text)
+    if in_list:
+        body.append("</ul>")
+    return "".join(body)
+
+
+def document_pdf(ext: str, data: bytes) -> bytes:
+    """A simple PDF version of a document (its text, headings, lists and tables). The
+    original layout (fonts, columns, pictures) is not kept: that would need Word or
+    LibreOffice. A PDF stays as it is."""
+    if ext == ".pdf":
+        return data
+    css = ("body { font-family: sans-serif; font-size: 10.5pt; color: #222; }"
+           "h1 { font-size: 18pt; margin: 0 0 6pt 0; } h2 { font-size: 13pt; color: #9e1116; margin: 12pt 0 4pt 0; }"
+           "h3 { font-size: 11pt; margin: 8pt 0 3pt 0; } p { margin: 3pt 0; } ul { margin: 2pt 0; }"
+           "table { border-collapse: collapse; margin: 4pt 0; } td { border: 1px solid #bbb; padding: 2pt 4pt; font-size: 9.5pt; }")
+    story = pymupdf.Story(html=body_html(ext, data), user_css=css)
+    out = io.BytesIO()
+    writer = pymupdf.DocumentWriter(out)
+    page = pymupdf.paper_rect("a4")
+    more = True
+    while more:
+        device = writer.begin_page(page)
+        more, _ = story.place(page + (50, 45, -50, -45))
+        story.draw(device)
+        writer.end_page()
+    writer.close()
+    return out.getvalue()
+
+
+def preview_html(ext: str, data: bytes, title: str) -> str:
+    """A simple, safe HTML page showing a Word, PowerPoint or Excel file's content (the
+    browser cannot show these formats itself). All text is escaped."""
+    import html
+    esc = html.escape
+    body = [body_html(ext, data)]
     style = ("body{font-family:Segoe UI,system-ui,sans-serif;max-width:860px;margin:32px auto;padding:0 20px;"
              "color:#1a1a1a;line-height:1.55}h1{font-size:20px;border-bottom:3px solid #c4161c;padding-bottom:8px}"
              "h2{font-size:16px;color:#9e1116;margin-top:24px}p.small{color:#6b6f76;font-size:13px}"

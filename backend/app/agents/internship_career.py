@@ -15,7 +15,7 @@ from app import config
 from app.agents.base import AgentResponse, BaseAgent
 from app.attachments import Attachment
 from app.llm.client import chat_with_backup
-from app.rag.prompts import CAREER_SYSTEM_PROMPT
+from app.rag.prompts import CAREER_SYSTEM_PROMPT, build_messages
 
 log = logging.getLogger("uvicorn.error")  # shows up in the backend terminal
 
@@ -119,13 +119,15 @@ class InternshipCareerAgent(BaseAgent):
     name = "internship_career"
     allowed_user_types = ("student",)
     system_prompt = CAREER_SYSTEM_PROMPT
-    model = config.CAREER_MODEL        # e.g. the fine-tuned CV model ollama/giu-cv
-    backup_models = config.CAREER_BACKUP_MODELS
+    # General career questions use the normal models; CV rewrites use CAREER_MODEL (e.g. the
+    # fine-tuned CV model ollama/giu-cv), which was trained only to restructure attached CVs
+    # (asked other questions, it invents a CV or writes nonsense).
+    model = config.LABS_MODEL
+    backup_models = config.LABS_BACKUP_MODELS
     vision_model = config.VISION_MODEL
     vision_backup_models = config.VISION_BACKUP_MODELS
     answers_without_documents = True  # CV, interview and career-path advice need no GIU document
     max_answer_tokens = 1500          # a full CV rewrite is long
-    full_local_prompt = True          # giu-cv must get the exact prompt it was trained on
     fallback_message = (
         "Sorry, I don't have information about that. "
         "Please contact the GIU Career Center or your faculty for help."
@@ -162,7 +164,10 @@ class InternshipCareerAgent(BaseAgent):
             return super().generate(question, chunks, history, attachment)
         if attachment.is_image:
             attachment = Attachment(attachment.filename, text=self.transcribe(attachment))
-        answer = super().generate(question, chunks, history, attachment)
+        # The CV model gets the exact prompt it was trained on (full_prompt: no short local prompt).
+        messages = build_messages(self.system_prompt, question, chunks, history, attachment)
+        answer = chat_with_backup(messages, [config.CAREER_MODEL, *config.CAREER_BACKUP_MODELS],
+                                  self.max_answer_tokens, full_prompt=True)
         return check_against_cv(complete_links(answer, attachment.text), attachment.text)
 
     def transcribe(self, attachment: Attachment) -> str:

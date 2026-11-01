@@ -358,7 +358,15 @@ questions are still answered normally; **Close** forgets it.
 **CVs in the Internship & Career agent:** *"restructure my CV"* / *"send me this cv restructured"*
 with a CV attached still goes to the fine-tuned CV model (`giu-cv`), and its answer is also made
 into a **PDF** (View / Download) and an editable **Word** file (`app/documents/cv_file.py`). Later
-edit requests change the Word version and come back as a new PDF and Word file.
+edit requests change the Word version and come back as a new PDF and Word file. A file whose name
+contains cv / resume counts as a CV ("fix this" + cv1.docx). Only CV rewrites use the CV model
+(CAREER_MODEL); other Career questions use the normal models, since the CV model was trained only
+to restructure attached CVs.
+
+**PDF versions:** "send it as pdf", "convert it to pdf", "حوله بي دي اف" return a PDF of the attached or
+open document without asking a model: a restructured CV in its CV layout, other files as a simple
+PDF (text, headings, lists, tables; the original Word / PowerPoint / Excel layout is not kept).
+"Translate it and send it as pdf" edits the file and adds a PDF of the result.
 
 How it works (`backend/app/documents/`, `app/routers/chat.py`, `app/routers/documents.py`):
 
