@@ -25,7 +25,7 @@ log = logging.getLogger("uvicorn.error")  # never logs document contents, only s
 EDIT_REQUEST = re.compile(
     r"\b(correct|fix|rewrit|re-writ|restructur|reorgani|edit|chang|translat|summari|shorten|expand|lengthen|"
     r"add|insert|remov|delet|replac|updat|improv|enhanc|format|reformat|fill|convert|proofread|polish|reword|"
-    r"paraphras|simplif|make|turn|put|use|appl|writ)\w*\b|"
+    r"paraphras|simplif|make|turn|put|use|appl|writ|professional)\w*\b|"
     r"عدل|عدّل|صحح|ترجم|لخص|اختصر|ضيف|زود|امسح|احذف|شيل|غير|حول|رتب|ظبط|اكتب|حسن|خلي",
     re.IGNORECASE)
 # Questions about a file ("what does it say about ...?", "how do I add hours?") are answered,
