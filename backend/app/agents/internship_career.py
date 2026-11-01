@@ -3,15 +3,16 @@
 Unlike Labs & Research, it may give general career advice from the model's own knowledge
 (marked "General advice:"), but GIU facts still come only from its documents.
 
-CV rewrites (a CV attached + "rewrite / fix / template ..."): the fine-tuned CV model gets
-no history; a CV that is a picture is first written out as text by the vision model; and
-years, numbers and links in the answer that are not in the CV are replaced by placeholders.
+CV rewrites (a CV attached + "rewrite / fix / template ..."): no document search and no
+history, so the fine-tuned CV model gets exactly its training format; a CV that is a picture
+is first written out as text by the vision model; and years, numbers and links in the answer
+that are not in the CV are replaced by placeholders.
 """
 import logging
 import re
 
 from app import config
-from app.agents.base import BaseAgent
+from app.agents.base import AgentResponse, BaseAgent
 from app.attachments import Attachment
 from app.llm.client import chat_with_backup
 from app.rag.prompts import CAREER_SYSTEM_PROMPT
@@ -113,6 +114,17 @@ class InternshipCareerAgent(BaseAgent):
         "آسف، معنديش معلومات عن ده. "
         "من فضلك تواصل مع الكارير سنتر في الجامعة أو مع الكلية."
     )
+
+    def run(self, question: str, user_type: str, history: list[dict] | None = None,
+            attachment: Attachment | None = None) -> AgentResponse:
+        """CV rewrites skip the document search (and the hand-over to other agents): the
+        fine-tuned CV model was trained with "(no matching GIU documents)" as the context
+        and no history, so it gets exactly that. Other questions use the normal flow."""
+        question = question.strip()
+        if not is_cv_rewrite(question, attachment):
+            return super().run(question, user_type, history, attachment)
+        self.check_rules(question, user_type, attachment)
+        return AgentResponse(answer=self.generate(question, [], [], attachment), sources=[])
 
     def history_for(self, question: str, history: list[dict] | None,
                     attachment: Attachment | None) -> list[dict] | None:
