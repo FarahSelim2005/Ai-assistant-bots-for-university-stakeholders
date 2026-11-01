@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from app import config
 from app.agents.directory import AGENT_DIRECTORY, AgentLink, closest_agent, suggest_agent
 from app.attachments import Attachment
-from app.campus import Location, Place, find_locations, find_places, room_facts, rooms_in_question
+from app.campus import BUILDINGS, Location, Place, buildings_asked, find_locations, find_places, room_facts, rooms_in_question
 from app.llm.client import chat_with_backup
 from app.rag.prompts import build_messages
 from app.rag.transliteration import search_variants, with_english_terms
@@ -27,6 +27,7 @@ class AgentResponse:
     locations: list[Location] = field(default_factory=list)  # rooms in the answer, for the map
     places: list[Place] = field(default_factory=list)  # places outside the buildings, for walking links
     redirect: AgentLink | None = None  # another agent to ask, when this one has no answer
+    buildings: list[str] = field(default_factory=list)  # buildings asked about ("where is the M"), for the map
 
 
 class BaseAgent:
@@ -100,8 +101,12 @@ class BaseAgent:
         # mention the supermarket next to it); use the answer only if the question
         # names no place, e.g. "where can I work out?".
         places = find_places(search_question) or find_places(answer)
+        locations = find_locations(answer)
+        # "Where is the M?": the building on the map too (when no room of it is already shown).
+        buildings = [b for b in buildings_asked(question, answer)
+                     if b in BUILDINGS and b not in {location.building for location in locations}] if not places else []
         return AgentResponse(answer=answer, sources=unique_sources(relevant),
-                             locations=find_locations(answer), places=places)
+                             locations=locations, places=places, buildings=buildings)
 
     def check_rules(self, question: str, user_type: str,
                     attachment: Attachment | None = None) -> None:

@@ -54,8 +54,8 @@ export default function Message({ message, onRate }) {
           </details>
         )}
 
-        {(message.locations?.length > 0 || message.places?.length > 0) && (
-          <CampusMap locations={message.locations} places={message.places} />
+        {(message.locations?.length > 0 || message.places?.length > 0 || message.buildings?.length > 0) && (
+          <CampusMap locations={message.locations} places={message.places} askedBuildings={message.buildings} />
         )}
 
         {message.redirect && (

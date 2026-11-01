@@ -140,6 +140,7 @@ export default function App({ initialAgent }) {
           sources: data.sources,
           locations: data.locations,
           places: data.places,
+          buildings: data.buildings,
           redirect: data.redirect,
           // "Where is the gym?": the map card already gives the walking directions, so
           // the text answer would only repeat them; show just the card. Other questions

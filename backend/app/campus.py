@@ -2,7 +2,8 @@
 - room codes in an answer (e.g. "M005") become map locations, if they follow the GIU
   numbering rules (ground floor 001-030, floors 1-4 numbered x01-x20);
 - room codes in a question become a fact with their building and floor;
-- places outside the buildings named in an answer get a walking link.
+- places outside the buildings named in an answer get a walking link;
+- buildings asked about ("where is the M", "building S", "مبنى A") are shown on the map.
 Must stay in line with data/raw/campus_buildings.md.
 """
 import re
@@ -90,3 +91,29 @@ def find_places(text: str) -> list[Place]:
     """Places outside the buildings that the answer talks about (for walking links)."""
     lower = text.lower()
     return [place for place in PLACES if any(word in lower for word in place.keywords)]
+
+
+# --- Buildings asked about -----------------------------------------------------------
+# "building M", "bldg S", "مبنى A" / "مبنى ام"; "where is the M?", "where is S" (a letter
+# alone at the end of a question). Arabic letter names: ايه/اي = A, ام = M, اس = S.
+ARABIC_LETTERS = {"ايه": "A", "اي": "A", "ام": "M", "إم": "M", "اس": "S", "إس": "S"}
+BUILDING_WORD = re.compile(r"\b(?:building|bldg|block)\s*([ams])\b|"
+                           r"(?:مبنى|مبني|المبنى|بلوك)\s*(a|m|s|ايه|اي|إم|ام|إس|اس)(?![\w])", re.IGNORECASE)
+LETTER_AT_END = re.compile(r"\b(?:where|wher|fin)\b.*?\b(?:the\s+)?([ams])\s*[?.!]*\s*$|"
+                           r"(?:فين|وين)\s+(?:ال)?(a|m|s)\s*[?؟.!]*\s*$", re.IGNORECASE)
+WHERE_WORDS = re.compile(r"\b(where|location|located|directions?)\b|فين|وين|مكان", re.IGNORECASE)
+ANSWER_BUILDING = re.compile(r"\bBuilding\s+([AMS])\b")
+
+
+def buildings_asked(question: str, answer: str = "") -> list[str]:
+    """Letters of the buildings a question asks about (to show them on the map). A "where"
+    question naming no letter ("where is the main administration building?") uses the one
+    building the answer is about."""
+    letters = []
+    for match in list(BUILDING_WORD.finditer(question)) + list(LETTER_AT_END.finditer(question)):
+        value = next(group for group in match.groups() if group)
+        letters.append(ARABIC_LETTERS.get(value, value.upper()))
+    if not letters and WHERE_WORDS.search(question):
+        in_answer = list(dict.fromkeys(ANSWER_BUILDING.findall(answer)))
+        letters = in_answer[:1]
+    return list(dict.fromkeys(letters))

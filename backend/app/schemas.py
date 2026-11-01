@@ -42,6 +42,11 @@ class PlaceOut(BaseModel):
     name: str  # e.g. "Gym"
 
 
+class BuildingOut(BaseModel):
+    letter: str  # "A", "M" or "S"
+    name: str    # e.g. "Main Administration Building"
+
+
 class AgentLinkOut(BaseModel):
     agent: str  # e.g. "labs_research"
     name: str   # e.g. "Labs & Research Assistant"
@@ -53,6 +58,7 @@ class ChatResponse(BaseModel):
     sources: list[str]
     locations: list[LocationOut] = []  # rooms mentioned in the answer, shown on a map
     places: list[PlaceOut] = []  # places outside the buildings in the answer, with walking links
+    buildings: list[BuildingOut] = []  # buildings asked about ("where is the M"), shown on the map
     redirect: AgentLinkOut | None = None  # the agent to ask instead, when this one can't answer
     message_id: int  # id of the saved assistant message, used for feedback
     file: "DocumentFileOut | None" = None  # an edited document or a restructured CV, to view and download

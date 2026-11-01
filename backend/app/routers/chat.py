@@ -25,6 +25,7 @@ from app import config
 from app.agents import AGENTS
 from app.agents.base import AgentResponse
 from app.attachments import read_attachment
+from app.campus import BUILDINGS
 from app.db import get_connection
 from app.documents import storage
 from app.documents.cv_file import cv_docx, cv_pdf, docx_to_cv_text, is_restructured_cv
@@ -71,6 +72,7 @@ async def chat(body: ChatRequest, request: Request):
         sources=result.sources,
         locations=[asdict(location) for location in result.locations],
         places=[{"key": place.key, "name": place.name} for place in result.places],
+        buildings=[{"letter": letter, "name": BUILDINGS[letter]} for letter in result.buildings],
         redirect=asdict(result.redirect) if result.redirect else None,
         message_id=message_id,
         file=file,
