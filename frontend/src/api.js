@@ -23,12 +23,14 @@ export function startSession(userType, agent) {
 }
 
 // `attachment` is optional: { filename, dataUrl } where dataUrl is "data:<type>;base64,<content>".
-export function sendMessage(conversationId, query, attachment = null, signal = undefined) {
-  const body = { conversation_id: conversationId, query };
+// `documentToken` (optional): the document this chat is working on, so a request like "now
+// make it shorter" edits it. The backend decides whether a message is an edit or a question.
+export function sendMessage(conversationId, query, attachment = null, signal = undefined, documentToken = null) {
+  const body = { conversation_id: conversationId, query, document_token: documentToken };
   if (attachment) {
     body.attachment = { filename: attachment.filename, data_base64: attachment.dataUrl.split(",")[1] };
   }
-  return post("/chat", body, signal); // -> { answer, sources, message_id }
+  return post("/chat", body, signal); // -> { answer, sources, message_id, file?, changes? }
 }
 
 export function sendFeedback(messageId, rating) {
@@ -47,18 +49,7 @@ export async function transcribe(recording) {
   return post("/transcribe", { audio_base64: dataUrl.split(",")[1], mime_type: recording.type || "audio/webm" });
 }
 
-// Document editor. `document` (optional) is a new file { filename, dataUrl } to edit; without
-// it the chat's current document is edited again, which needs its `token` (only this browser
-// has it). -> { answer, file: { filename, download_name, url, version }, changes, message_id }
-export function editDocument(conversationId, instruction, document = null, token = null, signal = undefined) {
-  const body = { conversation_id: conversationId, instruction, document_token: token };
-  if (document) {
-    body.document = { filename: document.filename, data_base64: document.dataUrl.split(",")[1] };
-  }
-  return post("/documents/edit", body, signal);
-}
-
-// "Stop editing": the backend deletes the document's files.
+// "Close" the chat's document: the backend deletes its files.
 export function closeDocument(conversationId, token) {
   return fetch(`${API_URL}/documents/${conversationId}/${token}`, { method: "DELETE" });
 }

@@ -20,6 +20,30 @@ from app.llm.client import LLMError, chat_with_backup
 
 log = logging.getLogger("uvicorn.error")  # never logs document contents, only sizes and counts
 
+# Requests to change a document ("restructure my CV", "translate it", "ظبطلي الملف"). Used to
+# decide automatically whether a message with a file (or about the open document) is an edit.
+EDIT_REQUEST = re.compile(
+    r"\b(correct|fix|rewrit|re-writ|restructur|reorgani|edit|chang|translat|summari|shorten|expand|lengthen|"
+    r"add|insert|remov|delet|replac|updat|improv|enhanc|format|reformat|fill|convert|proofread|polish|reword|"
+    r"paraphras|simplif|make|turn|put|use|appl|writ)\w*\b|"
+    r"عدل|عدّل|صحح|ترجم|لخص|اختصر|ضيف|زود|امسح|احذف|شيل|غير|حول|رتب|ظبط|اكتب|حسن|خلي",
+    re.IGNORECASE)
+# Questions about a file ("what does it say about ...?", "how do I add hours?") are answered,
+# not edited, even if they contain one of the words above.
+QUESTION_START = re.compile(r"^\s*(what|how|why|when|where|who|which|whose|is|are|does|do|did|explain|tell me|"
+                            r"ايه|إيه|ازاي|إزاي|ليه|امتى|إمتى|فين|مين|هل|يعني ايه)(\b|\s)|"
+                            r"^\s*(can|could|should|may|would|will)\s+(?!you\b|u\b)", re.IGNORECASE)
+# Asking for a review or feedback ("Please analyze my CV and suggest improvements") is answered
+# in the chat, not by editing the file.
+REVIEW_REQUEST = re.compile(r"\b(analy[sz]|review|feedback|suggest|evaluat|assess|rate|opinion)\w*|قيم|راجع|رأيك|رايك",
+                            re.IGNORECASE)
+
+
+def is_edit_request(text: str) -> bool:
+    """True if the message asks to change a document rather than ask about it."""
+    return bool(EDIT_REQUEST.search(text)) and not QUESTION_START.search(text) and not REVIEW_REQUEST.search(text)
+
+
 # "Convert this PDF to Word", "حوله وورد": the PDF becomes an editable .docx first.
 CONVERT_TO_WORD = re.compile(r"\b(word|docx|editable)\b|وورد|ورد", re.IGNORECASE)
 # Words that ask for more than the conversion itself (then the model is asked as well).

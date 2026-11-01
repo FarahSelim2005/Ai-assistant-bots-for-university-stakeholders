@@ -30,11 +30,13 @@ export default function Message({ message, onRate }) {
         {message.file && (
           <div className="file-card">
             <span className="file-card-icon">📄</span>
-            <span className="file-card-name">
-              {message.file.download_name}
-              {message.file.version > 0 && <span className="muted"> · version {message.file.version}</span>}
-            </span>
+            <span className="file-card-name">{message.file.download_name}</span>
+            <a className="doc-view" href={message.file.view_url} target="_blank" rel="noreferrer">View</a>
             <a className="doc-download" href={message.file.url} download={message.file.download_name}>Download</a>
+            {message.file.word_url && (
+              <a className="doc-view" href={message.file.word_url} download={message.file.word_name}
+                 title="The same CV as a Word file, to fill in the [placeholders]">Word</a>
+            )}
           </div>
         )}
         {message.changes?.length > 0 && (

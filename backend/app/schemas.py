@@ -17,13 +17,16 @@ class AttachmentIn(BaseModel):
     filename: str = Field(min_length=1, max_length=255)
     # File content as base64 text (a 5 MB file is about 7 million characters). The exact
     # size limit is checked in attachments.py; this is only a hard upper bound.
-    data_base64: str = Field(min_length=1, max_length=10_000_000)
+    data_base64: str = Field(min_length=1, max_length=14_000_000)  # files to edit may be 10 MB
 
 
 class ChatRequest(BaseModel):
     conversation_id: int
     query: str = Field(min_length=1, max_length=1000)
     attachment: AttachmentIn | None = None
+    # The random token of the document this chat is editing (from the last file answer):
+    # an edit request without a new file then changes that document.
+    document_token: str | None = Field(default=None, max_length=64)
 
 
 class LocationOut(BaseModel):
@@ -52,6 +55,8 @@ class ChatResponse(BaseModel):
     places: list[PlaceOut] = []  # places outside the buildings in the answer, with walking links
     redirect: AgentLinkOut | None = None  # the agent to ask instead, when this one can't answer
     message_id: int  # id of the saved assistant message, used for feedback
+    file: "DocumentFileOut | None" = None  # an edited document or a restructured CV, to view and download
+    changes: list["ChangeOut"] = []       # a few before/after examples of an edit
 
 
 class DocumentIn(BaseModel):
@@ -75,7 +80,11 @@ class DocumentFileOut(BaseModel):
     filename: str       # the uploaded file's name
     download_name: str  # e.g. "report_edited.docx"
     url: str            # "/documents/<conversation>/<random token>": download link
+    view_url: str = ""  # the same + "/view": open it in the browser
     version: int        # 1 = first edit
+    token: str = ""     # needed for the next edit of this document
+    word_url: str | None = None   # a restructured CV also comes as an editable Word file
+    word_name: str | None = None
 
 
 class ChangeOut(BaseModel):
@@ -108,3 +117,6 @@ class FeedbackRequest(BaseModel):
 
 class FeedbackResponse(BaseModel):
     feedback_id: int
+
+
+ChatResponse.model_rebuild()  # it refers to DocumentFileOut and ChangeOut, defined after it

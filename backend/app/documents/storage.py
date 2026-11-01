@@ -37,9 +37,12 @@ def safe_name(filename: str) -> str:
     return name[:120]
 
 
-def save_version(conversation_id: int, data: bytes, extension: str, filename: str | None = None) -> dict:
+def save_version(conversation_id: int, data: bytes, extension: str, filename: str | None = None,
+                 name: str | None = None, cv: bool = False) -> dict:
     """Store a new version of the conversation's document; `filename` starts a new document
-    (a new upload). Returns the document's info: filename, extension, token, version."""
+    (a new upload; `cv` marks it as a restructured CV). `name` is this version's download
+    name (default: "<file>_edited.<ext>").
+    Returns the version's info: filename, download_name, token, extension, version."""
     directory = folder(conversation_id)
     directory.mkdir(parents=True, exist_ok=True)
     info = current(conversation_id) if filename is None else None
@@ -48,10 +51,10 @@ def save_version(conversation_id: int, data: bytes, extension: str, filename: st
     if filename is not None:  # a new upload replaces the old document and its versions
         for old in directory.glob("*"):
             old.unlink()
-        info = {"filename": safe_name(filename), "versions": []}
+        info = {"filename": safe_name(filename), "versions": [], "cv": cv}
     token = secrets.token_hex(16)
     (directory / f"{token}{extension}").write_bytes(data)
-    info["versions"].append({"token": token, "extension": extension})
+    info["versions"].append({"token": token, "extension": extension, **({"name": safe_name(name)} if name else {})})
     for old in info["versions"][:-KEEP_VERSIONS]:
         (directory / f"{old['token']}{old['extension']}").unlink(missing_ok=True)
     info["versions"] = info["versions"][-KEEP_VERSIONS:]
@@ -69,11 +72,17 @@ def current(conversation_id: int) -> dict | None:
         return None
 
 
+def download_name(info: dict, version: dict, original: bool = False) -> str:
+    """The name a version is downloaded as: its own name, the upload's name, or "<file>_edited.<ext>"."""
+    if version.get("name"):
+        return version["name"]
+    stem = info["filename"].rsplit(".", 1)[0]
+    return f"{stem}{'' if original else '_edited'}{version['extension']}"
+
+
 def describe(info: dict) -> dict:
     latest = info["versions"][-1]
-    stem = info["filename"].rsplit(".", 1)[0]
-    edited = "" if info["version_number"] == 0 else "_edited"
-    return {"filename": info["filename"], "download_name": f"{stem}{edited}{latest['extension']}",
+    return {"filename": info["filename"], "download_name": download_name(info, latest, info["version_number"] == 0),
             "token": latest["token"], "extension": latest["extension"], "version": info["version_number"]}
 
 
@@ -104,8 +113,7 @@ def file_for_download(conversation_id: int, token: str) -> tuple[Path, str, str]
     path = (folder(conversation_id) / f"{token}{version['extension']}").resolve()
     if path.parent != folder(conversation_id).resolve() or not path.is_file():
         return None
-    stem = info["filename"].rsplit(".", 1)[0]
-    return path, f"{stem}_edited{version['extension']}", MEDIA_TYPES[version["extension"]]
+    return path, download_name(info, version), MEDIA_TYPES[version["extension"]]
 
 
 def remove(conversation_id: int) -> None:

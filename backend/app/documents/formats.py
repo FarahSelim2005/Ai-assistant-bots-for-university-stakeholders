@@ -481,3 +481,35 @@ class TextHandler:
                 out.append(self.blocks[i])
             out += self.after.get(i, [])
         return ("\n\n".join(b for b in out if b.strip()) + "\n").replace("\n", self.newline).encode("utf-8")
+
+
+# ---------------------------------------------------------------- preview ("View" button)
+
+def preview_html(ext: str, data: bytes, title: str) -> str:
+    """A simple, safe HTML page showing a Word, PowerPoint or Excel file's content (the
+    browser cannot show these formats itself). All text is escaped."""
+    import html
+    esc = html.escape
+    body = []
+    if ext == ".xlsx":
+        workbook = load_workbook(io.BytesIO(data))
+        for sheet in workbook.worksheets:
+            body.append(f"<h2>{esc(sheet.title)}</h2><table>")
+            for row in sheet.iter_rows(max_row=min(sheet.max_row, 300), values_only=True):
+                body.append("<tr>" + "".join(f"<td>{esc('' if v is None else str(v))}</td>" for v in row) + "</tr>")
+            body.append("</table>")
+    else:
+        handler = open_document(ext, data)
+        current = None
+        for part in handler.parts():
+            if ext == ".pptx" and part.where != current:
+                current = part.where
+                body.append(f"<h2>{esc(part.where.capitalize())}</h2>")
+            css = ' class="small"' if part.where in ("header", "footer") else ""
+            body.append(f"<p{css} dir=\"auto\">{esc(part.text)}</p>")
+    style = ("body{font-family:Segoe UI,system-ui,sans-serif;max-width:860px;margin:32px auto;padding:0 20px;"
+             "color:#1a1a1a;line-height:1.55}h1{font-size:20px;border-bottom:3px solid #c4161c;padding-bottom:8px}"
+             "h2{font-size:16px;color:#9e1116;margin-top:24px}p.small{color:#6b6f76;font-size:13px}"
+             "table{border-collapse:collapse;font-size:14px}td{border:1px solid #e4e4e7;padding:4px 8px}")
+    return (f"<!doctype html><html><head><meta charset=\"utf-8\"><title>{esc(title)}</title><style>{style}</style>"
+            f"</head><body><h1>{esc(title)}</h1>{''.join(body)}</body></html>")

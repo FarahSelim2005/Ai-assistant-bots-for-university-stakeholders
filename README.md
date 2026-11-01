@@ -328,15 +328,24 @@ from `http://localhost:5173` (CORS, set in `backend/app/config.py`).
 
 ## Document editor
 
-Users can attach a **.docx, .xlsx, .pptx, .pdf, .txt or .md** file (up to 10 MB), switch on
-**"✏️ Edit this file"** (on by default for Word, Excel and PowerPoint) and write what to change:
-*"correct the grammar"*, *"make it more professional"*, *"translate it to Arabic"*, *"shorten
-section 2"*, *"add my new internship at Valeo"*, *"fill in the form with: name Sara, ID 123"*,
-*"convert this PDF to Word"*. The answer says what changed (with a "Show changes" list) and has a
-**Download** button. A bar above the message box shows the open document: further messages edit
-the same document (version 2, 3, ...) without uploading it again, until **Stop editing**.
+Users attach a **.docx, .xlsx, .pptx, .pdf, .txt or .md** file (up to 10 MB) and say what to
+change: *"correct the grammar"*, *"make it more professional"*, *"translate it to Arabic"*,
+*"shorten section 2"*, *"add my new internship at Valeo"*, *"fill in the form with: name Sara,
+ID 123"*, *"convert this PDF to Word"*. **`/chat` decides automatically** (no switch): a request
+to change something (`is_edit_request` in `editor.py`: rewrite, fix, translate, restructure,
+make..., also Egyptian Arabic) is edited; a question about the file (*"what does it say about
+...?"*, *"Analyze my CV"*, *"review it"*) is answered as before. The answer says what changed
+(with a "Show changes" list) and has **View** (opens it in the browser; Word, PowerPoint and Excel
+as a simple HTML page) and **Download** buttons. A bar above the message box shows the open
+document: later edit requests (*"now make it shorter"*) change it without uploading it again,
+questions are still answered normally; **Close** forgets it.
 
-How it works (`backend/app/documents/`, route `app/routers/documents.py`):
+**CVs in the Internship & Career agent:** *"restructure my CV"* / *"send me this cv restructured"*
+with a CV attached still goes to the fine-tuned CV model (`giu-cv`), and its answer is also made
+into a **PDF** (View / Download) and an editable **Word** file (`app/documents/cv_file.py`). Later
+edit requests change the Word version and come back as a new PDF and Word file.
+
+How it works (`backend/app/documents/`, `app/routers/chat.py`, `app/routers/documents.py`):
 
 1. The file is checked: extension **and** content (a real Word/Excel/PowerPoint zip, a real PDF,
    UTF-8 text), size, password protection, damage.
@@ -362,10 +371,11 @@ Per format:
 | .txt / .md | blocks between blank lines; Markdown is kept | |
 
 Files are stored under random names in `backend/data/edits/<conversation>/` (not in git),
-at most 5 versions, and deleted after 60 minutes (`DOC_EDIT_KEEP_MINUTES`) or on **Stop editing**.
-Downloads need the random 32-character token from the answer; follow-up edits and Stop need
-the token of the latest version, so nobody can open or change another chat's document by
-guessing a conversation number. Document contents are never logged.
+at most 5 versions, and deleted after 60 minutes (`DOC_EDIT_KEEP_MINUTES`) or on **Close**.
+View and Download need the random 32-character token from the answer; follow-up edits and Close
+need the token of the latest version, so nobody can open or change another chat's document by
+guessing a conversation number. The View page is sent with a strict Content-Security-Policy and
+all text is escaped. Document contents are never logged.
 
 Tests (no model, network or database needed; the model is replaced by a stand-in):
 
@@ -374,11 +384,11 @@ cd backend
 python -m unittest discover -s tests -v
 ```
 
-To try each format by hand: start a chat with any assistant, attach a file, keep "Edit this
-file" on and try e.g. *Word*: "correct the spelling", *Excel*: "translate the item names to
+To try each format by hand: start a chat with any assistant, attach a file and write e.g.
+*Word*: "correct the spelling", *Excel*: "translate the item names to
 Arabic and set B3 to 30", *PowerPoint*: "fix the typos and add a step: Evaluate the model",
 *PDF*: "fix the spelling" (stays a PDF) or "convert to Word and translate to Arabic",
-*Markdown*: "add a Next steps section".
+*Markdown*: "add a Next steps section", *CV* (Internship & Career): "restructure my CV".
 
 ## 6. Evaluate
 

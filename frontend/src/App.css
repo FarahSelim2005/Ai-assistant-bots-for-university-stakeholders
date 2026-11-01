@@ -583,24 +583,7 @@ a.choice-card { text-decoration: none; }
 }
 
 /* ================= Document editor ================= */
-/* "Edit this file" switch on an attached file */
-.edit-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: #fdf3dc;
-  color: #8a6510;
-  border: 1px solid #f1dca6;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.edit-toggle input { margin: 0; accent-color: var(--giu-red); }
-
-/* The document being edited, above the message box */
+/* The document this chat is working on, above the message box */
 .doc-bar {
   max-width: 920px;
   margin: 0 auto 10px;
@@ -654,3 +637,18 @@ a.choice-card { text-decoration: none; }
   .doc-bar { flex-wrap: wrap; }
   .doc-bar-text .muted:last-child { display: none; }
 }
+
+/* "View" (and "Word") next to "Download" */
+.doc-view {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.doc-view:hover { border-color: var(--giu-black); background: var(--bg); }

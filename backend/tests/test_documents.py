@@ -356,11 +356,61 @@ class Storage(unittest.TestCase):
         storage.remove_old_files()
         self.assertFalse(storage.folder(9).exists())
 
+    def test_own_download_names(self):
+        storage.save_version(4, b"pdf", ".pdf", filename="My CV.pdf", name="My CV_restructured.pdf")
+        word = storage.save_version(4, b"docx", ".docx", name="My CV_restructured.docx")
+        self.assertEqual(word["download_name"], "My CV_restructured.docx")
+        self.assertEqual(storage.file_for_download(4, word["token"])[1], "My CV_restructured.docx")
+
     def test_only_a_few_versions_are_kept(self):
         storage.save_version(5, b"0", ".txt", filename="a.txt")
         for i in range(8):
             storage.save_version(5, str(i).encode(), ".txt")
         self.assertEqual(len(list(storage.folder(5).glob("*.txt"))), storage.KEEP_VERSIONS)
+
+
+class AutomaticDecisionAndFiles(unittest.TestCase):
+    def test_edit_requests_are_recognised(self):
+        edits = ["send me this cv restructured", "Can you fix my CV?", "translate it to Arabic", "make it more professional",
+                 "summarize this report", "now make it shorter", "ظبطلي الـ CV ده", "ترجم الملف ده", "لخص التقرير"]
+        questions = ["Please analyze my CV and suggest improvements.", "what does this file say about adding hours?",
+                     "how do I add hours?", "Please explain this file.", "Is this CV good?", "Can a probation student add hours?",
+                     "ايه اللي مكتوب في الملف؟", "Review my CV please"]
+        self.assertTrue(all(editor.is_edit_request(t) for t in edits), [t for t in edits if not editor.is_edit_request(t)])
+        self.assertFalse(any(editor.is_edit_request(t) for t in questions), [t for t in questions if editor.is_edit_request(t)])
+
+    def test_restructured_cv_becomes_pdf_and_word(self):
+        from app.documents.cv_file import cv_docx, cv_pdf, is_restructured_cv
+        answer = "\n".join([
+            "Template: Student", "", "FARAH SELIM", "Computer Science Student", "farah@example.com | 0100", "",
+            "SUMMARY", "Student at GIU.", "", "EXPERIENCE", "SOFTWARE INTERN, [add dates]", "Valeo",
+            "- Built a dashboard", "", "SKILLS", "TOOLS: Python, SQL", "", "What I changed:", "- Reordered sections"])
+        self.assertTrue(is_restructured_cv(answer))
+        self.assertFalse(is_restructured_cv("Sorry, I could not read your CV."))
+        text = pymupdf.open(stream=cv_pdf(answer), filetype="pdf")[0].get_text()
+        self.assertIn("FARAH SELIM", text)
+        self.assertIn("Built a dashboard", text)
+        self.assertNotIn("What I changed", text)                  # the notes are not part of the CV
+        paragraphs = Document(io.BytesIO(cv_docx(answer))).paragraphs
+        self.assertEqual(paragraphs[0].text, "FARAH SELIM")
+        self.assertIn("List Bullet", [p.style.name for p in paragraphs if p.text == "Built a dashboard"])
+
+    def test_edited_word_cv_becomes_the_same_pdf_layout(self):
+        from app.documents.cv_file import blocks, cv_docx, docx_to_cv_text
+        answer = "\n".join(["Template: London", "", "OMAR ALI, Data Analyst", "omar@example.com", "", "PROFILE",
+                             "Analyst.", "", "EXPERIENCE", "DATA ANALYST, 2022 - Present", "- Built reports", "",
+                             "SKILLS", "TOOLS: Excel"])
+        self.assertEqual([k for k, _ in blocks(docx_to_cv_text(cv_docx(answer)))], [k for k, _ in blocks(answer)])
+
+    def test_preview_page_escapes_content(self):
+        document = Document()
+        document.add_paragraph("<script>alert(1)</script> Hello")
+        out = io.BytesIO()
+        document.save(out)
+        page = formats.preview_html(".docx", out.getvalue(), "report.docx")
+        self.assertIn("&lt;script&gt;", page)
+        self.assertNotIn("<script>", page)
+        self.assertIn("<td>Laptop</td>", formats.preview_html(".xlsx", sample_xlsx(), "budget.xlsx"))
 
 
 class ChatReadsOfficeFiles(unittest.TestCase):
