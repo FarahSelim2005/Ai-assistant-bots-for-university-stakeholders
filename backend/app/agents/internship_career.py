@@ -52,6 +52,26 @@ def link_key(url: str) -> str:
     return re.sub(r"^(?:https?://)?(?:www\.)?", "", url.lower()).rstrip("/.")
 
 
+def complete_links(answer: str, cv_text: str) -> str:
+    """Put back links the CV text cut off: a link split across two lines in the PDF is read
+    as "github.com/FarahSelim", while the PDF's link annotation ("Links: ..." in the CV text)
+    has the whole "https://github.com/FarahSelim2005". A link in the answer that is the start
+    of exactly one longer link there is replaced by that link."""
+    full_links = [u.strip() for line in cv_text.splitlines() if line.startswith("Links:")
+                  for u in line[len("Links:"):].split(",") if u.strip()]
+
+    def complete(match):
+        url = match.group()
+        longer = {u for u in full_links if link_key(u).startswith(link_key(url)) and link_key(u) != link_key(url)}
+        if len(longer) == 1:
+            replacement = longer.pop()
+            log.info("CV link completed from the PDF's link annotations")
+            return replacement
+        return url
+
+    return URL.sub(complete, answer)
+
+
 def check_against_cv(answer: str, cv_text: str) -> str:
     """Replace links, years and numbers that the model wrote but that are not in the CV.
 
@@ -143,7 +163,7 @@ class InternshipCareerAgent(BaseAgent):
         if attachment.is_image:
             attachment = Attachment(attachment.filename, text=self.transcribe(attachment))
         answer = super().generate(question, chunks, history, attachment)
-        return check_against_cv(answer, attachment.text)
+        return check_against_cv(complete_links(answer, attachment.text), attachment.text)
 
     def transcribe(self, attachment: Attachment) -> str:
         """The text of a picture CV, written out by the vision model (and its backups)."""

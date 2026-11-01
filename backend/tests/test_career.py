@@ -46,5 +46,24 @@ class CvRewrites(unittest.TestCase):
         self.assertGreater(len(self.sent[-1]), 2)  # history is kept
 
 
+class CvFiles(unittest.TestCase):
+    def test_cut_links_are_completed_from_the_pdf_links(self):
+        from app.agents.internship_career import complete_links
+        cv = "\n".join(["Farah Selim", "github.com/FarahSelim", "",
+                        "Links: https://github.com/FarahSelim2005, https://www.linkedin.com/in/farah-selim-81"])
+        answer = "github.com/FarahSelim | linkedin.com/in/farah-selim | https://github.com/FarahSelim2005 | github.com/other"
+        self.assertEqual(complete_links(answer, cv), "https://github.com/FarahSelim2005 | https://www.linkedin.com/in/farah-selim-81 | "
+                                                     "https://github.com/FarahSelim2005 | github.com/other")
+
+    def test_headings_are_not_left_at_a_page_bottom(self):
+        from app.documents.cv_file import cv_pdf, render_cv, stranded_headings
+        lines = ["Template: Student", "", "FARAH SELIM", "CS Student", "", "SUMMARY", "Student.", "", "EXPERIENCE"]
+        for i in range(9):
+            lines += [f"ROLE {i}, 2020 - 2021", "Company", "- Built things", "- Led things"]
+        cv = "\n".join(lines + ["", "PROJECTS", "Project A", "- Did A", "", "SKILLS", "- Python"])
+        self.assertTrue(stranded_headings(render_cv(cv, set())))   # this layout strands a heading ...
+        self.assertFalse(stranded_headings(cv_pdf(cv)))             # ... and cv_pdf moves it to the next page
+
+
 if __name__ == "__main__":
     unittest.main()

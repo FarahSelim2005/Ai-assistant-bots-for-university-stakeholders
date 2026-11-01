@@ -61,9 +61,43 @@ def blocks(answer: str) -> list[tuple[str, str]]:
     return result
 
 
+HEADING_COLOUR = 0x9E1116   # section headings are red in the PDF (see the CSS below)
+PAGE = pymupdf.paper_rect("a4")
+TEXT_AREA = PAGE + (50, 45, -50, -45)
+KEEP_WITH_NEXT = 45  # points: a heading needs about three lines of room below it on its page
+
+
 def cv_pdf(answer: str) -> bytes:
-    """A clean A4 PDF of the CV (PyMuPDF's Story: simple HTML, laid out over pages)."""
-    parts, in_list = [], False
+    """A clean A4 PDF of the CV. A section heading is never left alone at the bottom of a
+    page: if one lands there, the PDF is laid out again with a page break before it."""
+    breaks: set[int] = set()
+    for _ in range(4):  # each pass moves the headings that ended up at a page bottom
+        pdf = render_cv(answer, breaks)
+        stranded = stranded_headings(pdf)
+        if not stranded - breaks:
+            return pdf
+        breaks |= stranded
+    return pdf
+
+
+def stranded_headings(pdf: bytes) -> set[int]:
+    """Numbers (0, 1, ... in order) of the section headings with too little room below them."""
+    stranded, number = set(), 0
+    with pymupdf.open(stream=pdf, filetype="pdf") as document:
+        for page in document:
+            for block in page.get_text("dict")["blocks"]:
+                for line in block.get("lines", []):
+                    if any(span["color"] == HEADING_COLOUR and span["text"].strip() for span in line["spans"]):
+                        if line["bbox"][3] > TEXT_AREA.y1 - KEEP_WITH_NEXT:
+                            stranded.add(number)
+                        number += 1
+    return stranded
+
+
+def render_cv(answer: str, breaks: set[int]) -> bytes:
+    """The CV laid out on A4 pages (PyMuPDF's Story: simple HTML); headings whose number is
+    in `breaks` start a new page."""
+    parts, in_list, heading = [], False, 0
     for kind, text in blocks(answer):
         if kind != "bullet" and in_list:
             parts.append("</ul>")
@@ -74,7 +108,9 @@ def cv_pdf(answer: str) -> bytes:
         elif kind == "contact":
             parts.append(f'<p class="contact">{safe}</p>')
         elif kind == "heading":
-            parts.append(f"<h2>{safe}</h2>")
+            style = ' style="page-break-before: always"' if heading in breaks else ""
+            parts.append(f"<h2{style}>{safe}</h2>")
+            heading += 1
         elif kind == "entry":
             parts.append(f'<p class="entry">{safe}</p>')
         elif kind == "label":
@@ -98,11 +134,10 @@ def cv_pdf(answer: str) -> bytes:
     story = pymupdf.Story(html="".join(parts), user_css=css)
     out = io.BytesIO()
     writer = pymupdf.DocumentWriter(out)
-    page = pymupdf.paper_rect("a4")
     more = True
     while more:
-        device = writer.begin_page(page)
-        more, _ = story.place(page + (50, 45, -50, -45))
+        device = writer.begin_page(PAGE)
+        more, _ = story.place(TEXT_AREA)
         story.draw(device)
         writer.end_page()
     writer.close()
