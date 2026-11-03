@@ -55,7 +55,7 @@ AGENT_DIRECTORY = [
         "resume writing, CV review, interview preparation, job applications, LinkedIn, "
         "skills for a major and career paths. "
         "الانترنشيب، التدريب، معرض التوظيف، السي في، السيرة الذاتية، الانترفيو، الشغل، الوظايف.",
-        ("student",), built=True,
+        ("student", "staff"), built=True,
     ),
     AgentInfo(
         "labs_research", "Labs & Research Assistant",

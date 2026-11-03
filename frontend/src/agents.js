@@ -39,7 +39,7 @@ export const AGENTS = [
     key: "internship_career",
     name: "Internship & Career Assistant",
     handles: "Internships, the career fair, CV review, interviews, skills and career paths",
-    userTypes: ["student"],
+    userTypes: ["student", "staff"],
     ready: true,
     subtitle: "GIU career information and general career advice",
     welcome: "Ask about internships, the GIU Career Fair, your CV or interviews, or try one of these:",

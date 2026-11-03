@@ -7,7 +7,7 @@ slices (database, backend, frontend and evaluation):
   places, answered **only from ingested documents** (retrieval-augmented generation). If
   no document is relevant enough, it says it doesn't have the information instead of
   guessing.
-- **Internship & Career** (students only): the GIU Career Fair, the GIU Internship
+- **Internship & Career** (students and staff): the GIU Career Fair, the GIU Internship
   Semester, how to apply, CVs, interviews, skills and career paths. **GIU facts come only
   from its documents**; general career advice may also come from the model's own
   knowledge and is marked "General advice:". It can **analyse an uploaded CV**
@@ -163,7 +163,7 @@ python -m scripts.ingest --agent internship_career  # only one agent
 
 Each file is split into chunks (paragraphs kept together, a new chunk at every
 Markdown heading, at most 200 words), embedded, and stored with the folder's agent
-and that agent's audience from `backend/app/agents/directory.py` (Career: students
+and that agent's audience from `backend/app/agents/directory.py` (HR: staff
 only). Re-running is safe: a file's old chunks are replaced, and chunks of files you
 deleted are removed.
 
@@ -253,8 +253,7 @@ npm run dev
 ```
 
 Open http://localhost:5173, choose **Student** or **Staff**, then choose an assistant:
-students see 3 (Graduation & Advising, Internship & Career, Labs & Research), staff see 3
-(Graduation & Advising, HR & Policies, Labs & Research). The list is in
+students see 3 (Graduation & Advising, Internship & Career, Labs & Research), staff see all 4. The list is in
 `frontend/src/agents.js`; all four assistants are built.
 Each answer shows its source files and a 1–5 rating.
 
@@ -294,7 +293,7 @@ HR & Policies, Internship & Career, Labs & Research). When an agent has no answe
 question is compared with each agent's description (`backend/app/agents/directory.py`,
 embeddings only, no chat model call) and the fallback message gets a button to the
 best-matching agent. Students can be sent to Graduation & Advising, Internship & Career and Labs &
-Research; staff to Graduation & Advising, HR & Policies and Labs & Research. Nothing is suggested when no agent matches
+Research; staff to all four. An agent the user may not use (HR, for a student) is named without a button. Nothing is suggested when no agent matches
 (`AGENT_LINK_MIN_GAP` in `config.py`: the best agent must clearly beat the second best). Agents that are not built yet open a
 "coming soon" page (`/?agent=<key>`, `frontend/src/components/ComingSoon.jsx`); built
 ones open directly. A question that only weakly matches an agent's documents (best score

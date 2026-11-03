@@ -130,7 +130,7 @@ def check_university(answer: str, cv_text: str) -> str:
 
 class InternshipCareerAgent(BaseAgent):
     name = "internship_career"
-    allowed_user_types = ("student",)
+    allowed_user_types = ("student", "staff")
     system_prompt = CAREER_SYSTEM_PROMPT
     # General career questions use the normal models; CV rewrites use CAREER_MODEL (e.g. the
     # fine-tuned CV model ollama/giu-cv), which was trained only to restructure attached CVs
