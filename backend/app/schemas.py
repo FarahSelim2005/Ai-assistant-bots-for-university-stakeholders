@@ -55,6 +55,7 @@ class AgentLinkOut(BaseModel):
     agent: str  # e.g. "labs_research"
     name: str   # e.g. "Labs & Research Assistant"
     url: str    # e.g. "/?agent=labs_research"
+    available: bool = True  # False: the user may not use that agent (no button)
 
 
 class ChatResponse(BaseModel):

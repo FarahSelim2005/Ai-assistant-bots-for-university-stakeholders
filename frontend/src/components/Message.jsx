@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { findAgent } from "../agents.js";
 import CampusMap from "./CampusMap.jsx";
 
 const ARABIC_LETTERS = /[؀-ۿ]/;
+const USERS = { student: { en: "students", ar: "للطلبة" }, staff: { en: "staff", ar: "للموظفين" } };
 
 // One chat message. Assistant messages also show a map (if rooms or places are mentioned),
 // their sources and a 1-5 star rating.
@@ -81,6 +83,11 @@ export default function Message({ message, onRate, onResend, busy }) {
     );
   }
 
+  // Who the suggested agent is for, when this user may not use it
+  const onlyFor = message.redirect?.available === false
+    ? (findAgent(message.redirect.agent)?.userTypes.includes("staff") ? USERS.staff : USERS.student)
+    : null;
+
   return (
     <div className="message assistant">
       <div className="avatar">GIU</div>
@@ -122,13 +129,16 @@ export default function Message({ message, onRate, onResend, busy }) {
           <div className="redirect-card" dir="auto">
             <span>
               {ARABIC_LETTERS.test(message.content)
-                ? <>السؤال ده غالباً تبع <b>{message.redirect.name}</b></>
-                : <>This looks like a question for the <b>{message.redirect.name}</b>.</>}
+                ? <>السؤال ده غالباً تبع <b>{message.redirect.name}</b>{onlyFor && ` (${onlyFor.ar} بس)`}</>
+                : <>This looks like a question for the <b>{message.redirect.name}</b>{onlyFor && `, which is for ${onlyFor.en} only`}.</>}
             </span>
-            {/* Opens in a new tab so this conversation stays open */}
-            <a href={message.redirect.url} target="_blank" rel="noreferrer" className="redirect-button">
-              Ask the {message.redirect.name} →
-            </a>
+            {/* Opens in a new tab so this conversation stays open. No button for an agent
+                this user may not use (staff asking a Career question): it would refuse them. */}
+            {!onlyFor && (
+              <a href={message.redirect.url} target="_blank" rel="noreferrer" className="redirect-button">
+                Ask the {message.redirect.name} →
+              </a>
+            )}
           </div>
         )}
 

@@ -76,6 +76,7 @@ class AgentLink:
     agent: str  # key, e.g. "labs_research"
     name: str   # e.g. "Labs & Research Assistant"
     url: str    # where the frontend sends the user
+    available: bool = True  # False: this user may not use it (staff asking Career), so no button
 
 
 _description_vectors: np.ndarray | None = None  # computed once, on first use
@@ -84,8 +85,9 @@ _description_vectors: np.ndarray | None = None  # computed once, on first use
 def suggest_agent(question: str, current_agent: str, user_type: str,
                   min_gap: float = config.AGENT_LINK_MIN_GAP, built_only: bool = False) -> AgentLink | None:
     """The agent whose description best matches the question, or None when the best
-    match is the current agent, an agent this user may not use, or no agent clearly
-    wins (off-topic questions match all agents about equally)."""
+    match is the current agent or no agent clearly wins (off-topic questions match all
+    agents about equally). An agent this user may not use is still named, so the user
+    knows who handles it, but marked unavailable."""
     scores = description_scores(question)
     if scores is None:
         return None  # no link is better than a broken answer
@@ -95,10 +97,10 @@ def suggest_agent(question: str, current_agent: str, user_type: str,
     if (scores[best] - scores[second] < min_gap
             or scores[best] < config.AGENT_LINK_MIN_SCORE
             or (built_only and not agent.built)
-            or agent.key == current_agent
-            or user_type not in agent.user_types):
+            or agent.key == current_agent):
         return None
-    return AgentLink(agent=agent.key, name=agent.name, url=f"/?agent={agent.key}")
+    return AgentLink(agent=agent.key, name=agent.name, url=f"/?agent={agent.key}",
+                     available=user_type in agent.user_types)
 
 
 def closest_agent(question: str) -> str | None:
