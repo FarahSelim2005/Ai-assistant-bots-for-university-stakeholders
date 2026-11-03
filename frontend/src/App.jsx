@@ -203,8 +203,8 @@ export default function App({ initialAgent }) {
     }
   }
 
-  // "Stop": cancel the answer and put the question (and its files) back in the input box,
-  // so it can be edited and sent again. The backend then does not save it either.
+  // "Stop": cancel the answer. The question stays in the chat, marked as stopped, with
+  // Retry, Edit and Copy under it. The backend does not save a stopped question.
   // It always resets the screen, even if the request cannot be found (for example after
   // the page was updated while a slow answer was still running).
   function stop(event) {
@@ -212,13 +212,16 @@ export default function App({ initialAgent }) {
     const request = requestRef.current;
     requestRef.current = null; // any answer that still arrives is ignored
     request?.controller.abort();
-    const question = messages[messages.length - 1];
-    const waiting = question?.role === "user" ? question : null;
-    if (waiting) setMessages((prev) => prev.slice(0, -1)); // remove the question that was waiting
-    const query = request?.query ?? waiting?.content ?? "";
-    setInput(query === CV_QUESTION || query.startsWith("Please explain th") ? "" : query);
-    setAttachments(request?.files ?? waiting?.attachments ?? []);
+    setMessages((prev) => prev.map((m, i) => (i === prev.length - 1 && m.role === "user" ? { ...m, stopped: true } : m)));
     setLoading(false);
+  }
+
+  // Retry or Edit on a stopped question: it is removed and sent again (with its files).
+  function resend(index, query) {
+    if (loading) return;
+    const question = messages[index];
+    setMessages((prev) => prev.filter((_, i) => i !== index));
+    send(query, question.attachments || []);
   }
 
   async function handleRate(messageId, rating) {
@@ -283,7 +286,8 @@ export default function App({ initialAgent }) {
             </div>
           )}
           {messages.map((message, index) => (
-            <Message key={index} message={message} onRate={handleRate} />
+            <Message key={index} message={message} onRate={handleRate} busy={loading}
+                     onResend={(query) => resend(index, query)} />
           ))}
           {loading && (
             <div className="message assistant">

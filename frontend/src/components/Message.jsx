@@ -1,11 +1,35 @@
+import { useState } from "react";
 import CampusMap from "./CampusMap.jsx";
 
 const ARABIC_LETTERS = /[؀-ۿ]/;
 
 // One chat message. Assistant messages also show a map (if rooms or places are mentioned),
 // their sources and a 1-5 star rating.
-export default function Message({ message, onRate }) {
+export default function Message({ message, onRate, onResend, busy }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [copied, setCopied] = useState(false);
+
   if (message.role === "user") {
+    function copy() {
+      navigator.clipboard.writeText(message.content).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }).catch(() => {});
+    }
+
+    function startEditing() {
+      setDraft(message.content);
+      setEditing(true);
+    }
+
+    function sendEdited(event) {
+      event.preventDefault();
+      if (!draft.trim()) return;
+      setEditing(false);
+      onResend(draft.trim());
+    }
+
     return (
       <div className="message user">
         <div className="user-body">
@@ -14,7 +38,44 @@ export default function Message({ message, onRate }) {
           ) : (
             <span key={index} className="attached-file">📄 {file.filename}</span>
           )))}
-          <div className="bubble" dir="auto">{message.content}</div>
+          {editing ? (
+            <form className="edit-message" onSubmit={sendEdited}>
+              <textarea value={draft} onChange={(event) => setDraft(event.target.value)} dir="auto" maxLength={1000}
+                        rows={Math.min(6, Math.max(2, Math.ceil(draft.length / 60)))} autoFocus
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" && !event.shiftKey) sendEdited(event);
+                          if (event.key === "Escape") setEditing(false);
+                        }} />
+              <div className="edit-message-buttons">
+                <button type="button" className="secondary" onClick={() => setEditing(false)}>Cancel</button>
+                <button type="submit" disabled={busy || !draft.trim()}>Send</button>
+              </div>
+            </form>
+          ) : (
+            <div className="bubble" dir="auto">{message.content}</div>
+          )}
+          {/* A stopped question: send it again, change it, or copy it */}
+          {message.stopped && !editing && (
+            <div className="message-actions">
+              <span className="muted">Stopped</span>
+              <button type="button" onClick={() => onResend(message.content)} disabled={busy}
+                      title="Retry" aria-label="Retry">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" /></svg>
+              </button>
+              <button type="button" onClick={startEditing} disabled={busy} title="Edit" aria-label="Edit">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4" /></svg>
+              </button>
+              <button type="button" onClick={copy} title={copied ? "Copied" : "Copy"} aria-label="Copy">
+                {copied ? (
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10" /></svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 0 1 2-2h8" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
