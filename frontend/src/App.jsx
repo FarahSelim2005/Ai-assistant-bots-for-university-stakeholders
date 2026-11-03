@@ -104,9 +104,10 @@ export default function App({ initialAgent }) {
     send(query, attachment);
   }
 
-  // "Close": forget the document; the backend deletes its files.
-  function stopEditing() {
-    if (activeDoc) closeDocument(conversationId, activeDoc.token).catch(() => {});
+  // "Close": stop editing the document. Its files are kept, so the View and Download links
+  // in the chat still work (the backend deletes them after an hour); a new chat deletes them.
+  function stopEditing(deleteFiles = false) {
+    if (activeDoc && deleteFiles) closeDocument(conversationId, activeDoc.token).catch(() => {});
     setActiveDoc(null);
   }
 
@@ -192,7 +193,7 @@ export default function App({ initialAgent }) {
   }
 
   function newChat() {
-    stopEditing();
+    stopEditing(true);
     setUserType(null);
     setAgentKey(null);
     setConversationId(null);
@@ -285,7 +286,7 @@ export default function App({ initialAgent }) {
             </span>
             <a className="doc-view" href={activeDoc.view_url} target="_blank" rel="noreferrer">View</a>
             <a className="doc-download" href={activeDoc.url} download={activeDoc.download_name}>Download</a>
-            <button type="button" className="secondary" onClick={stopEditing} disabled={loading}
+            <button type="button" className="secondary" onClick={() => stopEditing()} disabled={loading}
                     title="Stop working on this document">Close</button>
           </div>
         )}

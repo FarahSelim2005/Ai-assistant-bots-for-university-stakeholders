@@ -29,6 +29,8 @@ from app.llm.client import LLMError
 from app.schemas import DocumentEditRequest, DocumentEditResponse
 
 router = APIRouter()
+FILE_GONE = ("This file is no longer available: files are kept for one hour, and a new chat deletes them. "
+             "Send the document again to get a new link.")
 STOPPED_BY_USER = 499  # the user pressed Stop: nothing is saved (same as /chat)
 
 
@@ -109,7 +111,7 @@ def save_messages(body: DocumentEditRequest, filename: str, answer: str) -> int:
 def download(conversation_id: int, token: str):
     found = storage.file_for_download(conversation_id, token)
     if found is None:
-        raise HTTPException(404, "This file is no longer available. Edit the document again to get a new link.")
+        raise HTTPException(404, FILE_GONE)
     path, name, media_type = found
     return FileResponse(path, media_type=media_type, filename=name, headers={"Cache-Control": "no-store"})
 
@@ -118,7 +120,7 @@ def download(conversation_id: int, token: str):
 def view(conversation_id: int, token: str):
     found = storage.file_for_download(conversation_id, token)
     if found is None:
-        raise HTTPException(404, "This file is no longer available. Edit the document again to get a new link.")
+        raise HTTPException(404, FILE_GONE)
     path, name, media_type = found
     safe = {"Cache-Control": "no-store", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
             "X-Content-Type-Options": "nosniff"}

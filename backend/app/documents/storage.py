@@ -3,7 +3,7 @@
 Files get random server-side names (32 hex characters), never the user's file name, so
 no path can be guessed or built from user input. A download needs the conversation and
 that random name. Folders are deleted DOC_EDIT_KEEP_MINUTES after their last change, and
-when the user stops editing.
+when the user starts a new chat.
 """
 import json
 import re
