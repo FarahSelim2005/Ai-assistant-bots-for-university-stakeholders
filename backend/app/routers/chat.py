@@ -7,6 +7,8 @@ The message is handled in one of three ways, decided automatically:
 - a CV restructure in the Internship & Career agent: the fine-tuned CV model answers as
   before, and its CV is also made into a PDF (and a Word file) to view and download;
 - anything else, including questions about an attached file: the agent answers.
+Several files sent together are only asked about ("compare these"); they are read as one
+attachment. Files are edited, converted or restructured one at a time.
 
 If the user presses "Stop" in the browser while the answer is being made, the browser
 stops waiting. The answer is then thrown away instead of saved, so a stopped question
@@ -24,7 +26,7 @@ from starlette.concurrency import run_in_threadpool
 from app import config
 from app.agents import AGENTS
 from app.agents.base import AgentResponse
-from app.attachments import read_attachment
+from app.attachments import combine_attachments, read_attachment
 from app.campus import BUILDINGS
 from app.db import get_connection
 from app.documents import storage
@@ -105,18 +107,26 @@ def answer_question(body: ChatRequest) -> Outcome:
         only_pdf = wants_pdf and not is_edit_request(CONVERSION_WORDS.sub(" ", body.query))
         wants_edit = wants_edit and not only_pdf
         career = agent_name == "internship_career"
-        if body.attachment:
-            filename = body.attachment.filename
+        uploads = sent_files(body)
+        if len(uploads) > 1:  # several files: questions about them ("compare these", "summarize them")
+            if wants_pdf:
+                raise ValueError("To get a file back (a PDF, an edited file or a restructured CV), "
+                                 "attach one file at a time.")
+            attachment = combine_attachments([read_attachment(f.filename, f.data_base64) for f in uploads])
+            return Outcome(AGENTS[agent_name].run(body.query, user_type, history, attachment))
+        if uploads:
+            upload = uploads[0]
+            filename = upload.filename
             extension = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
             is_cv = career and bool(CV_WORDS.search(body.query) or CV_FILE_NAME.search(filename))
             if is_cv and (wants_edit or wants_pdf):  # restructure the CV (and send it as PDF + Word)
-                attachment = read_attachment(filename, body.attachment.data_base64)
+                attachment = read_attachment(filename, upload.data_base64)
                 return restructure_cv(body.query, user_type, history, attachment, filename)
             if extension in EDITABLE_TYPES and wants_edit:
-                return edit(body, agent_name, upload=(filename, decode(body.attachment.data_base64)), also_pdf=wants_pdf)
+                return edit(body, agent_name, upload=(filename, decode(upload.data_base64)), also_pdf=wants_pdf)
             if extension in EDITABLE_TYPES and wants_pdf:
-                return as_pdf(decode(body.attachment.data_base64), filename=filename)
-            attachment = read_attachment(filename, body.attachment.data_base64)
+                return as_pdf(decode(upload.data_base64), filename=filename)
+            attachment = read_attachment(filename, upload.data_base64)
             return Outcome(AGENTS[agent_name].run(body.query, user_type, history, attachment))
         info = (storage.current(body.conversation_id)
                 if body.document_token and storage.is_latest(body.conversation_id, body.document_token) else None)
@@ -135,6 +145,11 @@ def answer_question(body: ChatRequest) -> Outcome:
         raise HTTPException(400, str(error))
     except (httpx.HTTPError, LLMError):  # OpenRouter unreachable, an error, or no answer
         raise HTTPException(502, "The assistant is temporarily unavailable. Please try again.")
+
+
+def sent_files(body: ChatRequest) -> list:
+    """The files sent with the message: `attachments`, or the single `attachment`."""
+    return body.attachments or ([body.attachment] if body.attachment else [])
 
 
 def decode(data_base64: str) -> bytes:
@@ -231,8 +246,9 @@ def save_messages(body: ChatRequest, answer: str) -> int:
     """Store the question and the answer; returns the answer's message id (for feedback)."""
     # The file itself is not stored; the message only records its name.
     user_message = body.query
-    if body.attachment:
-        user_message += f"\n[Attached file: {body.attachment.filename}]"
+    names = [f.filename for f in sent_files(body)]
+    if names:
+        user_message += f"\n[Attached file{'s' if len(names) > 1 else ''}: {', '.join(names)}]"
 
     with get_connection() as conn:
         conn.execute(

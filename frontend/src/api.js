@@ -22,13 +22,14 @@ export function startSession(userType, agent) {
   return post("/session", { user_type: userType, agent }); // -> { conversation_id }
 }
 
-// `attachment` is optional: { filename, dataUrl } where dataUrl is "data:<type>;base64,<content>".
-// `documentToken` (optional): the document this chat is working on, so a request like "now
-// make it shorter" edits it. The backend decides whether a message is an edit or a question.
-export function sendMessage(conversationId, query, attachment = null, signal = undefined, documentToken = null) {
+// `files` (optional): the attached files, each { filename, dataUrl } where dataUrl is
+// "data:<type>;base64,<content>". `documentToken` (optional): the document this chat is working
+// on, so a request like "now make it shorter" edits it. The backend decides whether a message
+// is an edit or a question.
+export function sendMessage(conversationId, query, files = [], signal = undefined, documentToken = null) {
   const body = { conversation_id: conversationId, query, document_token: documentToken };
-  if (attachment) {
-    body.attachment = { filename: attachment.filename, data_base64: attachment.dataUrl.split(",")[1] };
+  if (files.length) {
+    body.attachments = files.map((f) => ({ filename: f.filename, data_base64: f.dataUrl.split(",")[1] }));
   }
   return post("/chat", body, signal); // -> { answer, sources, message_id, file?, changes? }
 }

@@ -71,6 +71,19 @@ def read_attachment(filename: str, data_base64: str) -> Attachment:
                      "Try exporting it again as a PDF with text, or upload it as an image.")
 
 
+def combine_attachments(attachments: list[Attachment]) -> Attachment:
+    """Several files sent together, as one attachment for the agent: each document's text
+    under its file name, and all pictures. The texts share twice the usual length limit,
+    so a few files still fit in the prompt."""
+    if len(attachments) == 1:
+        return attachments[0]
+    documents = [a for a in attachments if a.text]
+    share = min(config.MAX_ATTACHMENT_CHARS, 2 * config.MAX_ATTACHMENT_CHARS // max(1, len(documents)))
+    text = "\n\n".join(f"--- File: {a.filename} ---\n{a.text[:share]}" for a in documents)
+    return Attachment(", ".join(a.filename for a in attachments), text=text or None,
+                      image_urls=[url for a in attachments for url in a.image_urls])
+
+
 def extract_text(extension: str, data: bytes) -> str:
     """Plain text of a PDF, Word, Excel, PowerPoint, TXT or MD file."""
     if extension in (".docx", ".xlsx", ".pptx"):

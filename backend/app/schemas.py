@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+MAX_FILES = 5  # files sent with one message (must match the frontend)
+
 
 class SessionRequest(BaseModel):
     user_type: Literal["student", "staff"]
@@ -24,6 +26,8 @@ class ChatRequest(BaseModel):
     conversation_id: int
     query: str = Field(min_length=1, max_length=1000)
     attachment: AttachmentIn | None = None
+    # Several files sent together (the browser sends them here; `attachment` still works).
+    attachments: list[AttachmentIn] = Field(default_factory=list, max_length=MAX_FILES)
     # The random token of the document this chat is editing (from the last file answer):
     # an edit request without a new file then changes that document.
     document_token: str | None = Field(default=None, max_length=64)

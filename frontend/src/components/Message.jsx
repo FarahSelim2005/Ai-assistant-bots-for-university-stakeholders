@@ -6,15 +6,14 @@ const ARABIC_LETTERS = /[؀-ۿ]/;
 // their sources and a 1-5 star rating.
 export default function Message({ message, onRate }) {
   if (message.role === "user") {
-    const file = message.attachment;
     return (
       <div className="message user">
         <div className="user-body">
-          {file && (file.isImage ? (
-            <img className="attached-image" src={file.dataUrl} alt={file.filename} />
+          {(message.attachments || []).map((file, index) => (file.isImage ? (
+            <img key={index} className="attached-image" src={file.dataUrl} alt={file.filename} />
           ) : (
-            <span className="attached-file">📄 {file.filename}</span>
-          ))}
+            <span key={index} className="attached-file">📄 {file.filename}</span>
+          )))}
           <div className="bubble" dir="auto">{message.content}</div>
         </div>
       </div>

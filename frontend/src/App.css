@@ -403,44 +403,104 @@ a.choice-card { text-decoration: none; }
   border-top: 1px solid var(--border);
   padding: 16px 32px 20px;
 }
+/* A rounded bar: "+" | text | mic | send (only with text) or stop (while answering) */
 .composer {
   max-width: 920px;
   margin: 0 auto;
   display: flex;
-  gap: 10px;
-  padding: 6px;
-  border: 1.5px solid var(--border);
-  border-radius: 16px;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
   background: var(--surface);
-  transition: border-color 0.15s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06), 0 6px 20px rgba(0, 0, 0, 0.06);
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.composer:focus-within { border-color: var(--giu-red); }
-.stop-button { background: var(--giu-black); }
-.stop-button:hover:not(:disabled) { background: #000; }
-.composer input {
+.composer:focus-within { border-color: #d4d4d8; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.08); }
+.composer .composer-input {
   flex: 1;
+  min-width: 0;
   font: inherit;
-  font-size: 15px;
-  padding: 10px 12px;
+  font-size: 16px;
+  padding: 10px 8px;
   border: none;
   outline: none;
   background: transparent;
 }
 .composer-area .error { max-width: 920px; margin: 0 auto 8px; }
 
-/* Paperclip button inside the input box */
-.composer button.attach {
+.composer svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* "+" and mic: plain round icon buttons */
+.composer .icon-button {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
   background: none;
-  color: var(--muted);
-  font-size: 20px;
-  padding: 0 10px;
+  color: var(--text);
 }
-.composer button.attach:hover:not(:disabled) { background: var(--bg); }
+.composer .icon-button:hover:not(:disabled) { background: var(--bg); }
+.composer .icon-button[aria-expanded="true"] { background: var(--bg); }
+/* Send (arrow) and stop (square): filled circles */
+.composer .round-button {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+}
+.composer .send-button { background: var(--giu-red); }
+.composer .send-button:hover:not(:disabled) { background: var(--giu-red-dark); }
+.composer .stop-button { background: var(--giu-black); }
+.composer .stop-button:hover:not(:disabled) { background: #000; }
+.composer .stop-button svg { fill: currentColor; stroke: none; width: 18px; height: 18px; }
 
-/* File chosen but not sent yet */
-.pending-file {
+/* The "+" menu, opening above the bar */
+.plus-menu-wrap { position: relative; flex: none; }
+.plus-menu {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  z-index: 20;
+  min-width: 290px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+}
+.plus-menu button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  background: none;
+  color: var(--text);
+  font-weight: 600;
+  border-radius: 10px;
+}
+.plus-menu button:hover:not(:disabled) { background: var(--bg); }
+.plus-menu small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }
+.plus-menu-icon { font-size: 18px; }
+
+/* Files chosen but not sent yet */
+.pending-files {
   max-width: 920px;
   margin: 0 auto 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pending-file {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -454,7 +514,7 @@ a.choice-card { text-decoration: none; }
 }
 .pending-file img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; }
 .pending-file .file-icon { font-size: 22px; }
-.pending-name { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pending-name { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pending-file button {
   background: none;
   color: var(--muted);
@@ -478,8 +538,6 @@ a.choice-card { text-decoration: none; }
 .walk-button:hover { background: var(--giu-red-dark); }
 
 /* ================= Voice call ================= */
-.call-start { background: var(--giu-black); }
-.call-start:hover:not(:disabled) { background: #000; }
 
 .call {
   position: fixed;

@@ -8,6 +8,7 @@ import StartScreen from "./components/StartScreen.jsx";
 // Must match the backend (app/attachments.py, MAX_UPLOAD_MB and DOC_EDIT_MAX_MB in config.py).
 const ACCEPTED_FILES = ".pdf,.txt,.md,.docx,.xlsx,.pptx,.png,.jpg,.jpeg,.webp";
 const MAX_UPLOAD_MB = 10; // files to edit; questions about a file allow 5 MB (checked by the backend)
+const MAX_FILES = 5; // files sent with one message (MAX_FILES in the backend's schemas.py)
 const CV_QUESTION = "Please analyze my CV and suggest improvements.";
 // Questions that ask where a place is or how to get there, in English or Egyptian Arabic.
 const WHERE_QUESTION = /\b(where|location|located|direction|directions|how (do|can) i (get|go|reach|find))\b|فين|وين|اين|أين|مكان|اروح|أروح|اوصل|أوصل/i;
@@ -16,11 +17,12 @@ export default function App({ initialAgent }) {
   const [userType, setUserType] = useState(null);
   const [agentKey, setAgentKey] = useState(null); // which assistant this chat is with
   const [conversationId, setConversationId] = useState(null);
-  // Each message: { role, content, attachment?, sources?, locations?, places?, redirect?, messageId?, rating? }
+  // Each message: { role, content, attachments?, sources?, locations?, places?, redirect?, messageId?, rating? }
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  // File chosen for the next message: { filename, dataUrl, isImage }
-  const [attachment, setAttachment] = useState(null);
+  // Files chosen for the next message, each { filename, dataUrl, isImage }
+  const [attachments, setAttachments] = useState([]);
+  const [menuOpen, setMenuOpen] = useState(false); // the "+" menu (upload files, analyze my CV)
   // The document this chat is working on (the last edited file or restructured CV):
   // { filename, download_name, url, view_url, version, token, word_url?, word_name? }.
   // Edit requests ("now make it shorter") change it; questions are answered as usual.
@@ -33,7 +35,8 @@ export default function App({ initialAgent }) {
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
   const cvReviewRef = useRef(false); // the next chosen file is a CV to analyse right away
-  const requestRef = useRef(null); // the answer being waited for: { controller, query, file }
+  const requestRef = useRef(null); // the answer being waited for: { controller, query, files }
+  const menuRef = useRef(null);
   const agent = findAgent(agentKey) || findAgent("labs_research");
 
   // After 8 seconds of waiting, explain the delay (usually the free online models are
@@ -46,6 +49,19 @@ export default function App({ initialAgent }) {
     const timer = setTimeout(() => setSlow(true), 8000);
     return () => clearTimeout(timer);
   }, [loading]);
+
+  // Close the "+" menu on a click outside it or on Escape.
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const closeOutside = (event) => { if (!menuRef.current?.contains(event.target)) setMenuOpen(false); };
+    const closeOnEscape = (event) => { if (event.key === "Escape") setMenuOpen(false); };
+    document.addEventListener("mousedown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [menuOpen]);
 
   // Keep the newest message in view.
   useEffect(() => {
@@ -67,41 +83,63 @@ export default function App({ initialAgent }) {
     }
   }
 
-  function handleFileChosen(event) {
-    const file = event.target.files[0];
+  // Read a file as a data URL ("data:<type>;base64,<content>") to send it as JSON.
+  function readFile(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({ filename: file.name, dataUrl: reader.result, isImage: file.type.startsWith("image/") });
+      reader.onerror = () => reject(new Error(`${file.name} could not be read.`));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleFilesChosen(event) {
+    const reviewCv = cvReviewRef.current;
+    cvReviewRef.current = false;
+    let files = [...event.target.files];
     event.target.value = ""; // so choosing the same file again still triggers onChange
-    if (!file) return;
-    if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
-      setError(`The file is larger than ${MAX_UPLOAD_MB} MB.`);
-      return;
-    }
-    // Read the file as a data URL ("data:<type>;base64,<content>") to send it as JSON.
-    const reader = new FileReader();
-    reader.onload = () => {
-      const chosen = { filename: file.name, dataUrl: reader.result, isImage: file.type.startsWith("image/") };
-      if (cvReviewRef.current) {
-        cvReviewRef.current = false;
-        send(CV_QUESTION, chosen); // "Analyze my CV": send the CV straight away
-      } else {
-        setAttachment(chosen);
-      }
-    };
-    reader.onerror = () => setError("The file could not be read.");
-    reader.readAsDataURL(file);
+    if (!files.length) return;
     setError("");
+    const tooLarge = files.filter((file) => file.size > MAX_UPLOAD_MB * 1024 * 1024);
+    if (tooLarge.length) {
+      setError(`Larger than ${MAX_UPLOAD_MB} MB: ${tooLarge.map((f) => f.name).join(", ")}`);
+      files = files.filter((file) => !tooLarge.includes(file));
+    }
+    if (reviewCv) {
+      files = files.slice(0, 1); // one CV
+    } else if (files.length > MAX_FILES - attachments.length) {
+      setError(`You can send up to ${MAX_FILES} files with one message.`);
+      files = files.slice(0, Math.max(0, MAX_FILES - attachments.length));
+    }
+    try {
+      const chosen = await Promise.all(files.map(readFile));
+      if (!chosen.length) return;
+      if (reviewCv) send(CV_QUESTION, chosen); // "Analyze my CV": send the CV straight away
+      else setAttachments((prev) => [...prev, ...chosen].slice(0, MAX_FILES));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  // "+" menu: pick files for the next message.
+  function pickFiles() {
+    setMenuOpen(false);
+    fileInputRef.current.click();
   }
 
   // "Analyze my CV": pick a file, which is then sent with CV_QUESTION.
   function analyzeCv() {
+    setMenuOpen(false);
     cvReviewRef.current = true;
     fileInputRef.current.click();
   }
 
   function handleSubmit(event) {
     event.preventDefault();
-    // A file can be sent without typing; then the agent is asked to explain it.
-    const query = input.trim() || (attachment ? "Please explain this file." : "");
-    send(query, attachment);
+    // Files can be sent without typing; then the agent is asked to explain them.
+    const explain = attachments.length > 1 ? "Please explain these files." : "Please explain this file.";
+    const query = input.trim() || (attachments.length ? explain : "");
+    send(query, attachments);
   }
 
   // "Close": stop editing the document. Its files are kept, so the View and Download links
@@ -112,19 +150,19 @@ export default function App({ initialAgent }) {
   }
 
   // Sends a question and returns the answer text (or null), so the call screen can speak it.
-  async function send(query, file = null) {
+  async function send(query, files = []) {
     if (!query || loading) return null;
 
-    setMessages((prev) => [...prev, { role: "user", content: query, attachment: file }]);
+    setMessages((prev) => [...prev, { role: "user", content: query, attachments: files }]);
     setInput("");
-    setAttachment(null);
+    setAttachments([]);
     setLoading(true);
     setError("");
-    const request = { controller: new AbortController(), query, file };
+    const request = { controller: new AbortController(), query, files };
     requestRef.current = request;
-    setWithFile(Boolean(file || activeDoc));
+    setWithFile(Boolean(files.length || activeDoc));
     try {
-      const data = await sendMessage(conversationId, query, file, request.controller.signal, activeDoc?.token);
+      const data = await sendMessage(conversationId, query, files, request.controller.signal, activeDoc?.token);
       if (requestRef.current !== request) return null; // stopped meanwhile: ignore the late answer
       // An edited file or a restructured CV: show View / Download, and remember it for the
       // next edit request.
@@ -165,7 +203,7 @@ export default function App({ initialAgent }) {
     }
   }
 
-  // "Stop": cancel the answer and put the question (and its file) back in the input box,
+  // "Stop": cancel the answer and put the question (and its files) back in the input box,
   // so it can be edited and sent again. The backend then does not save it either.
   // It always resets the screen, even if the request cannot be found (for example after
   // the page was updated while a slow answer was still running).
@@ -178,8 +216,8 @@ export default function App({ initialAgent }) {
     const waiting = question?.role === "user" ? question : null;
     if (waiting) setMessages((prev) => prev.slice(0, -1)); // remove the question that was waiting
     const query = request?.query ?? waiting?.content ?? "";
-    setInput(query === CV_QUESTION || query === "Please explain this file." ? "" : query);
-    setAttachment(request?.file ?? waiting?.attachment ?? null);
+    setInput(query === CV_QUESTION || query.startsWith("Please explain th") ? "" : query);
+    setAttachments(request?.files ?? waiting?.attachments ?? []);
     setLoading(false);
   }
 
@@ -198,7 +236,7 @@ export default function App({ initialAgent }) {
     setAgentKey(null);
     setConversationId(null);
     setMessages([]);
-    setAttachment(null);
+    setAttachments([]);
     setError("");
   }
 
@@ -215,11 +253,6 @@ export default function App({ initialAgent }) {
           <span>{agent.subtitle}</span>
         </div>
         <span className="badge">{userType === "staff" ? "Staff" : "Student"}</span>
-        {callSupported && (
-          <button className="call-start" onClick={() => setCalling(true)} title="Talk to the assistant by voice">
-            📞 Call
-          </button>
-        )}
         <button className="secondary" onClick={newChat}>New chat</button>
       </header>
       <div className="flag-stripe" />
@@ -290,15 +323,16 @@ export default function App({ initialAgent }) {
                     title="Stop working on this document">Close</button>
           </div>
         )}
-        {attachment && (
-          <div className="pending-file">
-            {attachment.isImage ? (
-              <img src={attachment.dataUrl} alt="" />
-            ) : (
-              <span className="file-icon">📄</span>
-            )}
-            <span className="pending-name">{attachment.filename}</span>
-            <button type="button" onClick={() => setAttachment(null)} aria-label="Remove file">×</button>
+        {attachments.length > 0 && (
+          <div className="pending-files">
+            {attachments.map((file, index) => (
+              <div className="pending-file" key={index}>
+                {file.isImage ? <img src={file.dataUrl} alt="" /> : <span className="file-icon">📄</span>}
+                <span className="pending-name">{file.filename}</span>
+                <button type="button" aria-label={`Remove ${file.filename}`}
+                        onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== index))}>×</button>
+              </div>
+            ))}
           </div>
         )}
         <form className="composer" onSubmit={handleSubmit}>
@@ -306,42 +340,63 @@ export default function App({ initialAgent }) {
             ref={fileInputRef}
             type="file"
             accept={ACCEPTED_FILES}
-            onChange={handleFileChosen}
+            onChange={handleFilesChosen}
+            multiple
             hidden
           />
-          <button
-            type="button"
-            className="attach"
-            onClick={() => fileInputRef.current.click()}
-            title="Attach a picture or document (PDF, TXT, MD, PNG, JPG, WEBP)"
-            aria-label="Attach file"
-          >
-            📎
-          </button>
+          {/* "+": add files, and for Career also "Analyze my CV" */}
+          <div className="plus-menu-wrap" ref={menuRef}>
+            <button type="button" className="icon-button" onClick={() => setMenuOpen((open) => !open)}
+                    title="Add files and more" aria-label="Add files and more" aria-expanded={menuOpen}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+            </button>
+            {menuOpen && (
+              <div className="plus-menu" role="menu">
+                <button type="button" role="menuitem" onClick={pickFiles}>
+                  <span className="plus-menu-icon">📎</span>
+                  <span>Upload files<small>PDF, Word, Excel, PowerPoint, TXT or pictures (up to {MAX_FILES})</small></span>
+                </button>
+                {agent.cvReview && (
+                  <button type="button" role="menuitem" onClick={analyzeCv} disabled={loading}>
+                    <span className="plus-menu-icon">📄</span>
+                    <span>Analyze my CV<small>Upload your CV and get concrete improvements</small></span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           <input
+            className="composer-input"
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder={attachment ? "Ask about your file, or say what to change (e.g. \"restructure my CV\")..."
+            placeholder={attachments.length
+              ? `Ask about your file${attachments.length > 1 ? "s" : ""}, or say what to change (e.g. "restructure my CV")...`
               : agent.placeholder}
             maxLength={1000}
             dir="auto"
             autoFocus
           />
-          {agent.cvReview && (
-            <button type="button" className="attach" onClick={analyzeCv} disabled={loading}
-                    title="Analyze my CV" aria-label="Analyze my CV">
-              📄
+          {callSupported && (
+            <button type="button" className="icon-button" onClick={() => setCalling(true)}
+                    title="Talk to the assistant by voice" aria-label="Start a voice call">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="9" y="3" width="6" height="11" rx="3" />
+                <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+              </svg>
             </button>
           )}
           {/* Different keys make these two separate buttons. With one shared button, a
               click on Stop turned it back into Send during the click, and the browser
-              then sent the question again. */}
+              then sent the question again. Send only appears once there is something to send. */}
           {loading ? (
-            <button key="stop" type="button" className="stop-button" onClick={stop} title="Stop and edit your message">
-              ■ Stop
+            <button key="stop" type="button" className="round-button stop-button" onClick={stop}
+                    title="Stop and edit your message" aria-label="Stop">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" /></svg>
             </button>
-          ) : (
-            <button key="send" type="submit" disabled={!input.trim() && !attachment}>Send</button>
+          ) : (input.trim() || attachments.length > 0) && (
+            <button key="send" type="submit" className="round-button send-button" title="Send" aria-label="Send">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" /></svg>
+            </button>
           )}
         </form>
       </footer>
