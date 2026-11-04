@@ -361,7 +361,13 @@ with a CV attached still goes to the fine-tuned CV model (`giu-cv`, v6). It answ
 then a **CV ANALYSIS** (rating, what it changed, what to improve; "تحليل الـ CV" in Arabic). The
 CV becomes a **PDF** (View / Download) and an editable **Word** file (`app/documents/cv_file.py`);
 the analysis is the chat message. The checks against the original CV (invented links, dates and
-numbers, GIU written into another university's CV) run on the CV part only. The PDF is
+numbers, GIU written into another university's CV) run on the CV part only. The analysis is then
+checked against that CV (`app/documents/cv_analysis.py`): strengths it does not support (profile
+links, skill levels, measurable results) are removed, a missing LinkedIn link is added to "Most
+important to improve", and the rating is computed in code from a fixed rubric (phone, links,
+summary, target role, education dates, experience, numbers, projects, skills, languages, extra
+sections). For a 1-page target the PDF may use slightly tighter spacing (text stays at least
+10pt); a section heading always stays with its content. The PDF is
 ATS-friendly (selectable text, one column, standard headings, no tables or pictures; body 10.5pt,
 headings 13pt, as many pages as the content needs). Arabic CVs come back in Arabic and are laid out
 right to left, in Tahoma when the system has it (its text reads back correctly), otherwise in

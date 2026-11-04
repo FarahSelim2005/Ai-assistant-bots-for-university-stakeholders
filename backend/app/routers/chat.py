@@ -31,7 +31,8 @@ from app.attachments import combine_attachments, read_attachment
 from app.campus import BUILDINGS
 from app.db import get_connection
 from app.documents import storage
-from app.documents.cv_file import cv_docx, cv_pdf, docx_to_cv_text, is_arabic, is_restructured_cv, split_cv
+from app.documents.cv_file import (cv_docx, cv_pdf, docx_to_cv_text, is_arabic, is_one_page_target,
+                                   is_restructured_cv, split_cv)
 from app.agents.internship_career import CV_REWRITE_WORDS
 from app.documents.editor import is_edit_request, is_pdf_request
 from app.documents.formats import EDITABLE_TYPES, check_file, document_pdf
@@ -225,7 +226,7 @@ def cv_files(response: AgentResponse, filename: str) -> Outcome:
     cv, analysis = split_cv(response.answer)
     message = analysis or ("ده الـ CV بعد الترتيب." if is_arabic(cv) else "Here is your restructured CV.")
     return Outcome(replace(response, answer=message), new_document=f"{stem}.pdf", cv=True, files=[
-        (cv_pdf(cv), ".pdf", f"{stem}_restructured.pdf"),
+        (cv_pdf(cv, one_page=is_one_page_target(analysis)), ".pdf", f"{stem}_restructured.pdf"),
         (cv_docx(cv), ".docx", f"{stem}_restructured.docx"),
     ])
 

@@ -99,7 +99,11 @@ def blocks(answer: str) -> list[tuple[str, str]]:
 HEADING_COLOUR = 0x9E1116   # section headings are red in the PDF (see the CSS below)
 PAGE = pymupdf.paper_rect("a4")
 TEXT_AREA = PAGE + (50, 45, -50, -45)
-KEEP_WITH_NEXT = 45  # points: a heading needs about three lines of room below it on its page
+# Layouts tried for a 1-page target, in order: (body pt, heading pt, spacing factor). Only the
+# spacing and headings get a little smaller; the text never goes below 10pt.
+LEVELS = [(10.5, 13, 1.0), (10.5, 12.5, 0.75), (10, 12, 0.55)]
+# "Target length: 1 page" in the CV ANALYSIS (students and fresh graduates); not "1-2 pages"
+ONE_PAGE_TARGET = re.compile(r"(?:target length|الطول)[^\n]*?(?:\b1 page\b|\bone page\b|صفحة واحدة|صفحه واحده)", re.IGNORECASE)
 # Arabic CVs use Tahoma when the system has it (Windows): its letters keep their text in the
 # PDF, so the CV can be copied and read by ATS software. MuPDF's built-in Arabic font (the
 # fallback) looks fine, but its forms of "ل" come out as other characters when read back.
@@ -110,12 +114,30 @@ ARABIC_FONT = ("tahoma.ttf", "tahomabd.ttf")
 LATIN_CLOSING_BRACKET = re.compile(r"(?<=[A-Za-z0-9.])([)\]])")
 
 
-def cv_pdf(answer: str) -> bytes:
-    """A clean A4 PDF of the CV. A section heading is never left alone at the bottom of a
-    page: if one lands there, the PDF is laid out again with a page break before it."""
+def is_one_page_target(analysis: str) -> bool:
+    return bool(ONE_PAGE_TARGET.search(analysis))
+
+
+def cv_pdf(answer: str, one_page: bool = False) -> bytes:
+    """A clean A4 PDF of the CV; its page count follows the content. For a 1-page target
+    (`one_page`), a CV that runs over one page is laid out again with slightly less spacing;
+    if even the tightest layout needs more pages, the normal layout is kept."""
+    normal = None
+    for level in range(len(LEVELS) if one_page else 1):
+        pdf = keep_headings_with_content(answer, level)
+        normal = normal or pdf
+        with pymupdf.open(stream=pdf, filetype="pdf") as document:
+            if document.page_count == 1:
+                return pdf
+    return normal
+
+
+def keep_headings_with_content(answer: str, level: int) -> bytes:
+    """The CV laid out so no section heading is cut off from its content: a heading left at
+    the bottom of a page gets a page break before it, and the PDF is laid out again."""
     breaks: set[int] = set()
     for _ in range(4):  # each pass moves the headings that ended up at a page bottom
-        pdf = render_cv(answer, breaks)
+        pdf = render_cv(answer, breaks, level)
         stranded = stranded_headings(pdf)
         if not stranded - breaks:
             return pdf
@@ -124,20 +146,35 @@ def cv_pdf(answer: str) -> bytes:
 
 
 def stranded_headings(pdf: bytes) -> set[int]:
-    """Numbers (0, 1, ... in order) of the section headings with too little room below them."""
-    stranded, number = set(), 0
+    """Numbers (0, 1, ... in order) of the section headings cut off from their content: fewer
+    than two of the section's lines (or all of a one-line section) follow on the heading's
+    page. A small section that fits below its heading is not moved."""
+    rows = []  # (page, is it a heading) for each printed line, in order
     with pymupdf.open(stream=pdf, filetype="pdf") as document:
-        for page in document:
+        for number, page in enumerate(document):
+            seen = set()  # a right-to-left line can come back as several pieces at the same height
             for block in page.get_text("dict")["blocks"]:
                 for line in block.get("lines", []):
-                    if any(span["color"] == HEADING_COLOUR and span["text"].strip() for span in line["spans"]):
-                        if line["bbox"][3] > TEXT_AREA.y1 - KEEP_WITH_NEXT:
-                            stranded.add(number)
-                        number += 1
+                    spans = [span for span in line["spans"] if span["text"].strip()]
+                    if spans and (top := round(line["bbox"][1])) not in seen:
+                        seen.add(top)
+                        rows.append((number, any(span["color"] == HEADING_COLOUR for span in spans)))
+    stranded, heading = set(), 0
+    for index, (page, is_heading) in enumerate(rows):
+        if not is_heading:
+            continue
+        section = []
+        for row in rows[index + 1:]:
+            if row[1]:
+                break
+            section.append(row)
+        if sum(row[0] == page for row in section) < min(2, len(section)):
+            stranded.add(heading)
+        heading += 1
     return stranded
 
 
-def render_cv(answer: str, breaks: set[int]) -> bytes:
+def render_cv(answer: str, breaks: set[int], level: int = 0) -> bytes:
     """The CV laid out on A4 pages (PyMuPDF's Story: simple HTML); headings whose number is
     in `breaks` start a new page. Arabic CVs are right to left: MuPDF then aligns right and
     orders mixed lines itself (emails, phone numbers and English terms stay readable)."""
@@ -171,13 +208,15 @@ def render_cv(answer: str, breaks: set[int]) -> bytes:
                f"@font-face {{ font-family: cvfont; font-weight: bold; src: url({bold}); }}"
                "body { font-family: cvfont; }")
         archive = pymupdf.Archive(str(SYSTEM_FONTS))
-    # Readable sizes (body 10.5pt, headings 13pt) and normal spacing; the page count follows the content
-    css += ("body { font-size: 10.5pt; color: #222; }"
-           "h1 { font-size: 20pt; margin: 0 0 3pt 0; }"
-           "p.contact { color: #555; margin: 0 0 2pt 0; }"
-           "h2 { font-size: 13pt; color: #9e1116; margin: 14pt 0 4pt 0; border-bottom: 1px solid #bbb; }"
-           "p { margin: 3pt 0; } p.entry { font-weight: bold; margin-top: 8pt; }"
-           f"p.bullet {{ margin: 2pt 0; margin-{side}: 14pt; text-indent: -10pt; }}")
+    # Readable sizes (body 10.5pt, headings 13pt) and normal spacing; a 1-page target may use
+    # a tighter level (LEVELS): less space between lines and sections, text never under 10pt
+    body, h2, s = LEVELS[level]
+    css += (f"body {{ font-size: {body}pt; color: #222; }}"
+            f"h1 {{ font-size: 20pt; margin: 0 0 {3 * s:.1f}pt 0; }}"
+            f"p.contact {{ color: #555; margin: 0 0 {2 * s:.1f}pt 0; }}"
+            f"h2 {{ font-size: {h2}pt; color: #9e1116; margin: {14 * s:.1f}pt 0 {4 * s:.1f}pt 0; border-bottom: 1px solid #bbb; }}"
+            f"p {{ margin: {3 * s:.1f}pt 0; }} p.entry {{ font-weight: bold; margin-top: {8 * s:.1f}pt; }}"
+            f"p.bullet {{ margin: {2 * s:.1f}pt 0; margin-{side}: 14pt; text-indent: -10pt; }}")
     # With dir="rtl" MuPDF already aligns right ("text-align: right" would flip it to the left)
     story = pymupdf.Story(html=f'<body dir="{"rtl" if rtl else "ltr"}">{"".join(parts)}</body>', user_css=css, archive=archive)
     out = io.BytesIO()

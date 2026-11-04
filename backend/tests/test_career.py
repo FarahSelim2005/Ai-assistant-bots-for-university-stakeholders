@@ -103,14 +103,15 @@ class CvAnalysis(unittest.TestCase):
         self.assertEqual(split_cv("Template: Student\nOmar\n\nWhat I changed:\n- x")[1], "What I changed:\n- x")  # older models
 
     def test_checks_only_change_the_cv(self):
-        # The analysis has numbers that are not in the CV ("6/10", "2 projects"): they stay
+        # The analysis has numbers that are not in the CV ("2 projects"): they stay (its rating
+        # is computed again from the CV, see AnalysisCheck)
         import app.agents.internship_career as career_module
         answer = f"Template: Student\n{ENGLISH_CV}\n- Led 87 people\n\n{ENGLISH_ANALYSIS}"
         attachment = Attachment("cv.txt", text=ENGLISH_CV)
         with mock.patch.object(career_module, "chat_with_backup", return_value=answer):
             result = AGENTS["internship_career"].generate("fix my cv", [], [], attachment)
         self.assertIn("- Led [add the number] people", result)  # invented in the CV: replaced
-        self.assertTrue(result.endswith(ENGLISH_ANALYSIS))
+        self.assertTrue(result.endswith("Most important to improve:\n1. Add 2 projects\n2. Add a link to your LinkedIn profile."))
 
     def test_pdf_has_the_cv_and_the_chat_has_the_analysis(self):
         import pymupdf
@@ -159,6 +160,92 @@ class CvAnalysis(unittest.TestCase):
         self.assertIn(10.5, sizes)                            # body text 10.5pt
         self.assertIn(13.0, sizes)                            # section headings 13pt
         self.assertIn("EXPERIENCE", page.get_text())
+
+
+NO_LINKEDIN_CV = "\n".join([
+    "Template: Student", "Omar Khalil", "Business Student", "Cairo | omar@gmail.com | +20 111 222 3333", "",
+    "SUMMARY", "Business student at Cairo University.", "[add the role or internship you are looking for]", "",
+    "EDUCATION", "CAIRO UNIVERSITY, 2021 - 2025", "B.Com. Business Administration", "",
+    "EXPERIENCE", "SALES INTERN, Jul 2024 - Sep 2024", "Khatwa, Cairo", "- Helped customers in the store",
+    "CASHIER, 2 years", "Store, Cairo", "- [add details about what you did]", "",
+    "SKILLS", "- Excel", "- Communication", "- Teamwork", "", "LANGUAGE", "- Arabic - Native"])
+OVERPRAISING_ANALYSIS = "\n".join([
+    "CV ANALYSIS", "Rating: 8/10 - Strong CV", "Target length: 1 page", "What I changed:", "- Reordered sections",
+    "Strengths:", "- Clear contact details with LinkedIn and GitHub links", "- Skills listed with levels",
+    "- Experience bullets show measurable results", "- Clear education section with dates",
+    "Most important to improve:", "1. Add details to your cashier role", "2. State the role you are looking for",
+    "Section by section:", "- Summary: short"])
+
+
+class AnalysisCheck(unittest.TestCase):
+    """The CV ANALYSIS is corrected against the CV it describes (no model is called)."""
+
+    def test_cv_without_linkedin(self):
+        from app.documents.cv_analysis import check_analysis
+        self.assertEqual(check_analysis(OVERPRAISING_ANALYSIS, NO_LINKEDIN_CV), "\n".join([
+            "CV ANALYSIS", "Rating: 5/10 - Needs work", "Target length: 1 page", "What I changed:", "- Reordered sections",
+            "Strengths:", "- Clear education section with dates",  # links, levels and numbers: not in the CV
+            "Most important to improve:", "1. Add details to your cashier role", "2. State the role you are looking for",
+            "3. Add a link to your LinkedIn profile.",
+            "Section by section:", "- Summary: short"]))
+
+    def test_rubric(self):
+        from app.documents.cv_analysis import rate_cv
+        # phone 1, summary 0.5, education dates 1, one role with bullets 1.5, 3 skills 0.5,
+        # a language 0.5, minus 0.5 for a role without details
+        self.assertEqual(rate_cv(NO_LINKEDIN_CV), 4.5)
+        full = NO_LINKEDIN_CV.replace("Cairo | omar@gmail.com", "Cairo | omar@gmail.com | linkedin.com/in/omar") \
+            .replace("[add the role or internship you are looking for]", "Looking for a sales internship.") \
+            .replace("- [add details about what you did]", "- Served 80 customers a day") \
+            .replace("- Teamwork", "- Teamwork\n- SQL\n- Power BI\n- Python") \
+            + "\n\nPROJECTS\nShop Dashboard\n- Built a sales dashboard\n\nCERTIFICATIONS\n- Google Data Analytics"
+        self.assertEqual(rate_cv(full), 10)
+
+    def test_supported_strengths_stay_and_arabic_verdict(self):
+        from app.documents.cv_analysis import check_analysis
+        cv = NO_LINKEDIN_CV.replace("Cairo | omar@gmail.com", "Cairo | omar@gmail.com | linkedin.com/in/omar") \
+            .replace("- Excel", "- Excel (Advanced)").replace("in the store", "in the store, 40 a day")
+        analysis = "\n".join(["تحليل الـ CV", "التقييم: 9/10 - ممتاز", "نقاط القوة:", "- فيه لينك LinkedIn",
+                              "- المهارات ليها مستوى", "- أرقام في الخبرات", "أهم حاجات محتاجة تتحسن:", "1. ضيف مشاريع"])
+        checked = check_analysis(analysis, cv)
+        self.assertEqual(checked, analysis.replace("9/10 - ممتاز", "7/10 - CV كويس بس فيه شوية حاجات ناقصة"))
+
+
+class PdfLayout(unittest.TestCase):
+    @staticmethod
+    def cv_with(bullets, extra_line=False):
+        lines = ["Template: Student", "Omar Khalil", "Business Student", "Cairo | omar@gmail.com", "",
+                 "EXPERIENCE", "SALES INTERN, 2024 - 2025", "Khatwa, Cairo"]
+        lines += [f"- Did task number {i}" for i in range(bullets)] + (["Store, Cairo"] if extra_line else [])
+        return "\n".join(lines + ["", "REFERENCES", "Available upon request"])
+
+    def test_a_small_section_that_fits_is_not_moved(self):
+        import pymupdf
+        from app.documents.cv_file import TEXT_AREA, cv_pdf, render_cv
+
+        def place(pdf, text):
+            with pymupdf.open(stream=pdf, filetype="pdf") as document:
+                return next((n, rect) for n, page in enumerate(document) for rect in page.search_for(text))
+        # REFERENCES close to the page bottom with its one line still below it on the same page
+        cv = next(cv for n in range(30, 60) for extra in (False, True) if (cv := self.cv_with(n, extra))
+                  and (heading := place(render_cv(cv, set()), "REFERENCES"))[1].y1 > TEXT_AREA.y1 - 45
+                  and place(render_cv(cv, set()), "Available upon request")[0] == heading[0] == 0)
+        self.assertEqual(place(cv_pdf(cv), "REFERENCES")[0], 0)  # still on page 1
+
+    def test_one_page_target_tightens_spacing_but_not_text(self):
+        import pymupdf
+        from app.documents.cv_file import cv_pdf, is_one_page_target, render_cv
+        pages = lambda pdf: pymupdf.open(stream=pdf, filetype="pdf").page_count
+        # just over one page in the normal layout, one page in the tightest one
+        cv = next(cv for n in range(30, 70) if (cv := self.cv_with(n))
+                  and pages(render_cv(cv, set())) == 2 and pages(render_cv(cv, set(), 2)) == 1)
+        self.assertEqual(pages(cv_pdf(cv)), 2)                 # no 1-page target: normal layout
+        tight = pymupdf.open(stream=cv_pdf(cv, one_page=True), filetype="pdf")
+        self.assertEqual(tight.page_count, 1)
+        self.assertGreaterEqual(min(span["size"] for block in tight[0].get_text("dict")["blocks"]
+                                    for line in block["lines"] for span in line["spans"]), 10)
+        self.assertTrue(is_one_page_target("Target length: 1 page"))
+        self.assertFalse(is_one_page_target("Target length: 1-2 pages"))
 
 
 class PdfAndCvRouting(unittest.TestCase):
