@@ -363,7 +363,9 @@ CV becomes a **PDF** (View / Download) and an editable **Word** file (`app/docum
 the analysis is the chat message. The checks against the original CV (invented links, dates and
 numbers, GIU written into another university's CV) run on the CV part only. The analysis is then
 checked against that CV (`app/documents/cv_analysis.py`): strengths it does not support (profile
-links, skill levels, measurable results) are removed, a missing LinkedIn link is added to "Most
+links, skill levels, measurable results) are removed, advice it does not need is removed ("Add
+2-3 bullets ..." when no role lacks details, "Add more skills ..." with 6 or more skills), a
+missing LinkedIn link and, with no job yet, a first internship or part-time job are added to "Most
 important to improve", and the rating is computed in code from a fixed rubric (phone, links,
 summary, target role, education dates, experience, numbers, projects, skills, languages, extra
 sections). For a 1-page target the PDF may use slightly tighter spacing (text stays at least

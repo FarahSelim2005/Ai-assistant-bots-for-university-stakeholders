@@ -211,6 +211,47 @@ class AnalysisCheck(unittest.TestCase):
         self.assertEqual(checked, analysis.replace("9/10 - ممتاز", "7/10 - CV كويس بس فيه شوية حاجات ناقصة"))
 
 
+    def test_advice_for_a_cv_with_projects_but_no_job(self):
+        from app.documents.cv_analysis import check_analysis
+        cv = "\n".join([
+            "Template: Student", "Nour Adel", "Computer Science Student", "Cairo | nour@gmail.com | github.com/nour", "",
+            "EDUCATION", "CAIRO UNIVERSITY, 2022 - Present", "B.Sc. Computer Science", "",
+            "EXPERIENCE", "[add an internship, part-time job, project or volunteering role]", "",
+            "PROJECTS", "Chat App, 2024", "- Built a chat app used by 50 students", "",
+            "SKILLS", "- Python", "- Java", "- SQL", "- Git", "- React", "- Teamwork"])
+        analysis = "\n".join([
+            "CV ANALYSIS", "Rating: 3/10 - Needs a lot of work", "Most important to improve:",
+            "1. Add 2-3 bullets about what you did as Intern.", "2. Add more skills that match the jobs you want.",
+            "3. Add a link to your LinkedIn profile.", "Section by section:", "- Skills: a short list; add more."])
+        checked = check_analysis(analysis, cv).splitlines()
+        self.assertEqual(checked[2:], [
+            "Most important to improve:",
+            "1. Add a link to your LinkedIn profile.",  # no "[add details ...]" and 6 skills: the others go
+            "2. Add an internship or part-time job when you can; until then, your projects carry your CV.",
+            "Section by section:", "- Skills: a good range."])
+
+    def test_advice_the_cv_still_needs_stays(self):
+        from app.documents.cv_analysis import check_analysis
+        analysis = "\n".join([
+            "CV ANALYSIS", "Rating: 5/10 - Needs work", "Most important to improve:",
+            "1. Add 2-3 bullets about what you did as Cashier.", "2. Add more skills that match the jobs you want.",
+            "Section by section:", "- Skills: a short list; add more."])
+        # NO_LINKEDIN_CV has "[add details about what you did]", 3 skills and two jobs
+        self.assertEqual(check_analysis(analysis, NO_LINKEDIN_CV), analysis.replace(
+            "you want.", "you want.\n3. Add a link to your LinkedIn profile."))
+
+    def test_arabic_advice_for_a_cv_without_a_job(self):
+        from app.documents.cv_analysis import check_analysis
+        cv = "\n".join(["Template: Student", "نور عادل", "القاهرة | nour@gmail.com | linkedin.com/in/nour", "",
+                        "الخبرات العملية", "[add an internship, part-time job, project or volunteering role]", "",
+                        "المشاريع", "تطبيق شات، 2024", "- بنيت تطبيق شات"])
+        analysis = "\n".join(["تحليل الـ CV", "التقييم: 4/10 - محتاج شغل", "أهم حاجات محتاجة تتحسن:",
+                              "1. ضيف 2-3 bullets عن اللي عملته في التدريب.", "2. ضيف أرقام للمشاريع."])
+        self.assertEqual(check_analysis(analysis, cv).splitlines()[2:], [
+            "أهم حاجات محتاجة تتحسن:", "1. ضيف أرقام للمشاريع.",
+            "2. ضيف تدريب أو شغل part-time لما تقدر، ولحد ساعتها المشاريع هي اللي شايلة الـ CV."])
+
+
 class PdfLayout(unittest.TestCase):
     @staticmethod
     def cv_with(bullets, extra_line=False):
