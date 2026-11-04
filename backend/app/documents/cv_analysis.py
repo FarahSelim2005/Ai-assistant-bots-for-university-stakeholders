@@ -6,7 +6,10 @@ analysis is corrected in code:
 - strengths the CV does not support are removed;
 - advice it does not need is removed: "Add 2-3 bullets about ..." when every role has its
   bullets, "Add more skills ..." when it lists 6 or more skills (and "Skills: a short list;
-  add more." becomes "Skills: a good range.");
+  add more." becomes "Skills: a good range."), "Say in your summary which role ..." when the
+  summary already says it;
+- "Section by section" lines are corrected: the Summary line when the target role is stated,
+  the Experience line when there is no role yet ("no internship or job yet");
 - missing advice is added: a LinkedIn link, and a first internship or job when there is none;
 - the rating is computed again with a fixed rubric (rate_cv).
 """
@@ -53,7 +56,14 @@ ABOUT_LINKEDIN = re.compile(r"linkedin|لينكد", re.IGNORECASE)
 ABOUT_MISSING_BULLETS = re.compile(r"(?:add|ضيف)\s+2\s*[-–]\s*3\s+bullets", re.IGNORECASE)  # "Add 2-3 bullets about ..."
 ABOUT_MORE_SKILLS = re.compile(r"add more skills that match the jobs you want", re.IGNORECASE)
 ABOUT_JOB = re.compile(r"internship or part-time job|تدريب أو شغل part-time", re.IGNORECASE)
+ABOUT_TARGET_ROLE = re.compile(r"which role or internship you are looking for|الوظيفة أو التدريب اللي بتدور عليه", re.IGNORECASE)
+NO_TARGET_ROLE = "[add the role or internship you are looking for]"
+# "Section by section" lines (prefix: "- " or "1. ")
 SHORT_SKILLS = re.compile(r"^(?P<prefix>[^\w\n]*)Skills: a short list; add more\.?[ \t]*$", re.MULTILINE | re.IGNORECASE)
+SUMMARY_LINE = re.compile(r"^(?P<prefix>[^\w\n]*)Summary:.*$", re.MULTILINE | re.IGNORECASE)
+EXPERIENCE_LINE = {"en": re.compile(r"^(?P<prefix>[^\w\n]*)(?:Work )?Experience:.*$", re.MULTILINE | re.IGNORECASE),
+                   "ar": re.compile(r"^(?P<prefix>[^\w\n]*)(?:الخبرات|الخبرة)(?: العملية)?:.*$", re.MULTILINE)}
+NO_JOB_YET = {"en": "Experience: no internship or job yet.", "ar": "الخبرات: لسه مفيش تدريب أو شغل."}
 ADD_JOB = {"en": "Add an internship or part-time job when you can; until then, your projects carry your CV.",
            "ar": "ضيف تدريب أو شغل part-time لما تقدر، ولحد ساعتها المشاريع هي اللي شايلة الـ CV."}
 ADD_LINKEDIN = {"en": "Add a link to your LinkedIn profile.", "ar": "ضيف لينك بروفايل الـ LinkedIn بتاعك."}
@@ -158,6 +168,8 @@ def check_analysis(analysis: str, cv: str) -> str:
         not_needed.append(ABOUT_MISSING_BULLETS)  # every role already has its bullets
     if many_skills:
         not_needed.append(ABOUT_MORE_SKILLS)
+    if NO_TARGET_ROLE not in cv:
+        not_needed.append(ABOUT_TARGET_ROLE)  # the summary already says what they are looking for
     lines = analysis.splitlines()
     lines = remove_items(lines, STRENGTHS, unsupported, "strengths not supported by the CV")
     lines = remove_items(lines, TO_IMPROVE, not_needed, "advice the CV does not need")
@@ -166,8 +178,13 @@ def check_analysis(analysis: str, cv: str) -> str:
     if not has_job:
         lines = add_to_improve(lines, ADD_JOB[language], language, ABOUT_JOB)
     analysis = "\n".join(lines)
-    if many_skills:  # "Section by section": the skills line said the list was short
+    # "Section by section" lines that must match the CV
+    if many_skills:  # the skills line said the list was short
         analysis = SHORT_SKILLS.sub(lambda m: f"{m['prefix']}Skills: a good range.", analysis)
+    if NO_TARGET_ROLE not in cv:
+        analysis = SUMMARY_LINE.sub(lambda m: f"{m['prefix']}Summary: clear, and says what you are looking for.", analysis)
+    if not has_job:  # not "some roles have no description yet": there is no role
+        analysis = EXPERIENCE_LINE[language].sub(lambda m: f"{m['prefix']}{NO_JOB_YET[language]}", analysis)
 
     rating = max(0, min(10, math.floor(rate_cv(cv) + 0.5)))  # rounded half up
     verdict = next(v for v in VERDICTS if rating >= v[0])[1 if language == "en" else 2]
