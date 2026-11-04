@@ -247,6 +247,20 @@ class AnalysisCheck(unittest.TestCase):
         self.assertEqual(check_analysis(analysis, NO_LINKEDIN_CV), analysis.replace(
             "looking for.\n", "looking for.\n4. Add a link to your LinkedIn profile.\n"))
 
+    def test_personal_details_advice_only_when_some_were_removed(self):
+        from app.documents.cv_analysis import check_analysis
+        advice = {"en": "1. Keep personal details and hobbies out of your CV.",
+                  "ar": "1. خلي البيانات الشخصية والهوايات برا الـ CV."}
+        for language, changed, removed_note, improve in [
+                ("en", "What I changed:", "- Removed personal details / hobbies", "Most important to improve:"),
+                ("ar", "ما غيرته:", "- شيلت البيانات الشخصية والهوايات", "أهم حاجات محتاجة تتحسن:")]:
+            for notes, kept in [(["- Reordered sections", removed_note], True), (["- Reordered sections"], False)]:
+                analysis = "\n".join([changed, *notes, improve, advice[language], "2. Add numbers."])
+                checked = check_analysis(analysis, NO_LINKEDIN_CV)
+                self.assertEqual(advice[language] in checked, kept, (language, notes))
+                if not kept:
+                    self.assertIn("\n1. Add numbers.", checked)  # numbered again
+
     def test_arabic_advice_for_a_cv_without_a_job(self):
         from app.documents.cv_analysis import check_analysis
         cv = "\n".join(["Template: Student", "نور عادل", "القاهرة | nour@gmail.com | linkedin.com/in/nour", "",

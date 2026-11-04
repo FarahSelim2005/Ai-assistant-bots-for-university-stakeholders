@@ -365,7 +365,8 @@ numbers, GIU written into another university's CV) run on the CV part only. The 
 checked against that CV (`app/documents/cv_analysis.py`): strengths it does not support (profile
 links, skill levels, measurable results) are removed, advice it does not need is removed ("Add
 2-3 bullets ..." when no role lacks details, "Add more skills ..." with 6 or more skills, "Say in
-your summary which role ..." when the summary says it), the Summary, Skills and Experience lines
+your summary which role ..." when the summary says it, "Keep personal details and hobbies out ..."
+unless "What I changed" says some were removed), the Summary, Skills and Experience lines
 of "Section by section" are corrected to match the CV ("no internship or job yet"), a
 missing LinkedIn link and, with no job yet, a first internship or part-time job are added to "Most
 important to improve", and the rating is computed in code from a fixed rubric (phone, links,

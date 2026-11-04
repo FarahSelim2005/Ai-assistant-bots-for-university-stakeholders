@@ -7,7 +7,8 @@ analysis is corrected in code:
 - advice it does not need is removed: "Add 2-3 bullets about ..." when every role has its
   bullets, "Add more skills ..." when it lists 6 or more skills (and "Skills: a short list;
   add more." becomes "Skills: a good range."), "Say in your summary which role ..." when the
-  summary already says it;
+  summary already says it, "Keep personal details and hobbies out ..." unless "What I changed"
+  says some were removed;
 - "Section by section" lines are corrected: the Summary line when the target role is stated,
   the Experience line when there is no role yet ("no internship or job yet");
 - missing advice is added: a LinkedIn link, and a first internship or job when there is none;
@@ -43,6 +44,7 @@ YEAR = re.compile(r"\d{4}")
 
 # Lines of the analysis
 RATING = re.compile(r"^(?P<label>[^\n:]{0,40}:\s*)\d+(?:\.\d+)?\s*/\s*10\b.*$", re.MULTILINE)
+WHAT_I_CHANGED = re.compile(r"^\W*(?:what i changed|ما غيرته|اللي غيرته)", re.IGNORECASE)
 STRENGTHS = re.compile(r"^\W*(?:strengths|نقاط القوة|نقط القوة|المميزات|مميزات)", re.IGNORECASE)
 TO_IMPROVE = re.compile(r"^\W*(?:most important to improve|أهم)", re.IGNORECASE)
 LABEL = re.compile(r"^[^\s\-•*\d][^:\n]{0,50}:")            # "Section by section:", "Rating: ..."
@@ -57,7 +59,12 @@ ABOUT_MISSING_BULLETS = re.compile(r"(?:add|ضيف)\s+2\s*[-–]\s*3\s+bullets",
 ABOUT_MORE_SKILLS = re.compile(r"add more skills that match the jobs you want", re.IGNORECASE)
 ABOUT_JOB = re.compile(r"internship or part-time job|تدريب أو شغل part-time", re.IGNORECASE)
 ABOUT_TARGET_ROLE = re.compile(r"which role or internship you are looking for|الوظيفة أو التدريب اللي بتدور عليه", re.IGNORECASE)
-NO_TARGET_ROLE = "[add the role or internship you are looking for]"
+ABOUT_PERSONAL_DETAILS = re.compile(r"personal details and hobbies out|البيانات الشخصية والهوايات برا", re.IGNORECASE)
+# A "What I changed" note saying personal details or hobbies were taken out
+PERSONAL_DETAILS = re.compile(r"personal|hobb|interests|date of birth|nationality|marital|military|"
+                              r"البيانات الشخصية|الهوايات|هوايات|تاريخ الميلاد|الجنسية|الحالة الاجتماعية|التجنيد",
+                              re.IGNORECASE)
+NO_TARGET_ROLE ="[add the role or internship you are looking for]"
 # "Section by section" lines (prefix: "- " or "1. ")
 SHORT_SKILLS = re.compile(r"^(?P<prefix>[^\w\n]*)Skills: a short list; add more\.?[ \t]*$", re.MULTILINE | re.IGNORECASE)
 SUMMARY_LINE = re.compile(r"^(?P<prefix>[^\w\n]*)Summary:.*$", re.MULTILINE | re.IGNORECASE)
@@ -170,6 +177,8 @@ def check_analysis(analysis: str, cv: str) -> str:
         not_needed.append(ABOUT_MORE_SKILLS)
     if NO_TARGET_ROLE not in cv:
         not_needed.append(ABOUT_TARGET_ROLE)  # the summary already says what they are looking for
+    if not PERSONAL_DETAILS.search(list_text(analysis.splitlines(), WHAT_I_CHANGED)):
+        not_needed.append(ABOUT_PERSONAL_DETAILS)  # the CV had none to take out
     lines = analysis.splitlines()
     lines = remove_items(lines, STRENGTHS, unsupported, "strengths not supported by the CV")
     lines = remove_items(lines, TO_IMPROVE, not_needed, "advice the CV does not need")
@@ -203,6 +212,12 @@ def block_end(lines: list[str], start: int) -> int:
     while end > start + 1 and not lines[end - 1].strip():  # blank lines belong to the next part
         end -= 1
     return end
+
+
+def list_text(lines: list[str], label_pattern: re.Pattern) -> str:
+    """The text of the list under the label `label_pattern` ("" if there is none)."""
+    start = next((i for i, line in enumerate(lines) if label_pattern.match(line)), None)
+    return "" if start is None else "\n".join(lines[start:block_end(lines, start)])
 
 
 def remove_items(lines: list[str], label_pattern: re.Pattern, topics: list[re.Pattern], what: str) -> list[str]:
