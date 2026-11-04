@@ -4,8 +4,9 @@ The message is handled in one of three ways, decided automatically:
 - a request to change an attached file ("restructure my CV", "translate this report") or
   the chat's open document ("now make it shorter"): the document editor edits it, and the
   answer comes with the file to view and download;
-- a CV restructure in the Internship & Career agent: the fine-tuned CV model answers as
-  before, and its CV is also made into a PDF (and a Word file) to view and download;
+- a CV restructure in the Internship & Career agent: the fine-tuned CV model rewrites the CV;
+  the CV becomes a PDF (and a Word file) to view and download, and its CV ANALYSIS (rating,
+  changes, what to improve) is the chat message;
 - anything else, including questions about an attached file: the agent answers.
 Several files sent together are only asked about ("compare these"); they are read as one
 attachment. Files are edited, converted or restructured one at a time.
@@ -17,7 +18,7 @@ does not appear in the conversation history (and does not affect follow-up quest
 import base64
 import binascii
 import re
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -30,7 +31,7 @@ from app.attachments import combine_attachments, read_attachment
 from app.campus import BUILDINGS
 from app.db import get_connection
 from app.documents import storage
-from app.documents.cv_file import cv_docx, cv_pdf, docx_to_cv_text, is_restructured_cv
+from app.documents.cv_file import cv_docx, cv_pdf, docx_to_cv_text, is_arabic, is_restructured_cv, split_cv
 from app.agents.internship_career import CV_REWRITE_WORDS
 from app.documents.editor import is_edit_request, is_pdf_request
 from app.documents.formats import EDITABLE_TYPES, check_file, document_pdf
@@ -218,11 +219,14 @@ LAYOUT_NOTE = {
 
 
 def cv_files(response: AgentResponse, filename: str) -> Outcome:
-    """The restructured CV as a PDF (to view and download) and a Word file (to change)."""
+    """The restructured CV as a PDF (to view and download) and a Word file (to change); the
+    CV ANALYSIS after it is the chat message (a short note if the model wrote none)."""
     stem = storage.safe_name(filename).rsplit(".", 1)[0]
-    return Outcome(response, new_document=f"{stem}.pdf", cv=True, files=[
-        (cv_pdf(response.answer), ".pdf", f"{stem}_restructured.pdf"),
-        (cv_docx(response.answer), ".docx", f"{stem}_restructured.docx"),
+    cv, analysis = split_cv(response.answer)
+    message = analysis or ("ده الـ CV بعد الترتيب." if is_arabic(cv) else "Here is your restructured CV.")
+    return Outcome(replace(response, answer=message), new_document=f"{stem}.pdf", cv=True, files=[
+        (cv_pdf(cv), ".pdf", f"{stem}_restructured.pdf"),
+        (cv_docx(cv), ".docx", f"{stem}_restructured.docx"),
     ])
 
 

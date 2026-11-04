@@ -357,8 +357,15 @@ document: later edit requests (*"now make it shorter"*) change it without upload
 questions are still answered normally; **Close** forgets it.
 
 **CVs in the Internship & Career agent:** *"restructure my CV"* / *"send me this cv restructured"*
-with a CV attached still goes to the fine-tuned CV model (`giu-cv`), and its answer is also made
-into a **PDF** (View / Download) and an editable **Word** file (`app/documents/cv_file.py`). Later
+with a CV attached still goes to the fine-tuned CV model (`giu-cv`, v6). It answers with the CV,
+then a **CV ANALYSIS** (rating, what it changed, what to improve; "تحليل الـ CV" in Arabic). The
+CV becomes a **PDF** (View / Download) and an editable **Word** file (`app/documents/cv_file.py`);
+the analysis is the chat message. The checks against the original CV (invented links, dates and
+numbers, GIU written into another university's CV) run on the CV part only. The PDF is
+ATS-friendly (selectable text, one column, standard headings, no tables or pictures; body 10.5pt,
+headings 13pt, as many pages as the content needs). Arabic CVs come back in Arabic and are laid out
+right to left, in Tahoma when the system has it (its text reads back correctly), otherwise in
+MuPDF's built-in Arabic font. Later
 edit requests change the Word version and come back as a new PDF and Word file. A file whose name
 contains cv / resume counts as a CV ("fix this" + cv1.docx). Only CV rewrites use the CV model
 (CAREER_MODEL); other Career questions use the normal models, since the CV model was trained only

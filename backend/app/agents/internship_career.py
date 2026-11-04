@@ -5,8 +5,9 @@ Unlike Labs & Research, it may give general career advice from the model's own k
 
 CV rewrites (a CV attached + "rewrite / fix / template ..."): no document search and no
 history, so the fine-tuned CV model gets exactly its training format; a CV that is a picture
-is first written out as text by the vision model; and years, numbers and links in the answer
-that are not in the CV are replaced by placeholders.
+is first written out as text by the vision model; and years, numbers and links in the
+rewritten CV that are not in the CV are replaced by placeholders. The CV ANALYSIS after the
+CV is not checked: it is the model's own notes.
 """
 import logging
 import re
@@ -14,6 +15,7 @@ import re
 from app import config
 from app.agents.base import AgentResponse, BaseAgent
 from app.attachments import Attachment
+from app.documents.cv_file import split_cv
 from app.llm.client import chat_with_backup
 from app.rag.prompts import CAREER_SYSTEM_PROMPT, ENGLISH_ONLY, build_messages
 
@@ -172,7 +174,8 @@ class InternshipCareerAgent(BaseAgent):
 
     def generate(self, question: str, chunks, history, attachment: Attachment | None = None) -> str:
         """CV rewrites: a picture CV is written out as text first (so the fine-tuned CV model,
-        which reads text, does the rewrite), and the answer is checked against the CV."""
+        which reads text, does the rewrite), and the rewritten CV (not the analysis after it)
+        is checked against the CV."""
         if not is_cv_rewrite(question, attachment):
             return super().generate(question, chunks, history, attachment)
         if attachment.is_image:
@@ -183,8 +186,10 @@ class InternshipCareerAgent(BaseAgent):
         messages[0]["content"] = messages[0]["content"].removesuffix(ENGLISH_ONLY)
         answer = chat_with_backup(messages, [config.CAREER_MODEL, *config.CAREER_BACKUP_MODELS],
                                   self.max_answer_tokens, full_prompt=True)
-        answer = check_against_cv(complete_links(answer, attachment.text), attachment.text)
-        return check_university(answer, attachment.text)
+        cv, analysis = split_cv(answer)
+        cv = check_against_cv(complete_links(cv, attachment.text), attachment.text)
+        cv = check_university(cv, attachment.text)
+        return f"{cv}\n\n{analysis}" if analysis else cv
 
     def transcribe(self, attachment: Attachment) -> str:
         """The text of a picture CV, written out by the vision model (and its backups)."""
