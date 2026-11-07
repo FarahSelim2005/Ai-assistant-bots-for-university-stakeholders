@@ -436,6 +436,28 @@ class AnalysisCheck(unittest.TestCase):
         self.assertIn("عندك مجموعة مهارات كويسة", checked)
         self.assertIn("- المهارات: مجموعة كويسة.", checked)
 
+    def test_too_long_advice_follows_the_pdf_pages(self):
+        from app.documents.cv_analysis import check_length
+        advice = "Your CV is still longer than the target length: remove the items least related to the job you are applying for."
+        def analysis(target, *improve):
+            return "\n".join(["CV ANALYSIS", f"Target length: {target}", "Most important to improve:",
+                              *[f"{n}. {item}" for n, item in enumerate(improve, start=1)]])
+        # the model wrote it, but the PDF fits: removed (and the list renumbered)
+        checked = check_length(analysis("1-2 pages (1-5 years of experience)", "Add numbers.", advice + " Drop the hobbies."), 2)
+        self.assertNotIn("still longer", checked)
+        self.assertIn("1. Add numbers.", checked)
+        # the PDF is too long and the line is missing: added once
+        for target, pages in [("1 page (student / fresh graduate)", 2), ("about 2 pages (5-10 years of experience)", 3),
+                              ("2-3 pages (more than 10 years of experience)", 4)]:
+            checked = check_length(analysis(target, "Add numbers."), pages)
+            self.assertIn(f"2. {advice}", checked)
+            self.assertEqual(check_length(checked, pages), checked)
+        self.assertNotIn("still longer", check_length(analysis("2-3 pages (more than 10 years of experience)", "x"), 3))
+        self.assertNotIn("still longer", check_length(analysis("academic CV (longer is fine)", advice), 6))
+        arabic = "تحليل الـ CV\nالطول المناسب: صفحة واحدة (طالب / خريج جديد)\nأهم حاجات محتاجة تتحسن:\n1. ضيف أرقام."
+        self.assertIn("2. الـ CV لسه أطول من الطول المناسب: شيل الحاجات اللي مالهاش علاقة بالوظيفة اللي بتقدم عليها.",
+                      check_length(arabic, 2))
+
     def test_summary_line_follows_the_summary(self):
         from app.documents.cv_analysis import check_analysis
         analysis = "Most important to improve:\n1. Add numbers.\nSection by section:\n- Summary: clear, and says what you are looking for."

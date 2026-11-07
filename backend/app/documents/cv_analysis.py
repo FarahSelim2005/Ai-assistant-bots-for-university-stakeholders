@@ -26,6 +26,8 @@ analysis is corrected in code:
 - "Write the start and end months for <role> ..." is removed unless that role's dates are only
   a duration ("2 years");
 - the Summary line and its advice follow whether the summary names the role they want;
+- "Your CV is still longer than the target length..." follows the PDF's real page count
+  (check_length, called once the PDF is made);
 - a list left empty gets a general line, so it never shows only its heading;
 - the rating is computed again with a fixed rubric (rate_cv), between 1 and 10.
 The rewritten CV itself is changed in two ways: the role line under the name keeps only the
@@ -119,6 +121,13 @@ TARGET_LENGTHS = [  # (up to this many years, English, Arabic)
     (10, "about 2 pages (5-10 years of experience)", "حوالي صفحتين (من 5 لـ 10 سنين خبرة)"),
     (None, "2-3 pages (more than 10 years of experience)", "من صفحتين لـ 3 صفحات (أكتر من 10 سنين خبرة)"),
 ]
+# Most pages for each target length (the upper limit); an academic CV may be longer
+PAGE_LIMITS = [(re.compile(r"2-3 pages|من صفحتين لـ 3"), 3), (re.compile(r"1-2 pages|من صفحة لصفحتين"), 2),
+               (re.compile(r"about 2 pages|حوالي صفحتين"), 2), (re.compile(r"1 page|صفحة واحدة"), 1)]
+ACADEMIC = re.compile(r"academic|أكاديمي", re.IGNORECASE)
+ABOUT_TOO_LONG = re.compile(r"your cv is still longer than the target length|الـ CV لسه أطول من الطول المناسب", re.IGNORECASE)
+TOO_LONG = {"en": "Your CV is still longer than the target length: remove the items least related to the job you are applying for.",
+            "ar": "الـ CV لسه أطول من الطول المناسب: شيل الحاجات اللي مالهاش علاقة بالوظيفة اللي بتقدم عليها."}
 INTERNSHIP = re.compile(r"\bintern(?:ship)?s?\b|\btrainee\b|متدرب|تدريب", re.IGNORECASE)  # not full-time work
 # The role line under the name: only the job title (or "<major> Student"); cut at a comma,
 # "|", " - ", "(" or " at " (dates or a company the model added)
@@ -465,6 +474,26 @@ def check_analysis(analysis: str, cv: str, condensed: bool = False, original: st
     log.info("CV analysis: rating line added: %s/10 - %s", rating, verdict)
     heading, _, rest = analysis.partition("\n")  # no rating line: add one under the heading
     return f"{heading}\n{RATING_LABEL[language]} {rating}/10 - {verdict}\n{rest}".rstrip()
+
+
+def check_length(analysis: str, pages: int) -> str:
+    """The "Your CV is still longer than the target length..." advice only when the PDF
+    (`pages`) is longer than the upper limit of the Target length line (1 page: 1, 1-2 pages
+    and about 2 pages: 2, 2-3 pages: 3, academic: no limit); added when it is and missing.
+    Runs after the PDF is made, so not in check_analysis."""
+    language = "ar" if ARABIC_LETTERS.search(analysis) else "en"
+    target = TARGET_LINE.search(analysis)
+    value = target.group()[len(target["prefix"]):] if target else ""
+    limit = None if not target or ACADEMIC.search(value) else next(
+        (most for pattern, most in PAGE_LIMITS if pattern.search(value)), None)
+    too_long = limit is not None and pages > limit
+    lines = analysis.splitlines()
+    if not too_long:
+        lines = remove_items(lines, TO_IMPROVE, [ABOUT_TOO_LONG], f"advice for a long CV ({pages} page(s), limit {limit})")
+        lines = fill_if_empty(lines, TO_IMPROVE, f"1. {NO_IMPROVEMENTS[language]}")
+    else:
+        lines = add_to_improve(lines, TOO_LONG[language], language, ABOUT_TOO_LONG)
+    return "\n".join(lines)
 
 
 def replace_line(analysis: str, pattern: re.Pattern, new: str) -> str:
