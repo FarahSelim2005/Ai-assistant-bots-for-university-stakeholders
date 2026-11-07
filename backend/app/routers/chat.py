@@ -46,6 +46,11 @@ HISTORY_SIZE = 4  # earlier messages sent along so follow-up questions make sens
 STOPPED_BY_USER = 499  # non-standard "client closed request" status, never seen by the browser
 CV_WORDS = re.compile(r"\b(cv|c\.v\.|resume|résumé)\b|سي في|السي في|السيرة", re.IGNORECASE)
 CV_FILE_NAME = re.compile(r"cv|resume|résumé|سيرة", re.IGNORECASE)  # "cv1.docx", "Farah_CV.pdf"
+# A CV whose name and message do not say so ("fix this" + 01_senior_12_years.txt): known by
+# its section headings (two or more different ones, each on its own line)
+CV_HEADING = re.compile(r"^\W*(education|(?:work )?experience|internships|skills|summary|profile|objective|about me|"
+                        r"projects|languages|certifications|التعليم|الخبرات|المهارات|الملخص|اللغات|المشاريع)\W*$",
+                        re.IGNORECASE | re.MULTILINE)
 CV_REQUEST = "Rewrite my CV in the right GIU template."  # a training request, for "send my CV as pdf"
 # Words that only ask for the conversion itself ("convert it to pdf", "حوله بي دي اف").
 CONVERSION_WORDS = re.compile(r"\b(convert|turn|change|save|export|make|send|give|download)\w*|حول\w*|ابعت\w*|نزل\w*",
@@ -121,6 +126,8 @@ def answer_question(body: ChatRequest) -> Outcome:
             filename = upload.filename
             extension = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
             is_cv = career and bool(CV_WORDS.search(body.query) or CV_FILE_NAME.search(filename))
+            if career and not is_cv and (wants_edit or wants_pdf):
+                is_cv = looks_like_cv(read_attachment(filename, upload.data_base64).text)
             if is_cv and (wants_edit or wants_pdf):  # restructure the CV (and send it as PDF + Word)
                 attachment = read_attachment(filename, upload.data_base64)
                 return restructure_cv(body.query, user_type, history, attachment, filename)
@@ -154,6 +161,13 @@ def sent_files(body: ChatRequest) -> list:
     return body.attachments or ([body.attachment] if body.attachment else [])
 
 
+def looks_like_cv(text: str | None) -> bool:
+    """A CV by its content: at least two different CV section headings (spaced-out headings
+    such as "S U M M A R Y" count too)."""
+    text = re.sub(r"^\w(?: \w)+$", lambda m: m.group().replace(" ", ""), text or "", flags=re.MULTILINE)
+    return len({heading.lower() for heading in CV_HEADING.findall(text)}) >= 2
+
+
 def decode(data_base64: str) -> bytes:
     try:
         return base64.b64decode(data_base64, validate=True)
@@ -180,8 +194,10 @@ def edit(body: ChatRequest, agent_name: str, upload, also_pdf: bool = False) -> 
 
 def restructure_cv(query: str, user_type: str, history, attachment, filename: str) -> Outcome:
     """The CV model restructures the CV; a restructured CV comes back as PDF + Word files.
-    A request that only asks for a PDF ("send my CV as pdf") is sent as a rewrite request."""
-    question = query if CV_REWRITE_WORDS.search(query) else CV_REQUEST
+    A request that only asks for a PDF ("send my CV as pdf"), or that does not mention a CV or
+    a template ("fix this"), is sent as a training-style rewrite request."""
+    names_it = CV_WORDS.search(query) or re.search(r"template|student|london|modern", query, re.IGNORECASE)
+    question = query if CV_REWRITE_WORDS.search(query) and names_it else CV_REQUEST
     response = AGENTS["internship_career"].run(question, user_type, history, attachment)
     return cv_files(response, filename) if is_restructured_cv(response.answer) else Outcome(response)
 

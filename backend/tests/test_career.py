@@ -394,6 +394,23 @@ class PdfAndCvRouting(unittest.TestCase):
         for text in ["what is a pdf?", "Is this a PDF?", "fix this"]:
             self.assertFalse(is_pdf_request(text), text)
 
+    def test_cv_known_by_its_content(self):
+        from app.routers.chat import looks_like_cv
+        self.assertTrue(looks_like_cv(ENGLISH_CV))
+        self.assertTrue(looks_like_cv(ARABIC_CV))
+        self.assertTrue(looks_like_cv("NOUR ZAKI\n\nS U M M A R Y\nGraduate.\n\nE D U C A T I O N\nBA Psychology"))
+        self.assertFalse(looks_like_cv("Meeting notes\nWe discussed the budget and the skills workshop."))
+
+    def test_fix_this_with_a_cv_goes_to_the_cv_model_as_a_training_request(self):
+        import app.routers.chat as chat
+        from app.agents.base import AgentResponse
+        asked = []
+        run = lambda question, *args: asked.append(question) or AgentResponse(answer="Sorry.", sources=[])
+        with mock.patch.object(AGENTS["internship_career"], "run", run):
+            chat.restructure_cv("fix this", "student", [], CV, "01_senior_12_years.txt")
+            chat.restructure_cv("Use the Modern template for my CV", "student", [], CV, "cv.txt")
+        self.assertEqual(asked, [chat.CV_REQUEST, "Use the Modern template for my CV"])
+
     def test_cv_file_names(self):
         from app.routers.chat import CV_FILE_NAME
         for name in ["cv1.docx", "Farah_CV.pdf", "resume_2025.docx", "سيرة ذاتية.docx"]:
