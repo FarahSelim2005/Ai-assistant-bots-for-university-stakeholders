@@ -21,6 +21,8 @@ analysis is corrected in code:
 - the Skills line says "a short list; add more." (fewer than 6 skills) or "a good range.";
 - the Target length line is computed from the CV (template and years of experience);
 - "Proofread your CV ..." is removed unless "What I changed" says spelling was fixed;
+- "Write the start and end months for <role> ..." is removed unless that role's dates are only
+  a duration ("2 years");
 - the Summary line and its advice follow whether the summary names the role they want;
 - a list left empty gets a general line, so it never shows only its heading;
 - the rating is computed again with a fixed rubric (rate_cv), between 1 and 10.
@@ -90,6 +92,11 @@ TARGET_ROLE_PHRASE = re.compile(r"\b(?:seeking|looking for|interested in)\b[^.\n
                                 r"|أسعى|بدور|عايز", re.IGNORECASE)
 ADD_TARGET_ROLE = {"en": "Say in your summary which role or internship you are looking for.",
                    "ar": "اكتب في الملخص الوظيفة أو التدريب اللي بتدور عليه."}
+# "Write the start and end months for <role> instead of only the duration.": only for a role
+# whose dates are a duration ("2 years", "3 months") without any year
+ABOUT_DATES = re.compile(r"write the start and end months for (?P<role>.+?) instead of only the duration"
+                         r"|اكتب شهر البداية والنهاية لـ ?(?P<role_ar>.+?) بدل المدة", re.IGNORECASE)
+DURATION = re.compile(r"\b\d+\s*(?:months?|years?|weeks?)\b|\d+\s*(?:شهر|شهور|أشهر|سنة|سنين|سنوات)", re.IGNORECASE)
 ABOUT_PROOFREAD = re.compile(r"proofread|راجع الـ CV كويس", re.IGNORECASE)
 FIXED_SPELLING = re.compile(r"fixed spelling|إملائ", re.IGNORECASE)  # in "What I changed"
 # Years of experience (London / Modern templates) -> the length the CV should have
@@ -283,6 +290,19 @@ def condense_old_roles(cv: str) -> tuple[str, bool]:
     return "\n".join(line for number, line in enumerate(cv.splitlines()) if number not in drop), True
 
 
+def dates_advice_not_needed(improvements: str, cv: str) -> list[re.Pattern]:
+    """The "Write the start and end months for <role> ..." advice to remove: <role> is not
+    a role of the CV whose dates are only a duration (it has real dates, or is not found)."""
+    duration_only = [" ".join(role["text"]).lower() for role in experience_roles(cv)
+                     if role["start"] is None and DURATION.search(" ".join(role["text"]))]
+    patterns = []
+    for match in ABOUT_DATES.finditer(improvements):
+        role = (match["role"] or match["role_ar"]).strip().lower()
+        if not any(role in text for text in duration_only):
+            patterns.append(re.compile(re.escape(match.group())))
+    return patterns
+
+
 def add_change(lines: list[str], note: str, language: str) -> list[str]:
     """Add `note` to "What I changed" (at most 5 items: it replaces the last one when full)."""
     start = next((i for i, line in enumerate(lines) if WHAT_I_CHANGED.match(line)), None)
@@ -333,6 +353,7 @@ def check_analysis(analysis: str, cv: str, condensed: bool = False) -> str:
         not_needed.append(ABOUT_PERSONAL_DETAILS)  # the CV had none to take out
     if not FIXED_SPELLING.search(changed):
         not_needed.append(ABOUT_PROOFREAD)  # no spelling mistakes were fixed
+    not_needed += dates_advice_not_needed(list_text(analysis.splitlines(), TO_IMPROVE), cv)
     # No job yet: one piece of advice about it, not two. With projects or activities: "Add an
     # internship or part-time job when you can."; with nothing: "Add an internship, part-time
     # job, project or volunteering role."

@@ -358,6 +358,21 @@ class AnalysisCheck(unittest.TestCase):
             checked = check_analysis(f"What I changed:\n{changed}\nMost important to improve:\n{advice}", NO_LINKEDIN_CV)
             self.assertEqual(advice in checked, kept)
 
+    def test_dates_advice_only_for_a_role_with_only_a_duration(self):
+        from app.documents.cv_analysis import check_analysis
+        # NO_LINKEDIN_CV: "SALES INTERN, Jul 2024 - Sep 2024" and "CASHIER, 2 years"
+        advice = ["1. Write the start and end months for Cashier instead of only the duration.",
+                  "2. Write the start and end months for Sales Intern instead of only the duration.",
+                  "3. Write the start and end months for Barista instead of only the duration."]
+        checked = check_analysis("Most important to improve:\n" + "\n".join(advice), NO_LINKEDIN_CV)
+        self.assertIn(advice[0], checked)                          # only a duration: kept
+        self.assertNotIn("Sales Intern", checked)                  # real dates: removed
+        self.assertNotIn("Barista", checked)                       # not in the CV: removed
+        arabic_cv = ARABIC_CV.replace("متدربة برمجيات، 2024 - 2025", "متدربة برمجيات، 6 شهور")
+        arabic = "أهم حاجات محتاجة تتحسن:\n1. اكتب شهر البداية والنهاية لـ متدربة برمجيات بدل المدة بس."
+        self.assertIn("1. اكتب شهر البداية والنهاية لـ متدربة برمجيات", check_analysis(arabic, arabic_cv))
+        self.assertNotIn("اكتب شهر البداية", check_analysis(arabic, ARABIC_CV))  # it has years
+
     def test_summary_line_follows_the_summary(self):
         from app.documents.cv_analysis import check_analysis
         analysis = "Most important to improve:\n1. Add numbers.\nSection by section:\n- Summary: clear, and says what you are looking for."
