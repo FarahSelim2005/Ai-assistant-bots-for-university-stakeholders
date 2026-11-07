@@ -42,9 +42,9 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_TIMEOUT = 300.0  # seconds; a full CV rewrite by the local CV model takes 1-3 minutes
 OLLAMA_NUM_PREDICT = 100  # max answer tokens: a laptop writes only a few words per second
 OLLAMA_NUM_CTX = 2048  # context window; a small prompt is processed faster
-# Context window for agents that send their full prompt to Ollama (Career with giu-cv):
-# the CV rules (~1,500 tokens) + a CV + a 1,500-token answer.
-OLLAMA_FULL_NUM_CTX = 8192
+# Context window for CV rewrites by the local CV model (giu-cv): the CV rules (~3,000 tokens)
+# + a CV + a 1,500-token answer. 6144 (not 8192) so the model fits fully in a 4 GB GPU.
+OLLAMA_FULL_NUM_CTX = 6144
 OLLAMA_MAX_CONTEXT_CHARS = 1200  # documents/attachment text sent to the local model (2500 took ~7-9 s)
 OLLAMA_HISTORY_MESSAGES = 2  # earlier messages sent to the local model (one question + answer)
 
