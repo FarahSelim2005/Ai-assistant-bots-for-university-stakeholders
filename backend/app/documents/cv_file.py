@@ -146,9 +146,9 @@ def keep_headings_with_content(answer: str, level: int) -> bytes:
 
 
 def stranded_headings(pdf: bytes) -> set[int]:
-    """Numbers (0, 1, ... in order) of the section headings cut off from their content: fewer
-    than two of the section's lines (or all of a one-line section) follow on the heading's
-    page. A small section that fits below its heading is not moved."""
+    """Numbers (0, 1, ... in order) of the section headings cut off from their content: the
+    heading is the last line on its page. A heading only needs its first line with it, so a
+    section that starts at a page bottom (heading + first line) is not moved as a whole."""
     rows = []  # (page, is it a heading) for each printed line, in order
     with pymupdf.open(stream=pdf, filetype="pdf") as document:
         for number, page in enumerate(document):
@@ -168,7 +168,7 @@ def stranded_headings(pdf: bytes) -> set[int]:
             if row[1]:
                 break
             section.append(row)
-        if sum(row[0] == page for row in section) < min(2, len(section)):
+        if sum(row[0] == page for row in section) < min(1, len(section)):
             stranded.add(heading)
         heading += 1
     return stranded

@@ -15,7 +15,7 @@ import re
 from app import config
 from app.agents.base import AgentResponse, BaseAgent
 from app.attachments import Attachment
-from app.documents.cv_analysis import check_analysis, strip_model_tags
+from app.documents.cv_analysis import check_analysis, condense_old_roles, strip_model_tags
 from app.documents.cv_file import split_cv
 from app.llm.client import chat_with_backup
 from app.rag.prompts import CAREER_SYSTEM_PROMPT, ENGLISH_ONLY, build_messages
@@ -190,10 +190,11 @@ class InternshipCareerAgent(BaseAgent):
         cv, analysis = split_cv(strip_model_tags(answer))  # "<think>" etc. before "Template: ..."
         cv = check_against_cv(complete_links(cv, attachment.text), attachment.text)
         cv = check_university(cv, attachment.text)
+        cv, condensed = condense_old_roles(cv)  # roles that ended 10+ years ago: their main bullet
         if not analysis:
             return cv
         # The analysis must match the checked CV: no strengths it doesn't have, and its rating
-        return f"{cv}\n\n{check_analysis(analysis, cv)}"
+        return f"{cv}\n\n{check_analysis(analysis, cv, condensed)}"
 
     def transcribe(self, attachment: Attachment) -> str:
         """The text of a picture CV, written out by the vision model (and its backups)."""

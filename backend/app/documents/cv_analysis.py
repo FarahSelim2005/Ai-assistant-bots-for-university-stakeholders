@@ -19,15 +19,21 @@ analysis is corrected in code:
   role for a CV with nothing yet; an internship or part-time job when it has projects);
 - "Rewrote your bullets to start with action verbs." is removed when there are no bullets;
 - the Skills line says "a short list; add more." (fewer than 6 skills) or "a good range.";
+- the Target length line is computed from the CV (template and years of experience);
+- "Proofread your CV ..." is removed unless "What I changed" says spelling was fixed;
+- the Summary line and its advice follow whether the summary names the role they want;
 - a list left empty gets a general line, so it never shows only its heading;
 - the rating is computed again with a fixed rubric (rate_cv), between 1 and 10.
+The rewritten CV itself is changed in one way (condense_old_roles): roles that ended more than
+10 years ago keep only their first bullet.
 Every change is logged in the backend terminal.
 """
+import datetime
 import logging
 import math
 import re
 
-from app.documents.cv_file import ARABIC_LETTERS, blocks, is_arabic
+from app.documents.cv_file import ARABIC_LETTERS, blocks, is_arabic, is_heading
 
 log = logging.getLogger("uvicorn.error")
 
@@ -49,7 +55,6 @@ PHONE = re.compile(r"\+?\d[\d\s().-]{6,}\d")
 PROFILE_LINK = re.compile(r"linkedin\.com|github\.com", re.IGNORECASE)
 SKILL_LEVEL = re.compile(r"\([^(),]{1,25}\)")               # "Python (Basic)"
 SKILL_GROUP = re.compile(r"^[^:]{1,30}:\s*\S.*[,·]")        # "Languages: Python, C++"
-YEAR = re.compile(r"\d{4}")
 
 # Lines of the analysis
 RATING = re.compile(r"^(?P<label>[^\n:]{0,40}:\s*)\d+(?:\.\d+)?\s*/\s*10\b.*$", re.MULTILINE)
@@ -80,6 +85,29 @@ PERSONAL_DETAILS = re.compile(r"personal|hobb|interests|date of birth|nationalit
                               r"البيانات الشخصية|الهوايات|هوايات|تاريخ الميلاد|الجنسية|الحالة الاجتماعية|التجنيد",
                               re.IGNORECASE)
 NO_TARGET_ROLE ="[add the role or internship you are looking for]"
+# A summary that says which role they want ("Looking for a senior marketing role.")
+TARGET_ROLE_PHRASE = re.compile(r"\b(?:seeking|looking for|interested in)\b[^.\n]*\b(?:role|position|internship)s?\b"
+                                r"|أسعى|بدور|عايز", re.IGNORECASE)
+ADD_TARGET_ROLE = {"en": "Say in your summary which role or internship you are looking for.",
+                   "ar": "اكتب في الملخص الوظيفة أو التدريب اللي بتدور عليه."}
+ABOUT_PROOFREAD = re.compile(r"proofread|راجع الـ CV كويس", re.IGNORECASE)
+FIXED_SPELLING = re.compile(r"fixed spelling|إملائ", re.IGNORECASE)  # in "What I changed"
+# Years of experience (London / Modern templates) -> the length the CV should have
+YEAR = re.compile(r"(?<!\d)(?:19|20)\d\d(?!\d)")
+PRESENT = re.compile(r"\bpresent\b|\bnow\b|الآن|حاليا|حاليًا", re.IGNORECASE)
+OLD_ROLE_YEARS = 10  # roles that ended more than this many years ago keep only their first bullet
+TARGET_LENGTHS = [  # (up to this many years, English, Arabic)
+    (0, "1 page (student / fresh graduate)", "صفحة واحدة (طالب / خريج جديد)"),
+    (5, "1-2 pages (1-5 years of experience)", "من صفحة لصفحتين (من سنة لـ 5 سنين خبرة)"),
+    (10, "about 2 pages (5-10 years of experience)", "حوالي صفحتين (من 5 لـ 10 سنين خبرة)"),
+    (None, "2-3 pages (more than 10 years of experience)", "من صفحتين لـ 3 صفحات (أكتر من 10 سنين خبرة)"),
+]
+TARGET_LINE = re.compile(r"^(?P<prefix>[^\w\n]*(?:Target length|الطول[^:\n]{0,20}):[ \t]*).*$", re.MULTILINE | re.IGNORECASE)
+CONDENSED = {"en": "Condensed older roles and extra projects to their main point to keep the CV focused.",
+             "ar": "اختصرت الأدوار القديمة والمشاريع الزيادة لأهم نقطة فيها عشان الـ CV يفضل مركز."}
+ABOUT_CONDENSED = re.compile(r"condensed|اختصرت", re.IGNORECASE)
+CHANGED_LABEL = {"en": "What I changed:", "ar": "ما غيرته:"}
+MAX_CHANGES = 5
 # "Section by section" lines (prefix: "- " or "1. ")
 SKILLS_LINE = {"en": re.compile(r"^(?P<prefix>[^\w\n]*)Skills:.*$", re.MULTILINE | re.IGNORECASE),
                "ar": re.compile(r"^(?P<prefix>[^\w\n]*)المهارات:.*$", re.MULTILINE)}
@@ -197,12 +225,90 @@ def strip_model_tags(answer: str) -> str:
     return "\n".join(lines[start:])
 
 
-def check_analysis(analysis: str, cv: str) -> str:
+def experience_roles(cv: str) -> list[dict]:
+    """The roles under EXPERIENCE: each {"text": its title / company / date lines, "bullets":
+    the line numbers of its "- " bullets, "start" and "end": years (None if no year)}."""
+    roles, section, current = [], None, None
+    for number, raw in enumerate(cv.splitlines()):
+        line = raw.strip()
+        if not line:
+            continue
+        if is_heading(line) and ":" not in line:
+            section = next((k for k, names in SECTION_KINDS.items() if line.rstrip(":").upper() in names), "extras")
+            current = None
+        elif section != "experience":
+            continue
+        elif line.startswith(("- ", "• ", "* ")):
+            if current is None:
+                current = {"text": [], "bullets": []}
+                roles.append(current)
+            current["bullets"].append(number)
+        else:
+            if current is None or current["bullets"]:
+                current = {"text": [], "bullets": []}
+                roles.append(current)
+            current["text"].append(line)
+    this_year = datetime.date.today().year
+    for role in roles:
+        dates = " ".join(role["text"])
+        years = [int(y) for y in YEAR.findall(dates)]
+        role["start"] = min(years) if years else None
+        role["end"] = this_year if PRESENT.search(dates) else max(years) if years else None
+    return roles
+
+
+def target_length(cv: str, language: str) -> str:
+    """The length the CV should have: 1 page for the Student template (or under a year of
+    work), otherwise by the years from the first job's start to the last job's end."""
+    template = cv.splitlines()[0].partition(":")[2].strip().lower() if cv.startswith("Template:") else ""
+    roles = [role for role in experience_roles(cv) if role["start"] is not None]
+    years = max(r["end"] for r in roles) - min(r["start"] for r in roles) if roles else 0
+    if template not in ("london", "modern") or years < 1:
+        years = 0
+    _, english, arabic = next(level for level in TARGET_LENGTHS if level[0] is None or years <= level[0])
+    return english if language == "en" else arabic
+
+
+def condense_old_roles(cv: str) -> tuple[str, bool]:
+    """The CV with roles that ended more than 10 years ago cut to their first bullet, and
+    whether anything was cut."""
+    this_year = datetime.date.today().year
+    drop = set()
+    for role in experience_roles(cv):
+        if role["end"] is not None and this_year - role["end"] > OLD_ROLE_YEARS and len(role["bullets"]) > 1:
+            drop.update(role["bullets"][1:])
+            log.info("CV: older role %r (ended %s) cut to its first bullet", " | ".join(role["text"]), role["end"])
+    if not drop:
+        return cv, False
+    return "\n".join(line for number, line in enumerate(cv.splitlines()) if number not in drop), True
+
+
+def add_change(lines: list[str], note: str, language: str) -> list[str]:
+    """Add `note` to "What I changed" (at most 5 items: it replaces the last one when full)."""
+    start = next((i for i, line in enumerate(lines) if WHAT_I_CHANGED.match(line)), None)
+    if start is None:
+        log.info("CV analysis: 'What I changed' added with %r", note)
+        return lines + ["", CHANGED_LABEL[language], f"- {note}"]
+    end = block_end(lines, start)
+    if ABOUT_CONDENSED.search("\n".join(lines[start:end])):
+        return lines
+    items = [i for i in range(start + 1, end) if ITEM.match(lines[i])]
+    if len(items) >= MAX_CHANGES:
+        log.info("CV analysis: 'What I changed' full, %r replaced by %r", lines[items[-1]].strip(), note)
+        return lines[:items[-1]] + [f"- {note}"] + lines[items[-1] + 1:]
+    log.info("CV analysis: change added: %r", note)
+    return lines[:end] + [f"- {note}"] + lines[end:]
+
+
+def check_analysis(analysis: str, cv: str, condensed: bool = False) -> str:
     """The analysis made to match the CV: strengths and advice the CV does not support are
     removed, missing advice (LinkedIn, a first job) is added, and the rating is computed
-    from the CV. Every change is logged."""
+    from the CV. `condensed`: older roles were cut (condense_old_roles), noted in "What I
+    changed". Every change is logged."""
     _, sections = cv_sections(cv)
     language = "ar" if ARABIC_LETTERS.search(analysis) else "en"
+    summary = " ".join(real(sections.get("summary", [])))
+    role_stated = NO_TARGET_ROLE not in cv and bool(TARGET_ROLE_PHRASE.search(summary))
     skills = [text for _, text in sections.get("skills", [])]
     many_skills = skill_count(sections.get("skills", [])) >= 6
     _, has_job = roles_with_bullets(sections.get("experience", []))
@@ -220,10 +326,13 @@ def check_analysis(analysis: str, cv: str) -> str:
         not_needed.append(ABOUT_MISSING_BULLETS)  # every role already has its bullets
     if many_skills:
         not_needed.append(ABOUT_MORE_SKILLS)
-    if NO_TARGET_ROLE not in cv:
+    if role_stated:
         not_needed.append(ABOUT_TARGET_ROLE)  # the summary already says what they are looking for
-    if not PERSONAL_DETAILS.search(list_text(analysis.splitlines(), WHAT_I_CHANGED)):
+    changed = list_text(analysis.splitlines(), WHAT_I_CHANGED)
+    if not PERSONAL_DETAILS.search(changed):
         not_needed.append(ABOUT_PERSONAL_DETAILS)  # the CV had none to take out
+    if not FIXED_SPELLING.search(changed):
+        not_needed.append(ABOUT_PROOFREAD)  # no spelling mistakes were fixed
     # No job yet: one piece of advice about it, not two. With projects or activities: "Add an
     # internship or part-time job when you can."; with nothing: "Add an internship, part-time
     # job, project or volunteering role."
@@ -239,6 +348,10 @@ def check_analysis(analysis: str, cv: str) -> str:
         lines = remove_items(lines, WHAT_I_CHANGED, [ABOUT_ACTION_VERBS], "change not made to this CV")
     lines = remove_items(lines, STRENGTHS, unsupported, "strengths not supported by the CV")
     lines = remove_items(lines, TO_IMPROVE, not_needed, "advice the CV does not need")
+    if condensed:
+        lines = add_change(lines, CONDENSED[language], language)
+    if not role_stated:
+        lines = add_to_improve(lines, ADD_TARGET_ROLE[language], language, ABOUT_TARGET_ROLE)
     if not PROFILE_LINK.search(cv):
         lines = add_to_improve(lines, ADD_LINKEDIN[language], language, ABOUT_LINKEDIN)
     if not has_job and has_projects:
@@ -252,8 +365,9 @@ def check_analysis(analysis: str, cv: str) -> str:
     analysis = "\n".join(lines)
     # "Section by section" lines that must match the CV
     analysis = replace_line(analysis, SKILLS_LINE[language], (MANY_SKILLS if many_skills else FEW_SKILLS)[language])
-    if NO_TARGET_ROLE not in cv:
-        analysis = replace_line(analysis, SUMMARY_LINE, "Summary: clear, and says what you are looking for.")
+    analysis = replace_line(analysis, SUMMARY_LINE, "Summary: clear, and says what you are looking for." if role_stated
+                            else "Summary: describes you, but does not say which role you want.")
+    analysis = replace_line(analysis, TARGET_LINE, target_length(cv, language))
     if not has_job:  # not "some roles have no description yet": there is no role
         analysis = replace_line(analysis, EXPERIENCE_LINE[language], NO_JOB_YET[language])
 

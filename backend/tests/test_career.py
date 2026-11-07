@@ -111,8 +111,10 @@ class CvAnalysis(unittest.TestCase):
         with mock.patch.object(career_module, "chat_with_backup", return_value=answer):
             result = AGENTS["internship_career"].generate("fix my cv", [], [], attachment)
         self.assertIn("- Led [add the number] people", result)  # invented in the CV: replaced
-        self.assertTrue(result.endswith("Most important to improve:\n1. Add 2 projects\n2. Add a link to your LinkedIn profile."
-                                        "\n3. Add more skills that match the jobs you want."))  # no skills section
+        self.assertTrue(result.endswith("Most important to improve:\n1. Add 2 projects"
+                                        "\n2. Say in your summary which role or internship you are looking for."
+                                        "\n3. Add a link to your LinkedIn profile."
+                                        "\n4. Add more skills that match the jobs you want."))  # no skills section
 
     def test_pdf_has_the_cv_and_the_chat_has_the_analysis(self):
         import pymupdf
@@ -174,7 +176,7 @@ OVERPRAISING_ANALYSIS = "\n".join([
     "CV ANALYSIS", "Rating: 8/10 - Strong CV", "Target length: 1 page", "What I changed:", "- Reordered sections",
     "Strengths:", "- Clear contact details with LinkedIn and GitHub links", "- Skills listed with levels",
     "- Experience bullets show measurable results", "- Clear education section with dates",
-    "Most important to improve:", "1. Add details to your cashier role", "2. State the role you are looking for",
+    "Most important to improve:", "1. Add details to your cashier role", "2. Say in your summary which role or internship you are looking for.",
     "Section by section:", "- Summary: short"])
 
 
@@ -184,11 +186,12 @@ class AnalysisCheck(unittest.TestCase):
     def test_cv_without_linkedin(self):
         from app.documents.cv_analysis import check_analysis
         self.assertEqual(check_analysis(OVERPRAISING_ANALYSIS, NO_LINKEDIN_CV), "\n".join([
-            "CV ANALYSIS", "Rating: 5/10 - Needs work", "Target length: 1 page", "What I changed:", "- Reordered sections",
+            "CV ANALYSIS", "Rating: 5/10 - Needs work", "Target length: 1 page (student / fresh graduate)",
+            "What I changed:", "- Reordered sections",
             "Strengths:", "- Clear education section with dates",  # links, levels and numbers: not in the CV
-            "Most important to improve:", "1. Add details to your cashier role", "2. State the role you are looking for",
+            "Most important to improve:", "1. Add details to your cashier role", "2. Say in your summary which role or internship you are looking for.",
             "3. Add a link to your LinkedIn profile.", "4. Add more skills that match the jobs you want.",  # 3 skills
-            "Section by section:", "- Summary: short"]))
+            "Section by section:", "- Summary: describes you, but does not say which role you want."]))
 
     def test_rubric(self):
         from app.documents.cv_analysis import rate_cv
@@ -210,7 +213,8 @@ class AnalysisCheck(unittest.TestCase):
                               "- المهارات ليها مستوى", "- أرقام في الخبرات", "أهم حاجات محتاجة تتحسن:", "1. ضيف مشاريع"])
         checked = check_analysis(analysis, cv)
         self.assertEqual(checked, analysis.replace("9/10 - ممتاز", "7/10 - CV كويس بس فيه شوية حاجات ناقصة")
-                         + "\n2. ضيف مهارات أكتر تناسب الشغل اللي عايزه.")  # 3 skills
+                         + "\n2. اكتب في الملخص الوظيفة أو التدريب اللي بتدور عليه."  # role not stated
+                         + "\n3. ضيف مهارات أكتر تناسب الشغل اللي عايزه.")  # 3 skills
 
 
     def test_advice_for_a_cv_with_projects_but_no_job(self):
@@ -247,7 +251,8 @@ class AnalysisCheck(unittest.TestCase):
         # NO_LINKEDIN_CV has "[add details about what you did]", "[add the role or internship ...]",
         # 3 skills and two jobs: all of this is still true
         self.assertEqual(check_analysis(analysis, NO_LINKEDIN_CV), analysis.replace(
-            "looking for.\n", "looking for.\n4. Add a link to your LinkedIn profile.\n"))
+            "looking for.\n", "looking for.\n4. Add a link to your LinkedIn profile.\n").replace(
+            "- Summary: missing the target role.", "- Summary: describes you, but does not say which role you want."))
 
     def test_personal_details_advice_only_when_some_were_removed(self):
         from app.documents.cv_analysis import check_analysis
@@ -267,7 +272,8 @@ class AnalysisCheck(unittest.TestCase):
         from app.documents.cv_analysis import check_analysis
         cv = NO_LINKEDIN_CV.replace("Cairo | omar@gmail.com", "Cairo | omar@gmail.com | linkedin.com/in/omar") \
             .replace("- [add details about what you did]", "- Served customers") \
-            .replace("- Teamwork", "- Teamwork\n- SQL\n- Word\n- Sales")  # 6 skills: no "add more skills"
+            .replace("- Teamwork", "- Teamwork\n- SQL\n- Word\n- Sales") \
+            .replace("[add the role or internship you are looking for]", "Looking for a sales internship.")  # role stated
         analysis = "\n".join(["CV ANALYSIS", "Rating: 9/10 - Strong CV", "Strengths:",
                               "- Your skills are well organized and show your level.",  # no levels or groups
                               "Most important to improve:", "1. Add 2-3 bullets about what you did as Cashier."])
@@ -283,7 +289,7 @@ class AnalysisCheck(unittest.TestCase):
                               "أهم حاجات محتاجة تتحسن:", "1. ضيف أرقام."])
         checked = check_analysis(analysis, ARABIC_CV.replace("- Python (متقدم)", "- Python")).splitlines()
         self.assertEqual(checked[2:6], ["ما غيرته:", "- رتبت الأقسام.", "نقاط القوة:", "- التعليم واضح."])
-        self.assertIn("2. ضيف لينك الـ LinkedIn بتاعك.", checked)
+        self.assertTrue(any(line.endswith("ضيف لينك الـ LinkedIn بتاعك.") for line in checked))
 
     def test_model_tags_and_lowest_rating(self):
         from app.documents.cv_analysis import check_analysis, strip_model_tags
@@ -304,9 +310,64 @@ class AnalysisCheck(unittest.TestCase):
                               "تحليل كل جزء:", "- الخبرات: فيه أدوار لسه مالهاش وصف."])
         self.assertEqual(check_analysis(analysis, cv).splitlines()[2:], [
             "أهم حاجات محتاجة تتحسن:", "1. ضيف أرقام للمشاريع.",
-            "2. ضيف تدريب أو شغل part-time لما تقدر.",
-            "3. ضيف مهارات أكتر تناسب الشغل اللي عايزه.",  # no skills section
+            "2. اكتب في الملخص الوظيفة أو التدريب اللي بتدور عليه.",  # no summary
+            "3. ضيف تدريب أو شغل part-time لما تقدر.",
+            "4. ضيف مهارات أكتر تناسب الشغل اللي عايزه.",  # no skills section
             "تحليل كل جزء:", "- الخبرات: لسه مفيش تدريب أو شغل."])
+
+    def test_target_length_from_the_cv(self):
+        import datetime
+        from app.documents.cv_analysis import check_analysis, target_length
+        def london(*dates):  # a London CV with one role per date line
+            roles = [f"{d}\nEngineer - Company, Cairo\n- Built things" for d in dates]
+            return "Template: London\nOmar, Engineer\n\nEXPERIENCE\n" + "\n".join(roles)
+        year = datetime.date.today().year
+        self.assertEqual(target_length(london("Mar 2021 - Present", "Sep 2013 - May 2015"), "en"),
+                         "2-3 pages (more than 10 years of experience)" if year - 2013 > 10 else "about 2 pages (5-10 years of experience)")
+        self.assertEqual(target_length(london("Jan 2018 - Dec 2024"), "en"), "about 2 pages (5-10 years of experience)")
+        self.assertEqual(target_length(london("Aug 2021 - Dec 2024"), "en"), "1-2 pages (1-5 years of experience)")
+        self.assertEqual(target_length(london("Jun 2024 - Sep 2024"), "en"), "1 page (student / fresh graduate)")
+        self.assertEqual(target_length(london("Jan 2018 - Dec 2024").replace("London", "Student"), "en"),
+                         "1 page (student / fresh graduate)")
+        checked = check_analysis("CV ANALYSIS\nRating: 5/10\nTarget length: 1 page", london("Jan 2018 - Dec 2024"))
+        self.assertIn("\nTarget length: about 2 pages (5-10 years of experience)\n", checked)
+
+    def test_older_roles_keep_their_first_bullet(self):
+        from app.documents.cv_analysis import check_analysis, condense_old_roles
+        cv = "\n".join(["Template: London", "Hesham, Manager", "", "EXPERIENCE",
+                        "Mar 2021 - Present", "Engineering Manager - Nilebyte", "- Led a team of 9", "- Hired 5 engineers",
+                        "Sep 2013 - May 2015", "Junior Developer - Lotus Group", "- Maintained an HR system",
+                        "- Built monthly reports", "- Fixed bugs", "", "EDUCATION", "2008 - 2012", "B.Sc. - Ain Shams"])
+        condensed, changed = condense_old_roles(cv)
+        self.assertTrue(changed)
+        self.assertIn("- Hired 5 engineers", condensed)              # a current role keeps all its bullets
+        self.assertIn("- Maintained an HR system", condensed)        # an old role keeps its first bullet ...
+        self.assertNotIn("- Built monthly reports", condensed)       # ... only
+        self.assertEqual(condense_old_roles(condensed), (condensed, False))
+        note = "Condensed older roles and extra projects to their main point to keep the CV focused."
+        self.assertIn(f"- {note}", check_analysis("What I changed:\n- Reordered sections.", condensed, condensed=True))
+        full = "What I changed:\n" + "\n".join(f"- Change {n}." for n in range(1, 6))
+        checked = check_analysis(full, condensed, condensed=True)
+        self.assertIn(f"- Change 4.\n- {note}", checked)              # at most 5: it takes the last place
+        self.assertNotIn("Change 5", checked)
+
+    def test_proofread_advice_only_after_spelling_fixes(self):
+        from app.documents.cv_analysis import check_analysis
+        advice = "1. Proofread your CV carefully; it had spelling mistakes."
+        for changed, kept in [("- Fixed spelling mistakes.", True), ("- Reordered sections.", False)]:
+            checked = check_analysis(f"What I changed:\n{changed}\nMost important to improve:\n{advice}", NO_LINKEDIN_CV)
+            self.assertEqual(advice in checked, kept)
+
+    def test_summary_line_follows_the_summary(self):
+        from app.documents.cv_analysis import check_analysis
+        analysis = "Most important to improve:\n1. Add numbers.\nSection by section:\n- Summary: clear, and says what you are looking for."
+        stated = NO_LINKEDIN_CV.replace("[add the role or internship you are looking for]", "Looking for a senior marketing role.")
+        self.assertIn("- Summary: clear, and says what you are looking for.", check_analysis(analysis, stated))
+        self.assertNotIn("Say in your summary", check_analysis(analysis, stated))
+        not_stated = NO_LINKEDIN_CV.replace("[add the role or internship you are looking for]", "Manager with 12 years of experience.")
+        checked = check_analysis(analysis, not_stated)
+        self.assertIn("- Summary: describes you, but does not say which role you want.", checked)
+        self.assertIn("2. Say in your summary which role or internship you are looking for.", checked)
 
     def test_one_piece_of_advice_for_a_first_job(self):
         from app.documents.cv_analysis import check_analysis
@@ -369,6 +430,21 @@ class PdfLayout(unittest.TestCase):
                   and (heading := place(render_cv(cv, set()), "REFERENCES"))[1].y1 > TEXT_AREA.y1 - 45
                   and place(render_cv(cv, set()), "Available upon request")[0] == heading[0] == 0)
         self.assertEqual(place(cv_pdf(cv), "REFERENCES")[0], 0)  # still on page 1
+
+    def test_a_heading_stays_with_its_first_line_only(self):
+        import pymupdf
+        from app.documents.cv_file import cv_pdf, render_cv
+
+        def page_of(pdf, text):
+            with pymupdf.open(stream=pdf, filetype="pdf") as document:
+                return next(n for n, page in enumerate(document) if page.search_for(text))
+        # a two-line section whose heading and first line fit at the bottom of page 1
+        cv = next(cv for n in range(30, 70) for extra in (False, True)
+                  if (cv := self.cv_with(n, extra).replace("Available upon request", "- Arabic\n- English"))
+                  and page_of(pdf := render_cv(cv, set()), "REFERENCES") == page_of(pdf, "Arabic") == 0
+                  and page_of(pdf, "English") == 1)
+        pdf = cv_pdf(cv)
+        self.assertEqual((page_of(pdf, "REFERENCES"), page_of(pdf, "Arabic")), (0, 0))  # not moved as a whole
 
     def test_one_page_target_tightens_spacing_but_not_text(self):
         import pymupdf
