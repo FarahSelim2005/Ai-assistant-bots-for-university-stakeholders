@@ -84,14 +84,14 @@ NO_TARGET_ROLE ="[add the role or internship you are looking for]"
 SKILLS_LINE = {"en": re.compile(r"^(?P<prefix>[^\w\n]*)Skills:.*$", re.MULTILINE | re.IGNORECASE),
                "ar": re.compile(r"^(?P<prefix>[^\w\n]*)المهارات:.*$", re.MULTILINE)}
 FEW_SKILLS = {"en": "Skills: a short list; add more.", "ar": "المهارات: قليلة، ضيف أكتر."}
-MANY_SKILLS = {"en": "Skills: a good range.", "ar": "المهارات: متنوعة."}
+MANY_SKILLS = {"en": "Skills: a good range.", "ar": "المهارات: مجموعة كويسة."}
 SUMMARY_LINE = re.compile(r"^(?P<prefix>[^\w\n]*)Summary:.*$", re.MULTILINE | re.IGNORECASE)
 EXPERIENCE_LINE = {"en": re.compile(r"^(?P<prefix>[^\w\n]*)(?:Work )?Experience:.*$", re.MULTILINE | re.IGNORECASE),
                    "ar": re.compile(r"^(?P<prefix>[^\w\n]*)(?:الخبرات|الخبرة)(?: العملية)?:.*$", re.MULTILINE)}
 NO_JOB_YET = {"en": "Experience: no internship or job yet.", "ar": "الخبرات: لسه مفيش تدريب أو شغل."}
 ADD_JOB = {"en": "Add an internship or part-time job when you can.", "ar": "ضيف تدريب أو شغل part-time لما تقدر."}
 ADD_FIRST_ROLE = {"en": "Add an internship, part-time job, project or volunteering role.", "ar": ADD_JOB["ar"]}
-ADD_MORE_SKILLS = {"en": "Add more skills that match the jobs you want.", "ar": "ضيف مهارات أكتر تناسب الوظايف اللي عايزها."}
+ADD_MORE_SKILLS = {"en": "Add more skills that match the jobs you want.", "ar": "ضيف مهارات أكتر تناسب الشغل اللي عايزه."}
 ADD_LINKEDIN = {"en": "Add a link to your LinkedIn profile.", "ar": "ضيف لينك الـ LinkedIn بتاعك."}
 # Added when a list is left empty
 NO_IMPROVEMENTS = {"en": "Tailor your summary and skills to each job you apply for.",

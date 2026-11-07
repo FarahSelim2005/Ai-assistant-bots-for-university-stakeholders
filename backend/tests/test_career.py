@@ -210,7 +210,7 @@ class AnalysisCheck(unittest.TestCase):
                               "- المهارات ليها مستوى", "- أرقام في الخبرات", "أهم حاجات محتاجة تتحسن:", "1. ضيف مشاريع"])
         checked = check_analysis(analysis, cv)
         self.assertEqual(checked, analysis.replace("9/10 - ممتاز", "7/10 - CV كويس بس فيه شوية حاجات ناقصة")
-                         + "\n2. ضيف مهارات أكتر تناسب الوظايف اللي عايزها.")  # 3 skills
+                         + "\n2. ضيف مهارات أكتر تناسب الشغل اللي عايزه.")  # 3 skills
 
 
     def test_advice_for_a_cv_with_projects_but_no_job(self):
@@ -305,7 +305,7 @@ class AnalysisCheck(unittest.TestCase):
         self.assertEqual(check_analysis(analysis, cv).splitlines()[2:], [
             "أهم حاجات محتاجة تتحسن:", "1. ضيف أرقام للمشاريع.",
             "2. ضيف تدريب أو شغل part-time لما تقدر.",
-            "3. ضيف مهارات أكتر تناسب الوظايف اللي عايزها.",  # no skills section
+            "3. ضيف مهارات أكتر تناسب الشغل اللي عايزه.",  # no skills section
             "تحليل كل جزء:", "- الخبرات: لسه مفيش تدريب أو شغل."])
 
     def test_one_piece_of_advice_for_a_first_job(self):

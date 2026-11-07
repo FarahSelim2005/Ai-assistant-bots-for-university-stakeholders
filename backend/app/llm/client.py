@@ -136,6 +136,12 @@ def chat_ollama(messages: list[dict], model: str = "", max_tokens: int | None = 
     model = model or config.OLLAMA_MODEL
     full = max_tokens is not None
     started = time.perf_counter()
+    if full:
+        content = generate_raw(messages, model, max_tokens)
+        log.info("Ollama %s answered in %.1f s", model, time.perf_counter() - started)
+        if not content.strip():
+            raise LLMError(f"Local model '{model}' returned an empty answer.")
+        return content
     response = _ollama.post("/api/chat", json={
         "model": model,
         "messages": messages if full else small_prompt(messages),
@@ -152,6 +158,27 @@ def chat_ollama(messages: list[dict], model: str = "", max_tokens: int | None = 
     if not content:
         raise LLMError(f"Local model '{model}' returned an empty answer.")
     return content
+
+
+def generate_raw(messages: list[dict], model: str, max_tokens: int) -> str:
+    """The fine-tuned model's answer to `messages`, sent as a raw prompt in its training
+    format (Qwen3-4B-Instruct-2507):
+        <|im_start|>system\\n{system}<|im_end|>\\n<|im_start|>user\\n{prompt}<|im_end|>\\n<|im_start|>assistant\\n
+    Ollama's chat template and its tool-call reading are skipped: the CV model sometimes
+    starts with "</tool_call>" / "<tool_call>" lines, and /api/chat then read the whole
+    answer as a tool call and returned no text. Those lines are removed by the agent."""
+    prompt = "".join(f"<|im_start|>{m['role']}\n{m['content']}<|im_end|>\n" for m in messages) + "<|im_start|>assistant\n"
+    response = _ollama.post("/api/generate", json={
+        "model": model,
+        "prompt": prompt,
+        "raw": True,
+        "keep_alive": -1,
+        "stream": False,
+        "options": {"num_predict": max_tokens, "num_ctx": config.OLLAMA_FULL_NUM_CTX,
+                    "temperature": 0.1, "stop": ["<|im_end|>"]},
+    })
+    response.raise_for_status()
+    return response.json().get("response") or ""
 
 
 def small_prompt(messages: list[dict]) -> list[dict]:
