@@ -327,10 +327,32 @@ class AnalysisCheck(unittest.TestCase):
         self.assertEqual(target_length(london("Jan 2018 - Dec 2024"), "en"), "about 2 pages (5-10 years of experience)")
         self.assertEqual(target_length(london("Aug 2021 - Dec 2024"), "en"), "1-2 pages (1-5 years of experience)")
         self.assertEqual(target_length(london("Jun 2024 - Sep 2024"), "en"), "1 page (student / fresh graduate)")
+        # the template does not matter: a worker in the Student template still gets pages by years
         self.assertEqual(target_length(london("Jan 2018 - Dec 2024").replace("London", "Student"), "en"),
-                         "1 page (student / fresh graduate)")
+                         "about 2 pages (5-10 years of experience)")
+        # internships are not full-time work
+        internships = london("Jun 2022 - Sep 2022", "Jun 2024 - Sep 2024").replace("Engineer - Company", "Software Intern - Company")
+        self.assertEqual(target_length(internships, "en"), "1 page (student / fresh graduate)")
+        self.assertEqual(target_length(london("Jan 2018 - Dec 2024"), "ar"), "حوالي صفحتين (من 5 لـ 10 سنين خبرة)")
         checked = check_analysis("CV ANALYSIS\nRating: 5/10\nTarget length: 1 page", london("Jan 2018 - Dec 2024"))
         self.assertIn("\nTarget length: about 2 pages (5-10 years of experience)\n", checked)
+
+    def test_role_line_keeps_only_the_job_title(self):
+        from app.documents.cv_analysis import clean_role_line
+        student = "Template: Student\nRana Gamal\nMarketing Specialist, Jan 2023 - Present\nGiza | rana@example.com\n\nSUMMARY\nx"
+        self.assertEqual(clean_role_line(student).splitlines()[2], "Marketing Specialist")
+        for role in ["Marketing Specialist - Bright Future Company", "Marketing Specialist (Jan 2023 - Present)",
+                     "Marketing Specialist at Bright Future", "Marketing Specialist | Bright Future"]:
+            self.assertEqual(clean_role_line(student.replace("Marketing Specialist, Jan 2023 - Present", role)).splitlines()[2],
+                             "Marketing Specialist")
+        kept = student.replace("Marketing Specialist, Jan 2023 - Present", "Computer Science Student")
+        self.assertEqual(clean_role_line(kept), kept)                                   # already only a title
+        no_role = "Template: Student\nRana Gamal\nGiza | rana@example.com | +20 100 000 5521\n\nSUMMARY\nx"
+        self.assertEqual(clean_role_line(no_role), no_role)                             # contact line, not a role
+        london = "Template: London\nHesham, Engineering Manager, Mar 2021 - Present\nCairo | h@example.com"
+        self.assertEqual(clean_role_line(london).splitlines()[1], "Hesham, Engineering Manager")
+        arabic = "Template: Student\nفرح سليم\nطالبة علوم حاسب، 2022 - 2026\nالقاهرة | farah@gmail.com"
+        self.assertEqual(clean_role_line(arabic).splitlines()[2], "طالبة علوم حاسب")
 
     def test_older_roles_keep_their_first_bullet(self):
         from app.documents.cv_analysis import check_analysis, condense_old_roles

@@ -19,15 +19,16 @@ analysis is corrected in code:
   role for a CV with nothing yet; an internship or part-time job when it has projects);
 - "Rewrote your bullets to start with action verbs." is removed when there are no bullets;
 - the Skills line says "a short list; add more." (fewer than 6 skills) or "a good range.";
-- the Target length line is computed from the CV (template and years of experience);
+- the Target length line is computed from the CV (years of full-time work, whatever the template);
 - "Proofread your CV ..." is removed unless "What I changed" says spelling was fixed;
 - "Write the start and end months for <role> ..." is removed unless that role's dates are only
   a duration ("2 years");
 - the Summary line and its advice follow whether the summary names the role they want;
 - a list left empty gets a general line, so it never shows only its heading;
 - the rating is computed again with a fixed rubric (rate_cv), between 1 and 10.
-The rewritten CV itself is changed in one way (condense_old_roles): roles that ended more than
-10 years ago keep only their first bullet.
+The rewritten CV itself is changed in two ways: the role line under the name keeps only the
+job title (clean_role_line), and roles that ended more than 10 years ago keep only their
+first bullet (condense_old_roles).
 Every change is logged in the backend terminal.
 """
 import datetime
@@ -109,6 +110,11 @@ TARGET_LENGTHS = [  # (up to this many years, English, Arabic)
     (10, "about 2 pages (5-10 years of experience)", "حوالي صفحتين (من 5 لـ 10 سنين خبرة)"),
     (None, "2-3 pages (more than 10 years of experience)", "من صفحتين لـ 3 صفحات (أكتر من 10 سنين خبرة)"),
 ]
+INTERNSHIP = re.compile(r"\bintern(?:ship)?s?\b|\btrainee\b|متدرب|تدريب", re.IGNORECASE)  # not full-time work
+# The role line under the name: only the job title (or "<major> Student"); cut at a comma,
+# "|", " - ", "(" or " at " (dates or a company the model added)
+ROLE_LINE_EXTRA = re.compile(r"\s*(?:,|،|\||\(|\s[-–—]\s|\sat\s|\s@\s).*$", re.IGNORECASE)
+CONTACT = re.compile(r"@|https?://|www\.|linkedin|github|\+?\d[\d\s]{7,}", re.IGNORECASE)
 TARGET_LINE = re.compile(r"^(?P<prefix>[^\w\n]*(?:Target length|الطول[^:\n]{0,20}):[ \t]*).*$", re.MULTILINE | re.IGNORECASE)
 CONDENSED = {"en": "Condensed older roles and extra projects to their main point to keep the CV focused.",
              "ar": "اختصرت الأدوار القديمة والمشاريع الزيادة لأهم نقطة فيها عشان الـ CV يفضل مركز."}
@@ -265,15 +271,41 @@ def experience_roles(cv: str) -> list[dict]:
 
 
 def target_length(cv: str, language: str) -> str:
-    """The length the CV should have: 1 page for the Student template (or under a year of
-    work), otherwise by the years from the first job's start to the last job's end."""
-    template = cv.splitlines()[0].partition(":")[2].strip().lower() if cv.startswith("Template:") else ""
-    roles = [role for role in experience_roles(cv) if role["start"] is not None]
+    """The length the CV should have, by the years of full-time work only (whatever the
+    template): from the first job's start to the last job's end. Internships do not count,
+    so students and fresh graduates (under a year) get 1 page."""
+    roles = [role for role in experience_roles(cv)
+             if role["start"] is not None and not INTERNSHIP.search(" ".join(role["text"]))]
     years = max(r["end"] for r in roles) - min(r["start"] for r in roles) if roles else 0
-    if template not in ("london", "modern") or years < 1:
-        years = 0
     _, english, arabic = next(level for level in TARGET_LENGTHS if level[0] is None or years <= level[0])
     return english if language == "en" else arabic
+
+
+def clean_role_line(cv: str) -> str:
+    """The CV with the role line under the name cut to the job title: "Marketing Specialist,
+    Jan 2023 - Present" -> "Marketing Specialist". In the London template the role follows
+    the name on the same line ("Name, Role")."""
+    lines = cv.splitlines()
+    numbers = [n for n, line in enumerate(lines) if line.strip() and not line.startswith("Template:")]
+    if len(numbers) < 2:
+        return cv
+    name_number, next_number = numbers[0], numbers[1]
+    if cv.lower().startswith("template: london") and "," in lines[name_number]:
+        name, _, role = lines[name_number].partition(",")
+        title = ROLE_LINE_EXTRA.sub("", role.strip())
+        new = f"{name}, {title}" if title else name
+        number = name_number
+    else:
+        role = lines[next_number].strip()
+        if is_heading(role) or CONTACT.search(role):
+            return cv  # no role line
+        new = ROLE_LINE_EXTRA.sub("", role) or role
+        number = next_number
+    if new.strip() == lines[number].strip():
+        return cv
+    log.info("CV: role line %r -> %r", lines[number].strip(), new.strip())
+    lines[number] = new
+    return "\n".join(lines)
 
 
 def condense_old_roles(cv: str) -> tuple[str, bool]:
