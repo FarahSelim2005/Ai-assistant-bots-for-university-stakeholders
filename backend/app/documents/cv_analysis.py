@@ -14,7 +14,11 @@ analysis is corrected in code:
   says some were removed;
 - "Section by section" lines are corrected: the Summary line when the target role is stated,
   the Experience line when there is no role yet ("no internship or job yet");
-- missing advice is added: a LinkedIn link, and a first internship or job when there is none;
+- missing advice is added: a LinkedIn link, more skills (fewer than 6), and one piece of advice
+  about a first job when there is none (an internship, part-time job, project or volunteering
+  role for a CV with nothing yet; an internship or part-time job when it has projects);
+- "Rewrote your bullets to start with action verbs." is removed when there are no bullets;
+- the Skills line says "a short list; add more." (fewer than 6 skills) or "a good range.";
 - a list left empty gets a general line, so it never shows only its heading;
 - the rating is computed again with a fixed rubric (rate_cv), between 1 and 10.
 Every change is logged in the backend terminal.
@@ -60,12 +64,15 @@ ABOUT_LEVELS = re.compile(r"\blevels?\b|مستو", re.IGNORECASE)  # "show your 
 ABOUT_NUMBERS = re.compile(r"measurable|quantif|numbers|metrics|أرقام|ارقام|قابلة للقياس|ملموسة", re.IGNORECASE)
 ABOUT_SKILL_RANGE = re.compile(r"good range of skills", re.IGNORECASE)  # "You list a good range of skills."
 ABOUT_LINKEDIN = re.compile(r"linkedin|لينكد", re.IGNORECASE)
-# A "What I changed" note that does not apply to Arabic CVs (their bullets stay as written)
+# A "What I changed" note that is wrong for Arabic CVs (their bullets stay as written) and for
+# CVs without experience or project bullets
 ABOUT_ACTION_VERBS = re.compile(r"action verbs?", re.IGNORECASE)
 # What an improvement is about
 ABOUT_MISSING_BULLETS = re.compile(r"(?:add|ضيف)\s+2\s*[-–]\s*3\s+bullets", re.IGNORECASE)  # "Add 2-3 bullets about ..."
-ABOUT_MORE_SKILLS = re.compile(r"add more skills that match the jobs you want", re.IGNORECASE)
-ABOUT_JOB = re.compile(r"internship or part-time job|تدريب أو شغل part-time", re.IGNORECASE)
+ABOUT_MORE_SKILLS = re.compile(r"add more skills|ضيف مهارات", re.IGNORECASE)
+ABOUT_JOB = re.compile(r"internship or part-time job|تدريب أو شغل part-time", re.IGNORECASE)  # ADD_JOB
+# The same advice for a CV with nothing yet: "Add an internship, part-time job, project or volunteering role"
+ABOUT_FIRST_ROLE = re.compile(r"internship, part-time job, project or volunteering", re.IGNORECASE)
 ABOUT_TARGET_ROLE = re.compile(r"which role or internship you are looking for|الوظيفة أو التدريب اللي بتدور عليه", re.IGNORECASE)
 ABOUT_PERSONAL_DETAILS = re.compile(r"personal details and hobbies out|البيانات الشخصية والهوايات برا", re.IGNORECASE)
 # A "What I changed" note saying personal details or hobbies were taken out
@@ -74,12 +81,17 @@ PERSONAL_DETAILS = re.compile(r"personal|hobb|interests|date of birth|nationalit
                               re.IGNORECASE)
 NO_TARGET_ROLE ="[add the role or internship you are looking for]"
 # "Section by section" lines (prefix: "- " or "1. ")
-SHORT_SKILLS = re.compile(r"^(?P<prefix>[^\w\n]*)Skills: a short list; add more\.?[ \t]*$", re.MULTILINE | re.IGNORECASE)
+SKILLS_LINE = {"en": re.compile(r"^(?P<prefix>[^\w\n]*)Skills:.*$", re.MULTILINE | re.IGNORECASE),
+               "ar": re.compile(r"^(?P<prefix>[^\w\n]*)المهارات:.*$", re.MULTILINE)}
+FEW_SKILLS = {"en": "Skills: a short list; add more.", "ar": "المهارات: قليلة، ضيف أكتر."}
+MANY_SKILLS = {"en": "Skills: a good range.", "ar": "المهارات: متنوعة."}
 SUMMARY_LINE = re.compile(r"^(?P<prefix>[^\w\n]*)Summary:.*$", re.MULTILINE | re.IGNORECASE)
 EXPERIENCE_LINE = {"en": re.compile(r"^(?P<prefix>[^\w\n]*)(?:Work )?Experience:.*$", re.MULTILINE | re.IGNORECASE),
                    "ar": re.compile(r"^(?P<prefix>[^\w\n]*)(?:الخبرات|الخبرة)(?: العملية)?:.*$", re.MULTILINE)}
 NO_JOB_YET = {"en": "Experience: no internship or job yet.", "ar": "الخبرات: لسه مفيش تدريب أو شغل."}
 ADD_JOB = {"en": "Add an internship or part-time job when you can.", "ar": "ضيف تدريب أو شغل part-time لما تقدر."}
+ADD_FIRST_ROLE = {"en": "Add an internship, part-time job, project or volunteering role.", "ar": ADD_JOB["ar"]}
+ADD_MORE_SKILLS = {"en": "Add more skills that match the jobs you want.", "ar": "ضيف مهارات أكتر تناسب الوظايف اللي عايزها."}
 ADD_LINKEDIN = {"en": "Add a link to your LinkedIn profile.", "ar": "ضيف لينك الـ LinkedIn بتاعك."}
 # Added when a list is left empty
 NO_IMPROVEMENTS = {"en": "Tailor your summary and skills to each job you apply for.",
@@ -168,6 +180,12 @@ def numbers_in_bullets(sections: dict) -> bool:
                for name in ("experience", "projects") for kind, text in sections.get(name, []))
 
 
+def has_bullets(sections: dict) -> bool:
+    """A real (not "[add ...]") bullet under EXPERIENCE or PROJECTS."""
+    return any(kind == "bullet" and not PLACEHOLDER.match(text)
+               for name in ("experience", "projects") for kind, text in sections.get(name, []))
+
+
 def strip_model_tags(answer: str) -> str:
     """The answer without "<think>", "</think>", "<tool_call>", "</tool_call>" lines at its start."""
     lines = answer.lstrip().splitlines()
@@ -206,21 +224,34 @@ def check_analysis(analysis: str, cv: str) -> str:
         not_needed.append(ABOUT_TARGET_ROLE)  # the summary already says what they are looking for
     if not PERSONAL_DETAILS.search(list_text(analysis.splitlines(), WHAT_I_CHANGED)):
         not_needed.append(ABOUT_PERSONAL_DETAILS)  # the CV had none to take out
+    # No job yet: one piece of advice about it, not two. With projects or activities: "Add an
+    # internship or part-time job when you can."; with nothing: "Add an internship, part-time
+    # job, project or volunteering role."
+    # (Arabic has one sentence for both: ADD_FIRST_ROLE["ar"] is ADD_JOB["ar"].)
+    has_projects = bool(real(sections.get("projects", [])) or real(sections.get("activities", [])))
+    first_role = ABOUT_FIRST_ROLE if language == "en" else ABOUT_JOB  # the advice for a CV with nothing yet
+    if not has_job and has_projects:
+        not_needed.append(ABOUT_FIRST_ROLE)
+    elif not has_job and language == "en":
+        not_needed.append(ABOUT_JOB)
     lines = analysis.splitlines()
-    if is_arabic(cv):  # Arabic CVs keep their bullets as written
-        lines = remove_items(lines, WHAT_I_CHANGED, [ABOUT_ACTION_VERBS], "change not made to an Arabic CV")
+    if is_arabic(cv) or not has_bullets(sections):  # bullets kept as written, or no bullets at all
+        lines = remove_items(lines, WHAT_I_CHANGED, [ABOUT_ACTION_VERBS], "change not made to this CV")
     lines = remove_items(lines, STRENGTHS, unsupported, "strengths not supported by the CV")
     lines = remove_items(lines, TO_IMPROVE, not_needed, "advice the CV does not need")
     if not PROFILE_LINK.search(cv):
         lines = add_to_improve(lines, ADD_LINKEDIN[language], language, ABOUT_LINKEDIN)
-    if not has_job:
+    if not has_job and has_projects:
         lines = add_to_improve(lines, ADD_JOB[language], language, ABOUT_JOB)
+    elif not has_job:
+        lines = add_to_improve(lines, ADD_FIRST_ROLE[language], language, first_role)
+    if not many_skills:
+        lines = add_to_improve(lines, ADD_MORE_SKILLS[language], language, ABOUT_MORE_SKILLS)
     lines = fill_if_empty(lines, TO_IMPROVE, f"1. {NO_IMPROVEMENTS[language]}")
     lines = fill_if_empty(lines, STRENGTHS, f"- {NO_STRENGTHS[language]}")
     analysis = "\n".join(lines)
     # "Section by section" lines that must match the CV
-    if many_skills:  # the skills line said the list was short
-        analysis = replace_line(analysis, SHORT_SKILLS, "Skills: a good range.")
+    analysis = replace_line(analysis, SKILLS_LINE[language], (MANY_SKILLS if many_skills else FEW_SKILLS)[language])
     if NO_TARGET_ROLE not in cv:
         analysis = replace_line(analysis, SUMMARY_LINE, "Summary: clear, and says what you are looking for.")
     if not has_job:  # not "some roles have no description yet": there is no role

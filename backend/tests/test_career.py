@@ -111,7 +111,8 @@ class CvAnalysis(unittest.TestCase):
         with mock.patch.object(career_module, "chat_with_backup", return_value=answer):
             result = AGENTS["internship_career"].generate("fix my cv", [], [], attachment)
         self.assertIn("- Led [add the number] people", result)  # invented in the CV: replaced
-        self.assertTrue(result.endswith("Most important to improve:\n1. Add 2 projects\n2. Add a link to your LinkedIn profile."))
+        self.assertTrue(result.endswith("Most important to improve:\n1. Add 2 projects\n2. Add a link to your LinkedIn profile."
+                                        "\n3. Add more skills that match the jobs you want."))  # no skills section
 
     def test_pdf_has_the_cv_and_the_chat_has_the_analysis(self):
         import pymupdf
@@ -186,7 +187,7 @@ class AnalysisCheck(unittest.TestCase):
             "CV ANALYSIS", "Rating: 5/10 - Needs work", "Target length: 1 page", "What I changed:", "- Reordered sections",
             "Strengths:", "- Clear education section with dates",  # links, levels and numbers: not in the CV
             "Most important to improve:", "1. Add details to your cashier role", "2. State the role you are looking for",
-            "3. Add a link to your LinkedIn profile.",
+            "3. Add a link to your LinkedIn profile.", "4. Add more skills that match the jobs you want.",  # 3 skills
             "Section by section:", "- Summary: short"]))
 
     def test_rubric(self):
@@ -208,7 +209,8 @@ class AnalysisCheck(unittest.TestCase):
         analysis = "\n".join(["تحليل الـ CV", "التقييم: 9/10 - ممتاز", "نقاط القوة:", "- فيه لينك LinkedIn",
                               "- المهارات ليها مستوى", "- أرقام في الخبرات", "أهم حاجات محتاجة تتحسن:", "1. ضيف مشاريع"])
         checked = check_analysis(analysis, cv)
-        self.assertEqual(checked, analysis.replace("9/10 - ممتاز", "7/10 - CV كويس بس فيه شوية حاجات ناقصة"))
+        self.assertEqual(checked, analysis.replace("9/10 - ممتاز", "7/10 - CV كويس بس فيه شوية حاجات ناقصة")
+                         + "\n2. ضيف مهارات أكتر تناسب الوظايف اللي عايزها.")  # 3 skills
 
 
     def test_advice_for_a_cv_with_projects_but_no_job(self):
@@ -264,9 +266,9 @@ class AnalysisCheck(unittest.TestCase):
     def test_empty_lists_get_a_general_line(self):
         from app.documents.cv_analysis import check_analysis
         cv = NO_LINKEDIN_CV.replace("Cairo | omar@gmail.com", "Cairo | omar@gmail.com | linkedin.com/in/omar") \
-            .replace("- [add details about what you did]", "- Served customers")
+            .replace("- [add details about what you did]", "- Served customers") \
+            .replace("- Teamwork", "- Teamwork\n- SQL\n- Word\n- Sales")  # 6 skills: no "add more skills"
         analysis = "\n".join(["CV ANALYSIS", "Rating: 9/10 - Strong CV", "Strengths:",
-                              "- You list a good range of skills.",          # only 3 skills
                               "- Your skills are well organized and show your level.",  # no levels or groups
                               "Most important to improve:", "1. Add 2-3 bullets about what you did as Cashier."])
         self.assertEqual(check_analysis(analysis, cv).splitlines()[2:], [
@@ -303,7 +305,48 @@ class AnalysisCheck(unittest.TestCase):
         self.assertEqual(check_analysis(analysis, cv).splitlines()[2:], [
             "أهم حاجات محتاجة تتحسن:", "1. ضيف أرقام للمشاريع.",
             "2. ضيف تدريب أو شغل part-time لما تقدر.",
+            "3. ضيف مهارات أكتر تناسب الوظايف اللي عايزها.",  # no skills section
             "تحليل كل جزء:", "- الخبرات: لسه مفيش تدريب أو شغل."])
+
+    def test_one_piece_of_advice_for_a_first_job(self):
+        from app.documents.cv_analysis import check_analysis
+        both = ["Most important to improve:",
+                "1. Add an internship, part-time job, project or volunteering role; this is the biggest gap.",
+                "2. Add an internship or part-time job when you can."]
+        nothing_yet = "\n".join(["Template: Student", "Youssef Adel", "Cairo | +20 111 000 2233", "",
+                                 "EXPERIENCE", "[add an internship, part-time job, project or volunteering role]"])
+        checked = check_analysis("\n".join(both), nothing_yet).splitlines()
+        self.assertIn(both[1], checked)  # no projects: the first one stays ...
+        self.assertNotIn(both[2], checked)
+        with_project = nothing_yet + "\n\nPROJECTS\nChat App\n- Built a chat app"
+        checked = check_analysis("\n".join(both), with_project).splitlines()
+        self.assertIn("1. Add an internship or part-time job when you can.", checked)  # ... projects: the second one
+        self.assertFalse(any("volunteering role" in line for line in checked))
+        # only the second one, no projects: replaced by the first one
+        checked = check_analysis("\n".join([both[0], "1. Add an internship or part-time job when you can."]), nothing_yet)
+        self.assertIn("Add an internship, part-time job, project or volunteering role.", checked)
+        self.assertNotIn("when you can", checked)
+
+    def test_skills_line_and_advice_follow_the_count(self):
+        from app.documents.cv_analysis import check_analysis
+        analysis = "\n".join(["Most important to improve:", "1. Add numbers.", "Section by section:", "- Skills: a good range."])
+        checked = check_analysis(analysis, NO_LINKEDIN_CV)  # 3 skills
+        self.assertIn("- Skills: a short list; add more.", checked)
+        self.assertIn("Add more skills that match the jobs you want.", checked)
+        six = NO_LINKEDIN_CV.replace("- Teamwork", "- Teamwork\n- SQL\n- Word\n- Sales")
+        checked = check_analysis(analysis.replace("a good range.", "a short list; add more.")
+                                 .replace("1. Add numbers.", "1. Add numbers.\n2. Add more skills that match the jobs you want."), six)
+        self.assertIn("- Skills: a good range.", checked)
+        self.assertNotIn("Add more skills", checked)
+        arabic = check_analysis("أهم حاجات محتاجة تتحسن:\n1. ضيف أرقام.\nتحليل كل جزء:\n- المهارات: كويسة.", ARABIC_CV)
+        self.assertIn("- المهارات: قليلة، ضيف أكتر.", arabic)
+
+    def test_no_action_verb_note_without_bullets(self):
+        from app.documents.cv_analysis import check_analysis
+        analysis = "What I changed:\n- Reordered your sections.\n- Rewrote your bullets to start with action verbs."
+        no_bullets = "Template: Student\nYoussef Adel\n\nEDUCATION\nHELWAN UNIVERSITY, 2024 - Present\n\nSKILLS\n- Python"
+        self.assertNotIn("action verbs", check_analysis(analysis, no_bullets))
+        self.assertIn("action verbs", check_analysis(analysis, NO_LINKEDIN_CV))  # has bullets
 
 
 class PdfLayout(unittest.TestCase):
