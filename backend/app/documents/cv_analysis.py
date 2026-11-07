@@ -3,7 +3,10 @@
 The model sometimes praises things the CV does not have (links, skill levels, numbers), gives
 advice the CV does not need, and its rating is not always consistent. After each rewrite the
 analysis is corrected in code:
-- strengths the CV does not support are removed;
+- strengths the CV does not support are removed (profile links, skill levels, measurable
+  results, a good range of skills with fewer than 6);
+- for Arabic CVs, "Rewrote your bullets to start with action verbs." is removed from
+  "What I changed" (their bullets stay as written);
 - advice it does not need is removed: "Add 2-3 bullets about ..." when every role has its
   bullets, "Add more skills ..." when it lists 6 or more skills (and "Skills: a short list;
   add more." becomes "Skills: a good range."), "Say in your summary which role ..." when the
@@ -12,13 +15,15 @@ analysis is corrected in code:
 - "Section by section" lines are corrected: the Summary line when the target role is stated,
   the Experience line when there is no role yet ("no internship or job yet");
 - missing advice is added: a LinkedIn link, and a first internship or job when there is none;
-- the rating is computed again with a fixed rubric (rate_cv).
+- a list left empty gets a general line, so it never shows only its heading;
+- the rating is computed again with a fixed rubric (rate_cv), between 1 and 10.
+Every change is logged in the backend terminal.
 """
 import logging
 import math
 import re
 
-from app.documents.cv_file import ARABIC_LETTERS, blocks
+from app.documents.cv_file import ARABIC_LETTERS, blocks, is_arabic
 
 log = logging.getLogger("uvicorn.error")
 
@@ -51,9 +56,12 @@ LABEL = re.compile(r"^[^\s\-•*\d][^:\n]{0,50}:")            # "Section by sect
 ITEM = re.compile(r"^(?P<indent>\s*)(?:(?P<number>\d+)(?P<sep>[.)])|[-•*])\s*")
 # What a strength is about
 ABOUT_LINKS = re.compile(r"linkedin|github|لينكد|جيت ?هاب|\blinks?\b|روابط|لينكات", re.IGNORECASE)
-ABOUT_LEVELS = re.compile(r"\blevels?\b|مستو[ىي]|مستويات", re.IGNORECASE)
+ABOUT_LEVELS = re.compile(r"\blevels?\b|مستو", re.IGNORECASE)  # "show your level", "موضح مستواها"
 ABOUT_NUMBERS = re.compile(r"measurable|quantif|numbers|metrics|أرقام|ارقام|قابلة للقياس|ملموسة", re.IGNORECASE)
+ABOUT_SKILL_RANGE = re.compile(r"good range of skills", re.IGNORECASE)  # "You list a good range of skills."
 ABOUT_LINKEDIN = re.compile(r"linkedin|لينكد", re.IGNORECASE)
+# A "What I changed" note that does not apply to Arabic CVs (their bullets stay as written)
+ABOUT_ACTION_VERBS = re.compile(r"action verbs?", re.IGNORECASE)
 # What an improvement is about
 ABOUT_MISSING_BULLETS = re.compile(r"(?:add|ضيف)\s+2\s*[-–]\s*3\s+bullets", re.IGNORECASE)  # "Add 2-3 bullets about ..."
 ABOUT_MORE_SKILLS = re.compile(r"add more skills that match the jobs you want", re.IGNORECASE)
@@ -71,9 +79,15 @@ SUMMARY_LINE = re.compile(r"^(?P<prefix>[^\w\n]*)Summary:.*$", re.MULTILINE | re
 EXPERIENCE_LINE = {"en": re.compile(r"^(?P<prefix>[^\w\n]*)(?:Work )?Experience:.*$", re.MULTILINE | re.IGNORECASE),
                    "ar": re.compile(r"^(?P<prefix>[^\w\n]*)(?:الخبرات|الخبرة)(?: العملية)?:.*$", re.MULTILINE)}
 NO_JOB_YET = {"en": "Experience: no internship or job yet.", "ar": "الخبرات: لسه مفيش تدريب أو شغل."}
-ADD_JOB = {"en": "Add an internship or part-time job when you can; until then, your projects carry your CV.",
-           "ar": "ضيف تدريب أو شغل part-time لما تقدر، ولحد ساعتها المشاريع هي اللي شايلة الـ CV."}
-ADD_LINKEDIN = {"en": "Add a link to your LinkedIn profile.", "ar": "ضيف لينك بروفايل الـ LinkedIn بتاعك."}
+ADD_JOB = {"en": "Add an internship or part-time job when you can.", "ar": "ضيف تدريب أو شغل part-time لما تقدر."}
+ADD_LINKEDIN = {"en": "Add a link to your LinkedIn profile.", "ar": "ضيف لينك الـ LinkedIn بتاعك."}
+# Added when a list is left empty
+NO_IMPROVEMENTS = {"en": "Tailor your summary and skills to each job you apply for.",
+                   "ar": "عدل الملخص والمهارات حسب كل وظيفة بتقدم عليها."}
+NO_STRENGTHS = {"en": "You have a clear starting point: your education and skills.",
+                "ar": "عندك بداية واضحة: التعليم والمهارات."}
+# Lines the model sometimes writes before the CV
+MODEL_TAG = re.compile(r"^\s*</?(?:tool_call|think)>\s*$")
 RATING_LABEL = {"en": "Rating:", "ar": "التقييم:"}
 IMPROVE_LABEL = {"en": "Most important to improve:", "ar": "أهم حاجات محتاجة تتحسن:"}
 VERDICTS = [(8, "Strong CV", "CV قوي"), (6, "Good CV with a few gaps", "CV كويس بس فيه شوية حاجات ناقصة"),
@@ -154,10 +168,21 @@ def numbers_in_bullets(sections: dict) -> bool:
                for name in ("experience", "projects") for kind, text in sections.get(name, []))
 
 
+def strip_model_tags(answer: str) -> str:
+    """The answer without "<think>", "</think>", "<tool_call>", "</tool_call>" lines at its start."""
+    lines = answer.lstrip().splitlines()
+    start = 0
+    while start < len(lines) and (MODEL_TAG.match(lines[start]) or not lines[start].strip()):
+        start += 1
+    if start:
+        log.warning("CV answer: %d tag line(s) removed from the start", sum(bool(MODEL_TAG.match(l)) for l in lines[:start]))
+    return "\n".join(lines[start:])
+
+
 def check_analysis(analysis: str, cv: str) -> str:
     """The analysis made to match the CV: strengths and advice the CV does not support are
     removed, missing advice (LinkedIn, a first job) is added, and the rating is computed
-    from the CV."""
+    from the CV. Every change is logged."""
     _, sections = cv_sections(cv)
     language = "ar" if ARABIC_LETTERS.search(analysis) else "en"
     skills = [text for _, text in sections.get("skills", [])]
@@ -170,6 +195,8 @@ def check_analysis(analysis: str, cv: str) -> str:
         unsupported.append(ABOUT_LEVELS)
     if not numbers_in_bullets(sections):
         unsupported.append(ABOUT_NUMBERS)
+    if not many_skills:
+        unsupported.append(ABOUT_SKILL_RANGE)
     not_needed = []  # advice for something the CV already has
     if NO_DETAILS not in cv:
         not_needed.append(ABOUT_MISSING_BULLETS)  # every role already has its bullets
@@ -180,28 +207,56 @@ def check_analysis(analysis: str, cv: str) -> str:
     if not PERSONAL_DETAILS.search(list_text(analysis.splitlines(), WHAT_I_CHANGED)):
         not_needed.append(ABOUT_PERSONAL_DETAILS)  # the CV had none to take out
     lines = analysis.splitlines()
+    if is_arabic(cv):  # Arabic CVs keep their bullets as written
+        lines = remove_items(lines, WHAT_I_CHANGED, [ABOUT_ACTION_VERBS], "change not made to an Arabic CV")
     lines = remove_items(lines, STRENGTHS, unsupported, "strengths not supported by the CV")
     lines = remove_items(lines, TO_IMPROVE, not_needed, "advice the CV does not need")
     if not PROFILE_LINK.search(cv):
         lines = add_to_improve(lines, ADD_LINKEDIN[language], language, ABOUT_LINKEDIN)
     if not has_job:
         lines = add_to_improve(lines, ADD_JOB[language], language, ABOUT_JOB)
+    lines = fill_if_empty(lines, TO_IMPROVE, f"1. {NO_IMPROVEMENTS[language]}")
+    lines = fill_if_empty(lines, STRENGTHS, f"- {NO_STRENGTHS[language]}")
     analysis = "\n".join(lines)
     # "Section by section" lines that must match the CV
     if many_skills:  # the skills line said the list was short
-        analysis = SHORT_SKILLS.sub(lambda m: f"{m['prefix']}Skills: a good range.", analysis)
+        analysis = replace_line(analysis, SHORT_SKILLS, "Skills: a good range.")
     if NO_TARGET_ROLE not in cv:
-        analysis = SUMMARY_LINE.sub(lambda m: f"{m['prefix']}Summary: clear, and says what you are looking for.", analysis)
+        analysis = replace_line(analysis, SUMMARY_LINE, "Summary: clear, and says what you are looking for.")
     if not has_job:  # not "some roles have no description yet": there is no role
-        analysis = EXPERIENCE_LINE[language].sub(lambda m: f"{m['prefix']}{NO_JOB_YET[language]}", analysis)
+        analysis = replace_line(analysis, EXPERIENCE_LINE[language], NO_JOB_YET[language])
 
-    rating = max(0, min(10, math.floor(rate_cv(cv) + 0.5)))  # rounded half up
+    rating = max(1, min(10, math.floor(rate_cv(cv) + 0.5)))  # rounded half up, 1-10
     verdict = next(v for v in VERDICTS if rating >= v[0])[1 if language == "en" else 2]
-    log.info("CV analysis: rating %s/10 computed from the CV", rating)
-    if RATING.search(analysis):
+    if match := RATING.search(analysis):
+        log.info("CV analysis: rating line %r -> %s/10 - %s (computed from the CV)", match.group().strip(), rating, verdict)
         return RATING.sub(lambda m: f"{m['label']}{rating}/10 - {verdict}", analysis, count=1)
+    log.info("CV analysis: rating line added: %s/10 - %s", rating, verdict)
     heading, _, rest = analysis.partition("\n")  # no rating line: add one under the heading
     return f"{heading}\n{RATING_LABEL[language]} {rating}/10 - {verdict}\n{rest}".rstrip()
+
+
+def replace_line(analysis: str, pattern: re.Pattern, new: str) -> str:
+    """Replace the "Section by section" line matching `pattern` (keeping its "- ") with `new`."""
+    def replace(match):
+        line = f"{match['prefix']}{new}"
+        if line != match.group():
+            log.info("CV analysis: %r -> %r", match.group().strip(), new)
+        return line
+    return pattern.sub(replace, analysis)
+
+
+def fill_if_empty(lines: list[str], label_pattern: re.Pattern, item: str) -> list[str]:
+    """Put `item` under the label `label_pattern` when its list has no item (left empty by
+    the removals). Nothing happens when the analysis has no such list."""
+    start = next((i for i, line in enumerate(lines) if label_pattern.match(line)), None)
+    if start is None or lines[start].partition(":")[2].strip():
+        return lines
+    end = block_end(lines, start)
+    if any(ITEM.match(line) for line in lines[start + 1:end]):
+        return lines
+    log.info("CV analysis: empty list %r filled with %r", lines[start].strip(), item)
+    return lines[:start + 1] + [item] + lines[start + 1:]
 
 
 def block_end(lines: list[str], start: int) -> int:
@@ -223,7 +278,7 @@ def list_text(lines: list[str], label_pattern: re.Pattern) -> str:
 def remove_items(lines: list[str], label_pattern: re.Pattern, topics: list[re.Pattern], what: str) -> list[str]:
     """Remove the items about any of `topics` from the list under the label `label_pattern`
     ("Strengths:", "Most important to improve:"): "- " / "1." lines, or the text after the
-    label. Numbered items are numbered again; the label goes too when no item is left."""
+    label. Numbered items are numbered again; an empty list is filled later (fill_if_empty)."""
     start = next((i for i, line in enumerate(lines) if label_pattern.match(line)), None)
     if start is None or not topics:
         return lines
@@ -244,8 +299,7 @@ def remove_items(lines: list[str], label_pattern: re.Pattern, topics: list[re.Pa
             number += 1
             line = f"{item['indent']}{number}{item['sep']} {line[item.end():]}"
         kept.append(line)
-    heading = [f"{label}:{inline}"] if inline.strip() or any(ITEM.match(line) for line in kept) else []
-    return lines[:start] + heading + kept + lines[end:]
+    return lines[:start] + [f"{label}:{inline}"] + kept + lines[end:]
 
 
 def add_to_improve(lines: list[str], advice: str, language: str, already: re.Pattern) -> list[str]:
@@ -253,6 +307,7 @@ def add_to_improve(lines: list[str], advice: str, language: str, already: re.Pat
     matches `already` (the list is created if the analysis has none)."""
     start = next((i for i, line in enumerate(lines) if TO_IMPROVE.match(line)), None)
     if start is None:
+        log.info("CV analysis: improvements list added with %r", advice)
         return lines + ["", IMPROVE_LABEL[language], f"1. {advice}"]
     end = block_end(lines, start)
     if already.search(" ".join(lines[start:end])):
@@ -265,6 +320,7 @@ def add_to_improve(lines: list[str], advice: str, language: str, already: re.Pat
         item = f"{last['indent']}- {advice}"
     else:
         item = f"1. {advice}"
+    log.info("CV analysis: advice added: %r", advice)
     return lines[:end] + [item] + lines[end:]
 
 

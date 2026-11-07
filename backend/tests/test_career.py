@@ -230,7 +230,7 @@ class AnalysisCheck(unittest.TestCase):
         self.assertEqual(checked[2:], [
             "Most important to improve:",
             "1. Add a link to your LinkedIn profile.",  # no "[add details ...]", 6 skills, role stated: the others go
-            "2. Add an internship or part-time job when you can; until then, your projects carry your CV.",
+            "2. Add an internship or part-time job when you can.",
             "Section by section:", "- Summary: clear, and says what you are looking for.",
             "- Experience: no internship or job yet.", "- Skills: a good range."])
 
@@ -261,6 +261,36 @@ class AnalysisCheck(unittest.TestCase):
                 if not kept:
                     self.assertIn("\n1. Add numbers.", checked)  # numbered again
 
+    def test_empty_lists_get_a_general_line(self):
+        from app.documents.cv_analysis import check_analysis
+        cv = NO_LINKEDIN_CV.replace("Cairo | omar@gmail.com", "Cairo | omar@gmail.com | linkedin.com/in/omar") \
+            .replace("- [add details about what you did]", "- Served customers")
+        analysis = "\n".join(["CV ANALYSIS", "Rating: 9/10 - Strong CV", "Strengths:",
+                              "- You list a good range of skills.",          # only 3 skills
+                              "- Your skills are well organized and show your level.",  # no levels or groups
+                              "Most important to improve:", "1. Add 2-3 bullets about what you did as Cashier."])
+        self.assertEqual(check_analysis(analysis, cv).splitlines()[2:], [
+            "Strengths:", "- You have a clear starting point: your education and skills.",
+            "Most important to improve:", "1. Tailor your summary and skills to each job you apply for."])
+
+    def test_arabic_cv_notes_and_strengths(self):
+        from app.documents.cv_analysis import check_analysis
+        analysis = "\n".join(["تحليل الـ CV", "التقييم: 9/10 - ممتاز", "ما غيرته:",
+                              "- كتبت كل bullet يبدأ بـ action verb.", "- رتبت الأقسام.",
+                              "نقاط القوة:", "- المهارات متنظمة وموضح مستواها.", "- التعليم واضح.",
+                              "أهم حاجات محتاجة تتحسن:", "1. ضيف أرقام."])
+        checked = check_analysis(analysis, ARABIC_CV.replace("- Python (متقدم)", "- Python")).splitlines()
+        self.assertEqual(checked[2:6], ["ما غيرته:", "- رتبت الأقسام.", "نقاط القوة:", "- التعليم واضح."])
+        self.assertIn("2. ضيف لينك الـ LinkedIn بتاعك.", checked)
+
+    def test_model_tags_and_lowest_rating(self):
+        from app.documents.cv_analysis import check_analysis, strip_model_tags
+        self.assertEqual(strip_model_tags("<think>\n</think>\n\n</tool_call>\nTemplate: Student\nOmar"),
+                         "Template: Student\nOmar")
+        self.assertEqual(strip_model_tags("Template: Student\nOmar"), "Template: Student\nOmar")
+        self.assertIn("Rating: 1/10 - Needs a lot of work",
+                      check_analysis("CV ANALYSIS\nRating: 5/10 - ok", "Template: Student\nOmar"))
+
     def test_arabic_advice_for_a_cv_without_a_job(self):
         from app.documents.cv_analysis import check_analysis
         cv = "\n".join(["Template: Student", "نور عادل", "القاهرة | nour@gmail.com | linkedin.com/in/nour", "",
@@ -272,7 +302,7 @@ class AnalysisCheck(unittest.TestCase):
                               "تحليل كل جزء:", "- الخبرات: فيه أدوار لسه مالهاش وصف."])
         self.assertEqual(check_analysis(analysis, cv).splitlines()[2:], [
             "أهم حاجات محتاجة تتحسن:", "1. ضيف أرقام للمشاريع.",
-            "2. ضيف تدريب أو شغل part-time لما تقدر، ولحد ساعتها المشاريع هي اللي شايلة الـ CV.",
+            "2. ضيف تدريب أو شغل part-time لما تقدر.",
             "تحليل كل جزء:", "- الخبرات: لسه مفيش تدريب أو شغل."])
 
 

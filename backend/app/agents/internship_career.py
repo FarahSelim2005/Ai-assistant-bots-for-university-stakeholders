@@ -15,7 +15,7 @@ import re
 from app import config
 from app.agents.base import AgentResponse, BaseAgent
 from app.attachments import Attachment
-from app.documents.cv_analysis import check_analysis
+from app.documents.cv_analysis import check_analysis, strip_model_tags
 from app.documents.cv_file import split_cv
 from app.llm.client import chat_with_backup
 from app.rag.prompts import CAREER_SYSTEM_PROMPT, ENGLISH_ONLY, build_messages
@@ -187,7 +187,7 @@ class InternshipCareerAgent(BaseAgent):
         messages[0]["content"] = messages[0]["content"].removesuffix(ENGLISH_ONLY)
         answer = chat_with_backup(messages, [config.CAREER_MODEL, *config.CAREER_BACKUP_MODELS],
                                   self.max_answer_tokens, full_prompt=True)
-        cv, analysis = split_cv(answer)
+        cv, analysis = split_cv(strip_model_tags(answer))  # "<think>" etc. before "Template: ..."
         cv = check_against_cv(complete_links(cv, attachment.text), attachment.text)
         cv = check_university(cv, attachment.text)
         if not analysis:
