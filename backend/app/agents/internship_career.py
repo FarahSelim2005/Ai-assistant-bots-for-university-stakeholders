@@ -194,7 +194,7 @@ class InternshipCareerAgent(BaseAgent):
         if not analysis:
             return cv
         # The analysis must match the checked CV: no strengths it doesn't have, and its rating
-        return f"{cv}\n\n{check_analysis(analysis, cv, condensed)}"
+        return f"{cv}\n\n{check_analysis(analysis, cv, condensed, attachment.text)}"
 
     def transcribe(self, attachment: Attachment) -> str:
         """The text of a picture CV, written out by the vision model (and its backups)."""

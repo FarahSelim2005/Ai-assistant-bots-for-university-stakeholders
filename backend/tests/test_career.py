@@ -395,6 +395,47 @@ class AnalysisCheck(unittest.TestCase):
         self.assertIn("1. اكتب شهر البداية والنهاية لـ متدربة برمجيات", check_analysis(arabic, arabic_cv))
         self.assertNotIn("اكتب شهر البداية", check_analysis(arabic, ARABIC_CV))  # it has years
 
+    def test_changes_the_cv_does_not_show_are_removed(self):
+        from app.documents.cv_analysis import check_analysis
+        analysis = "\n".join(["What I changed:", "- Reordered sections.", "- Added [placeholders] for missing information; fill them in.",
+                              "- Fixed spelling mistakes.", "Most important to improve:",
+                              "1. Proofread your CV carefully; it had spelling mistakes."])
+        no_placeholders = NO_LINKEDIN_CV.replace("- [add details about what you did]", "- Served customers") \
+            .replace("[add the role or internship you are looking for]", "Looking for a sales internship.")
+        checked = check_analysis(analysis, no_placeholders, original=no_placeholders.replace("Communication", "Comunication"))
+        self.assertNotIn("placeholders", checked)                     # no "[" in the CV
+        self.assertIn("Fixed spelling mistakes.", checked)            # "Comunication" -> "Communication"
+        self.assertIn("Proofread", checked)
+        checked = check_analysis(analysis, no_placeholders, original=no_placeholders)  # nothing corrected
+        self.assertNotIn("Fixed spelling", checked)
+        self.assertNotIn("Proofread", checked)
+        self.assertIn("placeholders", check_analysis(analysis, NO_LINKEDIN_CV, original=NO_LINKEDIN_CV))  # has "["
+        arabic = "تحليل الـ CV\nما غيرته:\n- حطيت [placeholders] للمعلومات الناقصة.\n- صلحت الأخطاء الإملائية.\n- رتبت الأقسام."
+        checked = check_analysis(arabic, ARABIC_CV, original=ARABIC_CV)  # no "[", nothing corrected
+        self.assertNotIn("placeholders", checked)
+        self.assertNotIn("صلحت الأخطاء الإملائية", checked)
+        self.assertIn("ما غيرته:\n- رتبت الأقسام.", checked)
+
+    def test_experience_in_more_than_one_role_needs_two_roles(self):
+        from app.documents.cv_analysis import check_analysis
+        strengths = "Strengths:\n- You have practical experience in more than one role.\n- Clear dates."
+        self.assertIn("more than one role", check_analysis(strengths, NO_LINKEDIN_CV))          # 2 roles
+        one_role = ENGLISH_CV                                                                    # 1 role
+        self.assertNotIn("more than one role", check_analysis(strengths, one_role))
+        arabic = "نقاط القوة:\n- عندك خبرة عملية في أكتر من مكان.\n- التعليم واضح."
+        self.assertNotIn("أكتر من مكان", check_analysis(arabic, ARABIC_CV))                       # 1 role
+
+    def test_arabic_skills_sentences_follow_the_count(self):
+        from app.documents.cv_analysis import check_analysis
+        analysis = "نقاط القوة:\n- عندك مجموعة مهارات كويسة.\n- التعليم واضح.\nتحليل كل جزء:\n- المهارات: مجموعة كويسة."
+        few = check_analysis(analysis, ARABIC_CV)                       # 1 skill
+        self.assertNotIn("مجموعة مهارات كويسة", few)
+        self.assertIn("- المهارات: قليلة، ضيف أكتر.", few)
+        many = ARABIC_CV.replace("- Python (متقدم)", "- Python\n- SQL\n- Excel\n- Power BI\n- العمل الجماعي\n- التواصل")
+        checked = check_analysis(analysis, many)                       # 6 skills
+        self.assertIn("عندك مجموعة مهارات كويسة", checked)
+        self.assertIn("- المهارات: مجموعة كويسة.", checked)
+
     def test_summary_line_follows_the_summary(self):
         from app.documents.cv_analysis import check_analysis
         analysis = "Most important to improve:\n1. Add numbers.\nSection by section:\n- Summary: clear, and says what you are looking for."

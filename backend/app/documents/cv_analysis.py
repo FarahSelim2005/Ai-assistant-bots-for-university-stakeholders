@@ -5,8 +5,10 @@ advice the CV does not need, and its rating is not always consistent. After each
 analysis is corrected in code:
 - strengths the CV does not support are removed (profile links, skill levels, measurable
   results, a good range of skills with fewer than 6);
-- for Arabic CVs, "Rewrote your bullets to start with action verbs." is removed from
-  "What I changed" (their bullets stay as written);
+- "What I changed" notes the CV does not show are removed: action verbs (Arabic CVs or no
+  bullets), "Added [placeholders] ..." (no "[" in the CV), "Fixed spelling mistakes." (no
+  word of the original CV was corrected);
+- "You have practical experience in more than one role." needs 2+ roles under EXPERIENCE;
 - advice it does not need is removed: "Add 2-3 bullets about ..." when every role has its
   bullets, "Add more skills ..." when it lists 6 or more skills (and "Skills: a short list;
   add more." becomes "Skills: a good range."), "Say in your summary which role ..." when the
@@ -32,6 +34,7 @@ first bullet (condense_old_roles).
 Every change is logged in the backend terminal.
 """
 import datetime
+import difflib
 import logging
 import math
 import re
@@ -70,7 +73,13 @@ ITEM = re.compile(r"^(?P<indent>\s*)(?:(?P<number>\d+)(?P<sep>[.)])|[-•*])\s*"
 ABOUT_LINKS = re.compile(r"linkedin|github|لينكد|جيت ?هاب|\blinks?\b|روابط|لينكات", re.IGNORECASE)
 ABOUT_LEVELS = re.compile(r"\blevels?\b|مستو", re.IGNORECASE)  # "show your level", "موضح مستواها"
 ABOUT_NUMBERS = re.compile(r"measurable|quantif|numbers|metrics|أرقام|ارقام|قابلة للقياس|ملموسة", re.IGNORECASE)
-ABOUT_SKILL_RANGE = re.compile(r"good range of skills", re.IGNORECASE)  # "You list a good range of skills."
+# "You list a good range of skills." / "عندك مجموعة مهارات كويسة."
+ABOUT_SKILL_RANGE = re.compile(r"good range of skills|مجموعة مهارات كويسة", re.IGNORECASE)
+ABOUT_SEVERAL_ROLES = re.compile(r"experience in more than one role|خبرة عملية في أكتر من مكان", re.IGNORECASE)
+# "What I changed" notes checked against the CV
+ABOUT_PLACEHOLDERS = re.compile(r"placeholders", re.IGNORECASE)  # "Added [placeholders] ..." / "حطيت [placeholders] ..."
+ABOUT_SPELLING_FIXED = re.compile(r"fixed spelling mistakes|صلحت الأخطاء الإملائية", re.IGNORECASE)
+WORD = re.compile(r"[^\W\d_]{4,}")  # words of 4+ letters, for finding spelling corrections
 ABOUT_LINKEDIN = re.compile(r"linkedin|لينكد", re.IGNORECASE)
 # A "What I changed" note that is wrong for Arabic CVs (their bullets stay as written) and for
 # CVs without experience or project bullets
@@ -187,7 +196,7 @@ def skill_count(lines: list[tuple[str, str]]) -> int:
     count = 0
     for text in real(lines):
         text = SKILL_LEVEL.sub("", text.split(":", 1)[-1])
-        count += len([skill for skill in re.split(r"[,·;|]", text) if skill.strip()])
+        count += len([skill for skill in re.split(r"[,،·;|]", text) if skill.strip()])
     return count
 
 
@@ -352,11 +361,25 @@ def add_change(lines: list[str], note: str, language: str) -> list[str]:
     return lines[:end] + [f"- {note}"] + lines[end:]
 
 
-def check_analysis(analysis: str, cv: str, condensed: bool = False) -> str:
+def spelling_corrected(original: str, cv: str) -> bool:
+    """A word of the original CV was really corrected: it is not in the rewritten CV, but a
+    close match is ("Univeristy" -> "University"). A word that only gained or lost an ending
+    ("languages" -> "language", the Student heading) is not a spelling correction."""
+    cv_words = {word.lower() for word in WORD.findall(cv)}
+    for word in {word.lower() for word in WORD.findall(original)} - cv_words:
+        for match in difflib.get_close_matches(word, cv_words, n=3, cutoff=0.8):
+            if not (match.startswith(word) or word.startswith(match)):
+                log.info("CV: spelling corrected: %r -> %r", word, match)
+                return True
+    return False
+
+
+def check_analysis(analysis: str, cv: str, condensed: bool = False, original: str | None = None) -> str:
     """The analysis made to match the CV: strengths and advice the CV does not support are
     removed, missing advice (LinkedIn, a first job) is added, and the rating is computed
     from the CV. `condensed`: older roles were cut (condense_old_roles), noted in "What I
-    changed". Every change is logged."""
+    changed". `original`: the CV as the user sent it, to check "Fixed spelling mistakes."
+    (not checked without it). Every change is logged."""
     _, sections = cv_sections(cv)
     language = "ar" if ARABIC_LETTERS.search(analysis) else "en"
     summary = " ".join(real(sections.get("summary", [])))
@@ -373,6 +396,17 @@ def check_analysis(analysis: str, cv: str, condensed: bool = False) -> str:
         unsupported.append(ABOUT_NUMBERS)
     if not many_skills:
         unsupported.append(ABOUT_SKILL_RANGE)
+    roles = [role for role in experience_roles(cv) if any(not PLACEHOLDER.match(t) for t in role["text"])]
+    if len(roles) < 2:
+        unsupported.append(ABOUT_SEVERAL_ROLES)
+    spelling_fixed = original is None or spelling_corrected(original, cv)
+    not_made = []  # "What I changed" notes the CV does not show
+    if "[" not in cv:
+        not_made.append(ABOUT_PLACEHOLDERS)
+    if not spelling_fixed:
+        not_made.append(ABOUT_SPELLING_FIXED)
+    if is_arabic(cv) or not has_bullets(sections):  # bullets kept as written, or no bullets at all
+        not_made.append(ABOUT_ACTION_VERBS)
     not_needed = []  # advice for something the CV already has
     if NO_DETAILS not in cv:
         not_needed.append(ABOUT_MISSING_BULLETS)  # every role already has its bullets
@@ -383,7 +417,7 @@ def check_analysis(analysis: str, cv: str, condensed: bool = False) -> str:
     changed = list_text(analysis.splitlines(), WHAT_I_CHANGED)
     if not PERSONAL_DETAILS.search(changed):
         not_needed.append(ABOUT_PERSONAL_DETAILS)  # the CV had none to take out
-    if not FIXED_SPELLING.search(changed):
+    if not (FIXED_SPELLING.search(changed) and spelling_fixed):
         not_needed.append(ABOUT_PROOFREAD)  # no spelling mistakes were fixed
     not_needed += dates_advice_not_needed(list_text(analysis.splitlines(), TO_IMPROVE), cv)
     # No job yet: one piece of advice about it, not two. With projects or activities: "Add an
@@ -397,8 +431,7 @@ def check_analysis(analysis: str, cv: str, condensed: bool = False) -> str:
     elif not has_job and language == "en":
         not_needed.append(ABOUT_JOB)
     lines = analysis.splitlines()
-    if is_arabic(cv) or not has_bullets(sections):  # bullets kept as written, or no bullets at all
-        lines = remove_items(lines, WHAT_I_CHANGED, [ABOUT_ACTION_VERBS], "change not made to this CV")
+    lines = remove_items(lines, WHAT_I_CHANGED, not_made, "changes not made to this CV")
     lines = remove_items(lines, STRENGTHS, unsupported, "strengths not supported by the CV")
     lines = remove_items(lines, TO_IMPROVE, not_needed, "advice the CV does not need")
     if condensed:
