@@ -30,9 +30,11 @@ analysis is corrected in code:
   (check_length, called once the PDF is made);
 - a list left empty gets a general line, so it never shows only its heading;
 - the rating is computed again with a fixed rubric (rate_cv), between 1 and 10.
-The rewritten CV itself is changed in two ways: the role line under the name keeps only the
-job title (clean_role_line), and roles that ended more than 10 years ago keep only their
-first bullet (condense_old_roles).
+The rewritten CV itself is changed in three ways: the role line under the name keeps only the
+job title (clean_role_line), roles that ended more than 10 years ago keep only their first
+bullet (condense_old_roles), and degrees of the original CV that the model dropped are put
+back into EDUCATION (restore_degrees). An academic CV (2+ publications and a research,
+conferences or clinical rotations section) gets the academic target length.
 Every change is logged in the backend terminal.
 """
 import datetime
@@ -125,6 +127,30 @@ TARGET_LENGTHS = [  # (up to this many years, English, Arabic)
 PAGE_LIMITS = [(re.compile(r"2-3 pages|من صفحتين لـ 3"), 3), (re.compile(r"1-2 pages|من صفحة لصفحتين"), 2),
                (re.compile(r"about 2 pages|حوالي صفحتين"), 2), (re.compile(r"1 page|صفحة واحدة"), 1)]
 ACADEMIC = re.compile(r"academic|أكاديمي", re.IGNORECASE)
+# An academic CV: 2+ publications and a research, conferences or clinical rotations section
+ACADEMIC_LENGTH = {"en": "academic CV: longer is fine because of your research and publications",
+                   "ar": "CV أكاديمي: طوله مقبول عشان الأبحاث والمنشورات"}
+PUBLICATIONS_HEADINGS = ("PUBLICATIONS", "المنشورات")
+RESEARCH_HEADINGS = ("RESEARCH", "CONFERENCES", "CLINICAL ROTATIONS")
+PUBLICATIONS_ADD_MORE = re.compile(r"^[^\w\n]*(?:Publications|المنشورات):.*(?:add more|ضيف).*\n?", re.MULTILINE | re.IGNORECASE)
+EXTRAS_LINE = re.compile(r"^[^\w\n]*Extras\b", re.MULTILINE | re.IGNORECASE)
+EXTRAS_KEEP = "- Extras (certificates, courses, awards, publications...): good additions; keep them."
+SECTION_BY_SECTION = re.compile(r"^\W*(?:section by section|تحليل كل جزء|تفاصيل كل قسم)", re.IGNORECASE)
+# Degrees the model dropped from the CV (test 11 lost its whole EDUCATION section)
+DEGREE = re.compile(r"(?<![\w.])(?:Ph\.?\s?D\.?|Master(?:'s)?|M\.?\s?Sc\.?|MBA|Bachelor(?:'s)?|B\.?\s?Sc\.?|BBA|B\.?\s?Com\.?"
+                    r"|B\.?\s?Pharm\.?|B\.?\s?Arch\.?|B\.?A\.?|LL\.?\s?B\.?|MBBCh|Diploma)(?=[\s,.\-–(]|$)")
+UNIVERSITY = re.compile(r"\bUniv\w*|College|Institute|Academy|School|Faculty|جامعة|كلية|معهد", re.IGNORECASE)  # also "Univeristy"
+STUDY_YEARS = re.compile(r"(?:19|20)\d\d(?:/\d\d)?\s*[-–]\s*(?:(?:19|20)\d\d(?:/\d\d)?|present|now|expected\s+(?:19|20)\d\d)"
+                         r"|expected\s+(?:19|20)\d\d|(?:19|20)\d\d", re.IGNORECASE)
+ORIGINAL_HEADING = re.compile(r"^\W*(education|academic background|qualifications|(?:work )?experience|internships|skills|"
+                              r"summary|profile|objective|about me|projects|languages|certifications|courses|research|"
+                              r"publications|conferences|awards|activities|volunteering|memberships|references|"
+                              r"التعليم|الخبرات|المهارات|الملخص|اللغات|المشاريع)\W*$", re.IGNORECASE)
+EDUCATION_HEADING = {"en": "EDUCATION", "ar": "التعليم"}
+EDUCATION_LINE = {"en": re.compile(r"^(?P<prefix>[^\w\n]*)Education:.*$", re.MULTILINE | re.IGNORECASE),
+                  "ar": re.compile(r"^(?P<prefix>[^\w\n]*)التعليم:.*$", re.MULTILINE)}
+DEGREES_ADDED = {"en": "Education: some degrees were missing from the rewrite; they were added back from your CV.",
+                 "ar": "التعليم: كانت فيه شهادات ناقصة في الـ CV الجديد، ورجعناها من الـ CV بتاعك."}
 ABOUT_TOO_LONG = re.compile(r"your cv is still longer than the target length|الـ CV لسه أطول من الطول المناسب", re.IGNORECASE)
 TOO_LONG = {"en": "Your CV is still longer than the target length: remove the items least related to the job you are applying for.",
             "ar": "الـ CV لسه أطول من الطول المناسب: شيل الحاجات اللي مالهاش علاقة بالوظيفة اللي بتقدم عليها."}
@@ -288,10 +314,25 @@ def experience_roles(cv: str) -> list[dict]:
     return roles
 
 
+def is_academic(cv: str) -> bool:
+    """2+ publications and a RESEARCH, CONFERENCES or CLINICAL ROTATIONS section."""
+    heading, publications, research = "", 0, False
+    for kind, text in blocks(cv):
+        if kind == "heading":
+            heading = text.upper()
+            research = research or heading in RESEARCH_HEADINGS
+        elif heading in PUBLICATIONS_HEADINGS and not PLACEHOLDER.match(text):
+            publications += 1
+    return publications >= 2 and research
+
+
 def target_length(cv: str, language: str) -> str:
-    """The length the CV should have, by the years of full-time work only (whatever the
-    template): from the first job's start to the last job's end. Internships do not count,
-    so students and fresh graduates (under a year) get 1 page."""
+    """The length the CV should have: longer for an academic CV, otherwise by the years of
+    full-time work only (whatever the template): from the first job's start to the last
+    job's end. Internships do not count, so students and fresh graduates (under a year)
+    get 1 page."""
+    if is_academic(cv):
+        return ACADEMIC_LENGTH[language]
     roles = [role for role in experience_roles(cv)
              if role["start"] is not None and not INTERNSHIP.search(" ".join(role["text"]))]
     years = max(r["end"] for r in roles) - min(r["start"] for r in roles) if roles else 0
@@ -324,6 +365,80 @@ def clean_role_line(cv: str) -> str:
     log.info("CV: role line %r -> %r", lines[number].strip(), new.strip())
     lines[number] = new
     return "\n".join(lines)
+
+
+def original_degrees(original: str) -> list[dict]:
+    """The degrees of the CV the user sent: {"degree", "university", "years"} from each
+    degree line (PhD, B.Sc., Bachelor ...) and the line after it. Only the Education
+    section is read when there is one ("Scrum Master" elsewhere is not a degree)."""
+    lines = [re.sub(r"^\w(?: \w)+$", lambda m: m.group().replace(" ", ""), line.strip())  # "E D U C A T I O N"
+             for line in original.splitlines()]
+    start = next((n for n, line in enumerate(lines) if ORIGINAL_HEADING.match(line)
+                  and ORIGINAL_HEADING.match(line)[1].lower() in ("education", "academic background", "qualifications", "التعليم")), None)
+    if start is not None:
+        end = next((n for n in range(start + 1, len(lines)) if ORIGINAL_HEADING.match(lines[n])), len(lines))
+        lines = lines[start + 1:end]
+    degrees = []
+    for number, line in enumerate(lines):
+        if not DEGREE.search(line):
+            continue
+        nearby = [line] + [next_line for next_line in lines[number + 1:number + 3] if next_line and not DEGREE.search(next_line)][:2]
+        parts = [part.strip(" -•*") for text in nearby for part in re.split(r"\s+[-–—|]\s+|,\s*", text)]
+        degree = next(part for part in parts if DEGREE.search(part))
+        university = next((part for part in parts if UNIVERSITY.search(part) and part != degree), "")
+        years = next((match.group() for text in nearby if (match := STUDY_YEARS.search(text))), "")
+        degrees.append({"degree": degree, "university": university, "years": years})
+    return degrees
+
+
+def restore_degrees(cv: str, original: str) -> tuple[str, bool]:
+    """The CV with the degrees of the original CV that the model dropped put back into
+    EDUCATION (created if missing), in the template's format, newest first; and whether
+    any was missing. A degree counts as present when its name is in the CV (ignoring
+    case, spaces and dots: "BSc" = "B.Sc.")."""
+    squash = lambda text: re.sub(r"[\W_]+", "", text.lower())
+    missing = [d for d in original_degrees(original) if squash(d["degree"]) not in squash(cv)]
+    if not missing:
+        return cv, False
+    last_year = lambda d: 9999 if re.search(r"present|now|expected", d["years"], re.I) else max(
+        (int(y) for y in YEAR.findall(d["years"])), default=0)
+    missing.sort(key=last_year, reverse=True)
+    template = cv.splitlines()[0].partition(":")[2].strip().lower() if cv.startswith("Template:") else "student"
+
+    def entry(d):  # the degree in the template's format
+        if template == "london":
+            return [d["years"], " - ".join(p for p in (d["degree"], d["university"]) if p)]
+        if template == "modern":
+            return [d["degree"], ", ".join(p for p in (d["university"], d["years"]) if p)]
+        return [", ".join(p for p in (d["university"].upper(), d["years"]) if p), d["degree"]]
+
+    lines = cv.splitlines()
+    headings = [n for n, line in enumerate(lines) if is_heading(line.strip()) and ":" not in line]
+    education = next((n for n in headings if line_kind(lines[n]) == "education"), None)
+    if education is None:  # Student: before EXPERIENCE; London / Modern: before SKILLS; else at the end
+        order = ("experience", "skills") if template not in ("london", "modern") else ("skills",)
+        before = next((n for kind in order for n in headings if line_kind(lines[n]) == kind), len(lines))
+        new = [EDUCATION_HEADING["ar" if is_arabic(cv) else "en"], *(l for d in missing for l in entry(d) if l), ""]
+        lines[before:before] = new if before < len(lines) else ["", *new]
+    else:
+        end = next((n for n in headings if n > education), len(lines))
+        # a placeholder-only degree line ("[add your degree] – [add your university]") goes
+        section = [line for line in lines[education + 1:end]
+                   if not ("[add" in line and not re.sub(r"\[[^\]]*\]|[\W_]", "", line))]
+        newest_there = max((int(y) for y in YEAR.findall(" ".join(section))), default=0)
+        newer = [l for d in missing if last_year(d) >= newest_there for l in entry(d) if l]
+        older = [l for d in missing if last_year(d) < newest_there for l in entry(d) if l]
+        while section and not section[-1].strip():
+            section.pop()
+        lines[education + 1:end] = newer + section + older + [""]
+    for d in missing:
+        log.warning("CV: degree missing from the rewrite, added back: %s", d)
+    return "\n".join(lines), True
+
+
+def line_kind(heading: str) -> str:
+    """The section kind of a heading line ("EDUCATION" -> "education")."""
+    return next((k for k, names in SECTION_KINDS.items() if heading.strip().rstrip(":").upper() in names), "extras")
 
 
 def condense_old_roles(cv: str) -> tuple[str, bool]:
@@ -383,12 +498,15 @@ def spelling_corrected(original: str, cv: str) -> bool:
     return False
 
 
-def check_analysis(analysis: str, cv: str, condensed: bool = False, original: str | None = None) -> str:
+def check_analysis(analysis: str, cv: str, condensed: bool = False, original: str | None = None,
+                   degrees_added: bool = False) -> str:
     """The analysis made to match the CV: strengths and advice the CV does not support are
     removed, missing advice (LinkedIn, a first job) is added, and the rating is computed
     from the CV. `condensed`: older roles were cut (condense_old_roles), noted in "What I
     changed". `original`: the CV as the user sent it, to check "Fixed spelling mistakes."
-    (not checked without it). Every change is logged."""
+    (not checked without it). `degrees_added`: the model had dropped degrees
+    (restore_degrees), so the Education line must not say it is complete. Every change
+    is logged."""
     _, sections = cv_sections(cv)
     language = "ar" if ARABIC_LETTERS.search(analysis) else "en"
     summary = " ".join(real(sections.get("summary", [])))
@@ -465,6 +583,17 @@ def check_analysis(analysis: str, cv: str, condensed: bool = False, original: st
     analysis = replace_line(analysis, TARGET_LINE, target_length(cv, language))
     if not has_job:  # not "some roles have no description yet": there is no role
         analysis = replace_line(analysis, EXPERIENCE_LINE[language], NO_JOB_YET[language])
+    if degrees_added:
+        analysis = replace_line(analysis, EDUCATION_LINE[language], DEGREES_ADDED[language])
+    for line in PUBLICATIONS_ADD_MORE.findall(analysis):  # publications are not something to "add more" of
+        log.info("CV analysis: line removed: %r", line.strip())
+    analysis = PUBLICATIONS_ADD_MORE.sub("", analysis)
+    if is_academic(cv) and language == "en" and not EXTRAS_LINE.search(analysis):
+        lines = analysis.splitlines()
+        if (start := next((n for n, line in enumerate(lines) if SECTION_BY_SECTION.match(line)), None)) is not None:
+            lines.insert(block_end(lines, start), EXTRAS_KEEP)
+            log.info("CV analysis: line added: %r", EXTRAS_KEEP)
+            analysis = "\n".join(lines)
 
     rating = max(1, min(10, math.floor(rate_cv(cv) + 0.5)))  # rounded half up, 1-10
     verdict = next(v for v in VERDICTS if rating >= v[0])[1 if language == "en" else 2]

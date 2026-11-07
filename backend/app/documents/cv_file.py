@@ -87,8 +87,10 @@ def blocks(answer: str) -> list[tuple[str, str]]:
             result.append(("bullet", line[2:].strip()))
         elif LABEL_LINE.match(line):
             result.append(("label", line))
-        elif (title := line.split(",")[0]).upper() == title and LATIN_LETTERS.search(title):
-            result.append(("entry", line))  # "SOFTWARE INTERN, 2024 - 2025" or "..., [add dates]"
+        elif ((title := line.split(",")[0]).upper() == title and LATIN_LETTERS.search(title)
+              and re.search(r"\d|\[add", line)):
+            # "SOFTWARE INTERN, 2024 - 2025" or "..., [add dates]"; not a skills line ("SPSS, R, ...")
+            result.append(("entry", line))
         elif not LATIN_LETTERS.search(title) and YEAR_OR_DATES.search(line):
             result.append(("entry", line))  # Arabic has no capitals: "مهندس برمجيات، 2023 - 2025"
         else:

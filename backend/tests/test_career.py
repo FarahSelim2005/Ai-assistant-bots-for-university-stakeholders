@@ -458,6 +458,47 @@ class AnalysisCheck(unittest.TestCase):
         self.assertIn("2. الـ CV لسه أطول من الطول المناسب: شيل الحاجات اللي مالهاش علاقة بالوظيفة اللي بتقدم عليها.",
                       check_length(arabic, 2))
 
+    def test_dropped_degrees_are_added_back(self):
+        from app.documents.cv_analysis import check_analysis, restore_degrees
+        original = ("Dr. Laila Mansour\n\nProfile\nResearcher.\n\nEducation\nPhD Pharmacology - Cairo University, 2019 - 2024\n"
+                    "B.Pharm. - Cairo University, 2012 - 2017\n\nResearch\n- Antibiotic resistance\n\nSkills\nSPSS, R")
+        london = "\n".join(["Template: London", "Dr. Laila Mansour, Pharmacology Researcher", "Cairo | l@example.com", "",
+                            "EXPERIENCE", "Sep 2017 - Aug 2024", "Teaching Assistant - Cairo University", "- Taught labs", "",
+                            "SKILLS", "SPSS, R"])
+        fixed, added = restore_degrees(london, original)
+        self.assertTrue(added)
+        self.assertIn("EDUCATION\n2019 - 2024\nPhD Pharmacology - Cairo University\n2012 - 2017\nB.Pharm. - Cairo University\n\nSKILLS",
+                      fixed)  # created before SKILLS, newest first, London format
+        self.assertEqual(restore_degrees(fixed, original), (fixed, False))
+        student = "Template: Student\nLaila\n\nSUMMARY\nx\n\nEDUCATION\n[add your degree] – [add your university]\n\nSKILLS\n- SPSS"
+        fixed, _ = restore_degrees(student, original)
+        self.assertIn("EDUCATION\nCAIRO UNIVERSITY, 2019 - 2024\nPhD Pharmacology\nCAIRO UNIVERSITY, 2012 - 2017\nB.Pharm.\n", fixed)
+        self.assertNotIn("[add your degree]", fixed)                  # the placeholder line goes
+        modern = student.replace("Student", "Modern").replace("[add your degree] – [add your university]",
+                                                              "B.Pharm.\nCairo University, 2012 - 2017")
+        fixed, _ = restore_degrees(modern, original)                   # only the PhD was dropped
+        self.assertIn("EDUCATION\nPhD Pharmacology\nCairo University, 2019 - 2024\nB.Pharm.\n", fixed)
+        self.assertEqual(restore_degrees(student.replace("[add your degree]", "BSc Pharmacy"), "Education\nB.Sc. Pharmacy\nX University"),
+                         (student.replace("[add your degree]", "BSc Pharmacy"), False))  # "B.Sc." = "BSc"
+        self.assertNotIn("Scrum", str(restore_degrees(student, "Education\nB.Pharm.\n\nCertifications\nScrum Master I")))
+        checked = check_analysis("Section by section:\n- Education: complete.", fixed, degrees_added=True)
+        self.assertIn("- Education: some degrees were missing from the rewrite; they were added back from your CV.", checked)
+
+    def test_academic_cv_length_and_extras(self):
+        from app.documents.cv_analysis import EXTRAS_KEEP as EXTRAS_KEEP_LINE, check_analysis, target_length
+        academic = "\n".join(["Template: London", "Dr. Laila Mansour, Researcher", "", "EXPERIENCE", "Sep 2017 - Aug 2024",
+                              "Teaching Assistant - Cairo University", "- Taught labs", "", "RESEARCH", "- Antibiotic resistance",
+                              "", "PUBLICATIONS", "- Paper one, 2023", "- Paper two, 2022"])
+        self.assertEqual(target_length(academic, "en"), "academic CV: longer is fine because of your research and publications")
+        self.assertEqual(target_length(academic, "ar"), "CV أكاديمي: طوله مقبول عشان الأبحاث والمنشورات")
+        one_paper = academic.replace("\n- Paper two, 2022", "")
+        self.assertEqual(target_length(one_paper, "en"), "about 2 pages (5-10 years of experience)")
+        analysis = "Target length: 2-3 pages\nSection by section:\n- Publications: good, add more.\n- Skills: a short list; add more."
+        checked = check_analysis(analysis, academic)
+        self.assertNotIn("Publications:", checked)
+        self.assertIn("Target length: academic CV: longer is fine", checked)
+        self.assertIn(EXTRAS_KEEP_LINE, checked)
+
     def test_summary_line_follows_the_summary(self):
         from app.documents.cv_analysis import check_analysis
         analysis = "Most important to improve:\n1. Add numbers.\nSection by section:\n- Summary: clear, and says what you are looking for."
@@ -586,6 +627,13 @@ class PdfAndCvRouting(unittest.TestCase):
             chat.restructure_cv("fix this", "student", [], CV, "01_senior_12_years.txt")
             chat.restructure_cv("Use the Modern template for my CV", "student", [], CV, "cv.txt")
         self.assertEqual(asked, [chat.CV_REQUEST, "Use the Modern template for my CV"])
+
+    def test_skills_line_without_groups_is_not_bold(self):
+        from app.documents.cv_file import blocks
+        kinds = dict((text, kind) for kind, text in blocks(
+            "Template: London\nLaila, Researcher\n\nSKILLS\nSPSS, R, Literature review\n\nEXPERIENCE\nSOFTWARE INTERN, 2024 - 2025"))
+        self.assertEqual(kinds["SPSS, R, Literature review"], "text")       # normal text
+        self.assertEqual(kinds["SOFTWARE INTERN, 2024 - 2025"], "entry")    # a role with dates stays bold
 
     def test_cv_file_names(self):
         from app.routers.chat import CV_FILE_NAME
