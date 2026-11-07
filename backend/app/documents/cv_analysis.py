@@ -30,10 +30,12 @@ analysis is corrected in code:
   (check_length, called once the PDF is made);
 - a list left empty gets a general line, so it never shows only its heading;
 - the rating is computed again with a fixed rubric (rate_cv), between 1 and 10.
-The rewritten CV itself is changed in three ways: the role line under the name keeps only the
-job title (clean_role_line), roles that ended more than 10 years ago keep only their first
-bullet (condense_old_roles), and degrees of the original CV that the model dropped are put
-back into EDUCATION (restore_degrees). An academic CV (2+ publications and a research,
+The rewritten CV itself is changed in five ways: the role line under the name keeps only the
+job title (clean_role_line), roles are sorted newest first by start date (sort_roles), the
+target-role placeholder goes when the summary already names the role (state_target_role),
+roles that ended more than 10 years ago keep only their first bullet (condense_old_roles),
+and degrees of the original CV that the model dropped are put back into EDUCATION
+(restore_degrees). An academic CV (2+ publications and a research,
 conferences or clinical rotations section) gets the academic target length.
 Every change is logged in the backend terminal.
 """
@@ -116,6 +118,17 @@ FIXED_SPELLING = re.compile(r"fixed spelling|إملائ", re.IGNORECASE)  # in "
 # Years of experience (London / Modern templates) -> the length the CV should have
 YEAR = re.compile(r"(?<!\d)(?:19|20)\d\d(?!\d)")
 PRESENT = re.compile(r"\bpresent\b|\bnow\b|الآن|حاليا|حاليًا", re.IGNORECASE)
+# Start dates of roles, for sorting them newest first
+MONTHS = {name: number for number, names in enumerate(
+    [("jan", "يناير"), ("feb", "فبراير"), ("mar", "مارس"), ("apr", "أبريل", "ابريل"), ("may", "مايو"), ("jun", "يونيو"),
+     ("jul", "يوليو"), ("aug", "أغسطس", "اغسطس"), ("sep", "سبتمبر"), ("oct", "أكتوبر", "اكتوبر"), ("nov", "نوفمبر"),
+     ("dec", "ديسمبر")], start=1) for name in names}
+MONTH_DATE = re.compile(r"(?P<month>\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?|يناير|فبراير|مارس|أبريل|ابريل"
+                        r"|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر)\s+(?P<year>(?:19|20)\d\d)", re.IGNORECASE)
+SEASONS = {"winter": 1, "spring": 3, "summer": 6, "fall": 9, "autumn": 9, "شتاء": 1, "ربيع": 3, "صيف": 6, "خريف": 9}
+SEASON_DATE = re.compile(r"(?P<season>\b(?:winter|spring|summer|fall|autumn)\b|شتاء|ربيع|صيف|خريف)\s+(?P<year>(?:19|20)\d\d)",
+                         re.IGNORECASE)
+ACADEMIC_YEAR = re.compile(r"(?P<year>(?:19|20)\d\d)/\d\d(?!\d)")  # "2021/22"
 OLD_ROLE_YEARS = 10  # roles that ended more than this many years ago keep only their first bullet
 TARGET_LENGTHS = [  # (up to this many years, English, Arabic)
     (0, "1 page (student / fresh graduate)", "صفحة واحدة (طالب / خريج جديد)"),
@@ -284,7 +297,8 @@ def strip_model_tags(answer: str) -> str:
 
 def experience_roles(cv: str) -> list[dict]:
     """The roles under EXPERIENCE: each {"text": its title / company / date lines, "bullets":
-    the line numbers of its "- " bullets, "start" and "end": years (None if no year)}."""
+    the line numbers of its "- " bullets, "lines": all its line numbers, "start" and "end":
+    years (None if no year)}."""
     roles, section, current = [], None, None
     for number, raw in enumerate(cv.splitlines()):
         line = raw.strip()
@@ -297,14 +311,16 @@ def experience_roles(cv: str) -> list[dict]:
             continue
         elif line.startswith(("- ", "• ", "* ")):
             if current is None:
-                current = {"text": [], "bullets": []}
+                current = {"text": [], "bullets": [], "lines": []}
                 roles.append(current)
             current["bullets"].append(number)
+            current["lines"].append(number)
         else:
             if current is None or current["bullets"]:
-                current = {"text": [], "bullets": []}
+                current = {"text": [], "bullets": [], "lines": []}
                 roles.append(current)
             current["text"].append(line)
+            current["lines"].append(number)
     this_year = datetime.date.today().year
     for role in roles:
         dates = " ".join(role["text"])
@@ -312,6 +328,90 @@ def experience_roles(cv: str) -> list[dict]:
         role["start"] = min(years) if years else None
         role["end"] = this_year if PRESENT.search(dates) else max(years) if years else None
     return roles
+
+
+def start_date(text: str) -> tuple[int, int] | None:
+    """(year, month) of the first date in a role's lines: "Oct 2024" -> (2024, 10),
+    "Spring 2025" -> (2025, 3), "2021/22" -> (2021, 9), "2019" -> (2019, 1); None for a
+    duration only ("3 months")."""
+    found = []  # (position, priority, (year, month)): the first date is the start
+    for match in MONTH_DATE.finditer(text):
+        found.append((match.start(), 0, (int(match["year"]), MONTHS[match["month"].lower()[:3]
+                                                                    if match["month"].isascii() else match["month"]])))
+    for match in SEASON_DATE.finditer(text):
+        found.append((match.start(), 0, (int(match["year"]), SEASONS[match["season"].lower()])))
+    for match in ACADEMIC_YEAR.finditer(text):
+        found.append((match.start(), 1, (int(match["year"]), 9)))
+    for match in YEAR.finditer(text):
+        found.append((match.start(), 2, (int(match.group()), 1)))
+    return min(found)[2] if found else None
+
+
+def end_date(text: str) -> tuple[int, int] | None:
+    """(year, month) of the last date in a role's lines: "Present" -> today, "Feb 2025" ->
+    (2025, 2), "2024/25" -> (2025, 6), "2021" -> (2021, 12); None for a duration only."""
+    if PRESENT.search(text):
+        today = datetime.date.today()
+        return today.year, today.month
+    # (where it ends, priority, (year, month)): the last date is the end; the year of "Feb 2025"
+    # ends at the same place, so the month (higher priority) wins
+    found = []
+    for match in MONTH_DATE.finditer(text):
+        found.append((match.end(), 2, (int(match["year"]), MONTHS[match["month"].lower()[:3]
+                                                                  if match["month"].isascii() else match["month"]])))
+    for match in SEASON_DATE.finditer(text):
+        found.append((match.end(), 2, (int(match["year"]), SEASONS[match["season"].lower()])))
+    for match in ACADEMIC_YEAR.finditer(text):
+        found.append((match.end(), 1, (int(match["year"]) + 1, 6)))
+    for match in YEAR.finditer(text):
+        found.append((match.end(), 0, (int(match.group()), 12)))
+    return max(found)[2] if found else None
+
+
+def sort_roles(cv: str) -> str:
+    """The CV with its roles under EXPERIENCE newest first by start date: roles until
+    "Present" first, roles with only a duration ("3 months") last in their order. Each
+    role keeps its lines together."""
+    roles = experience_roles(cv)
+    if len(roles) < 2:
+        return cv
+
+    def key(item):
+        order, role = item
+        text = " ".join(role["text"])
+        start = start_date(text)
+        if start is None:
+            return (2, 0, order)  # a duration only: last, as they were
+        return (0 if PRESENT.search(text) else 1, -(start[0] * 12 + start[1]), order)
+
+    ordered = [role for _, role in sorted(enumerate(roles), key=key)]
+    if ordered == roles:
+        return cv
+    lines = cv.splitlines()
+    first, last = roles[0]["lines"][0], roles[-1]["lines"][-1]
+    gap = [""] if any(not lines[n].strip() for n in range(first, last + 1)) else []  # keep blank lines between roles
+    block = [line for i, role in enumerate(ordered) for line in ((gap if i else []) + [lines[n] for n in role["lines"]])]
+    log.info("CV: roles sorted newest first: %s", [" | ".join(role["text"]) for role in ordered])
+    return "\n".join(lines[:first] + block + lines[last + 1:])
+
+
+def state_target_role(cv: str) -> str:
+    """The CV without the "[add the role or internship you are looking for]" placeholder
+    when its summary already names the role(s) it wants ("interested in public relations
+    and digital content roles")."""
+    _, sections = cv_sections(cv)
+    summary = " ".join(text for _, text in sections.get("summary", []))
+    if NO_TARGET_ROLE not in summary or not TARGET_ROLE_PHRASE.search(summary.replace(NO_TARGET_ROLE, "")):
+        return cv
+    lines, inside = cv.splitlines(), False
+    for number, line in enumerate(lines):
+        if is_heading(line.strip()) and ":" not in line:
+            inside = line_kind(line) == "summary"
+        elif inside and NO_TARGET_ROLE in line:
+            lines[number] = re.sub(r"\s{2,}", " ", line.replace(NO_TARGET_ROLE, "")).rstrip()
+    log.info("CV: target-role placeholder removed (the summary names the role)")
+    return "\n".join(line for number, line in enumerate(lines)
+                     if line.strip() or not cv.splitlines()[number].strip())  # a line that held only it goes
 
 
 def is_academic(cv: str) -> bool:
@@ -333,9 +433,12 @@ def target_length(cv: str, language: str) -> str:
     get 1 page."""
     if is_academic(cv):
         return ACADEMIC_LENGTH[language]
-    roles = [role for role in experience_roles(cv)
-             if role["start"] is not None and not INTERNSHIP.search(" ".join(role["text"]))]
-    years = max(r["end"] for r in roles) - min(r["start"] for r in roles) if roles else 0
+    texts = [" ".join(role["text"]) for role in experience_roles(cv)]
+    spans = [(start_date(text), end_date(text)) for text in texts if not INTERNSHIP.search(text)]
+    spans = [(start, end) for start, end in spans if start and end]
+    months = (max(end[0] * 12 + end[1] for _, end in spans) - min(start[0] * 12 + start[1] for start, _ in spans)
+              if spans else 0)
+    years = 0 if months < 12 else round(months / 12)  # Oct 2024 - Feb 2025 is not a year
     _, english, arabic = next(level for level in TARGET_LENGTHS if level[0] is None or years <= level[0])
     return english if language == "en" else arabic
 

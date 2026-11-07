@@ -499,6 +499,47 @@ class AnalysisCheck(unittest.TestCase):
         self.assertIn("Target length: academic CV: longer is fine", checked)
         self.assertIn(EXTRAS_KEEP_LINE, checked)
 
+    def test_roles_are_sorted_newest_first(self):
+        from app.documents.cv_analysis import sort_roles, start_date
+        self.assertEqual([start_date(t) for t in ["Oct 2024 - Feb 2025", "Spring 2025", "2021/22 - 2024/25", "2019 - 2020",
+                                                  "3 months", "متدرب، صيف 2023", "أكتوبر 2024 - الآن"]],
+                         [(2024, 10), (2025, 3), (2021, 9), (2019, 1), None, (2023, 6), (2024, 10)])
+        cv = "\n".join(["Template: Student", "Maya", "", "EXPERIENCE",
+                        "RETAIL ASSOCIATE, 3 months", "The Corner Shop", "- Assisted customers",
+                        "CONTENT ASSISTANT, Oct 2024 - Feb 2025", "Paper Kite Studio", "- Prepared calendars", "- Proofread captions",
+                        "COMMUNICATIONS INTERN, Spring 2025", "Civic Bridge Foundation", "- Drafted newsletter copy",
+                        "TUTOR, 2023 - Present", "Home", "- Taught math", "", "SKILLS", "- Canva"])
+        lines = sort_roles(cv).splitlines()
+        self.assertEqual([l for l in lines if l.isupper() or ", " in l and l.split(",")[0].isupper()],
+                         ["EXPERIENCE", "TUTOR, 2023 - Present", "COMMUNICATIONS INTERN, Spring 2025",
+                          "CONTENT ASSISTANT, Oct 2024 - Feb 2025", "RETAIL ASSOCIATE, 3 months", "SKILLS"])
+        self.assertEqual(lines[lines.index("CONTENT ASSISTANT, Oct 2024 - Feb 2025") + 1:][:3],
+                         ["Paper Kite Studio", "- Prepared calendars", "- Proofread captions"])  # lines stay together
+        self.assertEqual(sort_roles("\n".join(lines)), "\n".join(lines))                    # already in order
+
+    def test_target_length_counts_months(self):
+        from app.documents.cv_analysis import end_date, target_length
+        self.assertEqual([end_date(t) for t in ["Oct 2024 - Feb 2025", "2021/22 - 2024/25", "2019 - 2020", "3 months"]],
+                         [(2025, 2), (2025, 6), (2020, 12), None])
+        four_months = "Template: Student\nMaya\n\nEXPERIENCE\nCONTENT ASSISTANT, Oct 2024 - Feb 2025\n- Prepared calendars"
+        self.assertEqual(target_length(four_months, "en"), "1 page (student / fresh graduate)")  # not "1 year"
+        five_years = four_months.replace("Oct 2024 - Feb 2025", "Jan 2019 - Dec 2023")
+        self.assertEqual(target_length(five_years, "en"), "1-2 pages (1-5 years of experience)")
+
+    def test_placeholder_goes_when_the_summary_names_the_role(self):
+        from app.documents.cv_analysis import check_analysis, state_target_role
+        cv = ("Template: Student\nMaya\n\nSUMMARY\nMass Communication graduate interested in public relations and digital "
+              "content roles.\n[add the role or internship you are looking for]\n\nSKILLS\n- Canva")
+        fixed = state_target_role(cv)
+        self.assertNotIn("[add the role", fixed)
+        self.assertIn("digital content roles.\n\nSKILLS", fixed)
+        self.assertIn("- Summary: clear, and says what you are looking for.",
+                      check_analysis("Section by section:\n- Summary: describes you, but does not say which role you want.", fixed))
+        inline = cv.replace("roles.\n[add the role", "roles. [add the role")
+        self.assertIn("digital content roles.\n", state_target_role(inline))
+        no_role = cv.replace("interested in public relations and digital content roles", "who likes writing")
+        self.assertEqual(state_target_role(no_role), no_role)  # the summary names no role: the placeholder stays
+
     def test_summary_line_follows_the_summary(self):
         from app.documents.cv_analysis import check_analysis
         analysis = "Most important to improve:\n1. Add numbers.\nSection by section:\n- Summary: clear, and says what you are looking for."
