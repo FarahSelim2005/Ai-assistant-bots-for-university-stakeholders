@@ -395,6 +395,19 @@ class AnalysisCheck(unittest.TestCase):
             checked = check_analysis(f"What I changed:\n{changed}\nMost important to improve:\n{advice}", NO_LINKEDIN_CV)
             self.assertEqual(advice in checked, kept)
 
+    def test_the_rating_is_always_computed_from_the_cv(self):
+        from app.documents.cv_analysis import check_analysis, rate_cv
+        self.assertEqual(rate_cv(NO_LINKEDIN_CV), 4.5)  # 5/10 after rounding half up
+        for rating_line in ["Rating: 10/10 - Strong CV", "Rating: 2/10 - Needs a lot of work", "**Rating:** 9 / 10 - Strong",
+                            "Rating 8/10 - Strong CV", "- Rating: 7.5/10 - Good"]:
+            checked = check_analysis(f"CV ANALYSIS\n{rating_line}\nStrengths:\n- Clear dates.", NO_LINKEDIN_CV)
+            self.assertEqual(checked.splitlines()[1].replace("**", "").lstrip("- "), "Rating: 5/10 - Needs work", rating_line)
+            self.assertEqual(checked.count("/10"), 1)
+        arabic = check_analysis("تحليل الـ CV\nالتقييم: 10/10 - ممتاز\nنقاط القوة:\n- التعليم واضح.", NO_LINKEDIN_CV)
+        self.assertIn("التقييم: 5/10 - محتاج شغل", arabic)
+        missing = check_analysis("CV ANALYSIS\nStrengths:\n- Clear dates.", NO_LINKEDIN_CV)
+        self.assertIn("CV ANALYSIS\nRating: 5/10 - Needs work\n", missing)  # added when the model wrote none
+
     def test_dates_advice_only_for_a_role_with_only_a_duration(self):
         from app.documents.cv_analysis import check_analysis
         # NO_LINKEDIN_CV: "SALES INTERN, Jul 2024 - Sep 2024" and "CASHIER, 2 years"
@@ -404,6 +417,13 @@ class AnalysisCheck(unittest.TestCase):
         checked = check_analysis("Most important to improve:\n" + "\n".join(advice), NO_LINKEDIN_CV)
         self.assertIn(advice[0], checked)                          # only a duration: kept
         self.assertNotIn("Sales Intern", checked)                  # real dates: removed
+        # any ending ("... only the season"); a season is a real date
+        season = NO_LINKEDIN_CV.replace("Jul 2024 - Sep 2024", "Summer 2022")
+        for ending in ["season", "year"]:
+            checked = check_analysis("Most important to improve:\n1. Write the start and end months for Sales Intern "
+                                     f"instead of only the {ending}.\n2. Add numbers.", season)
+            self.assertNotIn("Sales Intern", checked)
+            self.assertIn("1. Add numbers.", checked)
         self.assertNotIn("Barista", checked)                       # not in the CV: removed
         arabic_cv = ARABIC_CV.replace("متدربة برمجيات، 2024 - 2025", "متدربة برمجيات، 6 شهور")
         arabic = "أهم حاجات محتاجة تتحسن:\n1. اكتب شهر البداية والنهاية لـ متدربة برمجيات بدل المدة بس."

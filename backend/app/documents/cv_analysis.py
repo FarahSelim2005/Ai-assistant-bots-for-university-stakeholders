@@ -73,7 +73,9 @@ SKILL_LEVEL = re.compile(r"\([^(),]{1,25}\)")               # "Python (Basic)"
 SKILL_GROUP = re.compile(r"^[^:]{1,30}:\s*\S.*[,·]")        # "Languages: Python, C++"
 
 # Lines of the analysis
-RATING = re.compile(r"^(?P<label>[^\n:]{0,40}:\s*)\d+(?:\.\d+)?\s*/\s*10\b.*$", re.MULTILINE)
+# "Rating: 9/10 - Strong CV", "التقييم: 6/10 - ...", also "**Rating:** 9 / 10" or "Rating 9/10"
+RATING = re.compile(r"^(?P<label>[^\n\d]{0,20}?(?:Rating|التقييم)[^\n\d]{0,6}?)\d+(?:\.\d+)?\s*/\s*10\b.*$",
+                    re.MULTILINE | re.IGNORECASE)
 WHAT_I_CHANGED = re.compile(r"^\W*(?:what i changed|ما غيرته|اللي غيرته)", re.IGNORECASE)
 STRENGTHS = re.compile(r"^\W*(?:strengths|نقاط القوة|نقط القوة|المميزات|مميزات)", re.IGNORECASE)
 TO_IMPROVE = re.compile(r"^\W*(?:most important to improve|أهم)", re.IGNORECASE)
@@ -119,8 +121,9 @@ ADD_TARGET_ROLE = {"en": "Say in your summary which role or internship you are l
                    "ar": "اكتب في الملخص الوظيفة أو التدريب اللي بتدور عليه."}
 # "Write the start and end months for <role> instead of only the duration.": only for a role
 # whose dates are a duration ("2 years", "3 months") without any year
-ABOUT_DATES = re.compile(r"write the start and end months for (?P<role>.+?) instead of only the duration"
-                         r"|اكتب شهر البداية والنهاية لـ ?(?P<role_ar>.+?) بدل المدة", re.IGNORECASE)
+# (any ending: "... instead of only the duration / season")
+ABOUT_DATES = re.compile(r"write the start and end months for (?P<role>.+?) instead of"
+                         r"|اكتب شهر البداية والنهاية لـ ?(?P<role_ar>.+?) بدل", re.IGNORECASE)
 DURATION = re.compile(r"\b\d+\s*(?:months?|years?|weeks?)\b|\d+\s*(?:شهر|شهور|أشهر|سنة|سنين|سنوات)", re.IGNORECASE)
 ABOUT_PROOFREAD = re.compile(r"proofread|راجع الـ CV كويس", re.IGNORECASE)
 FIXED_SPELLING = re.compile(r"fixed spelling|إملائ", re.IGNORECASE)  # in "What I changed"
@@ -260,28 +263,34 @@ def skill_count(lines: list[tuple[str, str]]) -> int:
     return count
 
 
-def rate_cv(cv: str) -> float:
-    """The CV's score out of 10, from what it contains (the rubric of the CV ANALYSIS)."""
+def rubric(cv: str) -> list[tuple[str, float]]:
+    """The CV's points for each item of the rubric of the CV ANALYSIS (out of 10)."""
     top, sections = cv_sections(cv)
     get = lambda kind: sections.get(kind, [])
-    score = 1 if PHONE.search(" ".join(top)) else 0.5
-    score += 1 if PROFILE_LINK.search(cv) else 0
-    score += 0.5 if real(get("summary")) else 0
-    score += 0.5 if "[add the role" not in cv else 0
     education = " ".join(text for _, text in get("education"))
-    score += 0.5 if "[add your study dates]" in education else 1 if YEAR.search(education) else 0
     with_bullets, roles = roles_with_bullets(get("experience"))
     projects_or_activities = bool(real(get("projects")) or real(get("activities")))
-    score += (2 if with_bullets >= 2 else 1.5 if with_bullets == 1 else 1 if roles
-              else 0.5 if projects_or_activities else 0)
-    score += 1 if numbers_in_bullets(sections) else 0
-    score += 1 if projects_or_activities else 0
     skills = skill_count(get("skills"))
-    score += 1 if skills >= 6 else 0.5 if skills >= 3 else 0
-    score += 0.5 if real(get("languages")) else 0
-    score += 0.5 if real(get("extras")) else 0
-    score -= 0.5 if NO_DETAILS in cv else 0
-    return score
+    return [
+        ("phone", 1 if PHONE.search(" ".join(top)) else 0.5),
+        ("LinkedIn/GitHub", 1 if PROFILE_LINK.search(cv) else 0),
+        ("summary", 0.5 if real(get("summary")) else 0),
+        ("target role", 0.5 if "[add the role" not in cv else 0),
+        ("education dates", 0.5 if "[add your study dates]" in education else 1 if YEAR.search(education) else 0),
+        ("experience", 2 if with_bullets >= 2 else 1.5 if with_bullets == 1 else 1 if roles
+         else 0.5 if projects_or_activities else 0),
+        ("numbers in bullets", 1 if numbers_in_bullets(sections) else 0),
+        ("projects/activities", 1 if projects_or_activities else 0),
+        (f"skills ({skills})", 1 if skills >= 6 else 0.5 if skills >= 3 else 0),
+        ("languages", 0.5 if real(get("languages")) else 0),
+        ("extra sections", 0.5 if real(get("extras")) else 0),
+        ("roles without details", -0.5 if NO_DETAILS in cv else 0),
+    ]
+
+
+def rate_cv(cv: str) -> float:
+    """The CV's score out of 10, from what it contains (the rubric of the CV ANALYSIS)."""
+    return sum(points for _, points in rubric(cv))
 
 
 def numbers_in_bullets(sections: dict) -> bool:
@@ -723,11 +732,15 @@ def check_analysis(analysis: str, cv: str, condensed: bool = False, original: st
             log.info("CV analysis: line added: %r", EXTRAS_KEEP)
             analysis = "\n".join(lines)
 
-    rating = max(1, min(10, math.floor(rate_cv(cv) + 0.5)))  # rounded half up, 1-10
+    items = rubric(cv)
+    rating = max(1, min(10, math.floor(sum(points for _, points in items) + 0.5)))  # rounded half up, 1-10
     verdict = next(v for v in VERDICTS if rating >= v[0])[1 if language == "en" else 2]
+    log.info("CV analysis: rubric %s = %s", ", ".join(f"{name} {points:g}" for name, points in items),
+             f"{sum(points for _, points in items):g}")
     if match := RATING.search(analysis):
         log.info("CV analysis: rating line %r -> %s/10 - %s (computed from the CV)", match.group().strip(), rating, verdict)
-        return RATING.sub(lambda m: f"{m['label']}{rating}/10 - {verdict}", analysis, count=1)
+        # always the standard "Rating: X/10 - verdict" / "التقييم: X/10 - ..." (not "**Rating:** 9 / 10")
+        return RATING.sub(f"{RATING_LABEL[language]} {rating}/10 - {verdict}", analysis, count=1)
     log.info("CV analysis: rating line added: %s/10 - %s", rating, verdict)
     heading, _, rest = analysis.partition("\n")  # no rating line: add one under the heading
     return f"{heading}\n{RATING_LABEL[language]} {rating}/10 - {verdict}\n{rest}".rstrip()
