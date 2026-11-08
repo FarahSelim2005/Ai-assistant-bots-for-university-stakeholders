@@ -540,6 +540,65 @@ class AnalysisCheck(unittest.TestCase):
         no_role = cv.replace("interested in public relations and digital content roles", "who likes writing")
         self.assertEqual(state_target_role(no_role), no_role)  # the summary names no role: the placeholder stays
 
+    @staticmethod
+    def long_student_cv(roles=4, projects=4, bullets=3):
+        lines = ["Template: Student", "Hana Kamal", "Business Informatics Student", "Cairo | hana@example.com", "",
+                 "SUMMARY", "Final-year student looking for a business analyst internship.", "", "EXPERIENCE"]
+        for n in range(roles):
+            lines += [f"ANALYST INTERN {n}, Jun {2025 - n} - Sep {2025 - n}", f"Company {n}"]
+            lines += [f"- Did task {b} for role {n}" for b in range(bullets)]
+        lines += ["", "PROJECTS"]
+        for n in range(projects):
+            lines += [f"Project {n}"] + [f"- Built part {b} of project {n}" for b in range(bullets)]
+        lines += ["", "ACTIVITIES AND VOLUNTEERING"] + [f"- Activity {n}" for n in range(5)]
+        lines += ["", "COURSES AND WORKSHOPS"] + [f"- Course {n} - 2024" for n in range(5)]
+        lines += ["", "CERTIFICATIONS"] + [f"- Certificate {n}" for n in range(5)]
+        lines += ["", "SKILLS", "- Excel", "- SQL", "", "LANGUAGE", "- Arabic - Native"]
+        return "\n".join(lines)
+
+    def test_long_lists_go_on_one_line(self):
+        from app.documents.cv_analysis import group_long_lists
+        grouped, changed = group_long_lists(self.long_student_cv())
+        self.assertTrue(changed)
+        self.assertIn("ACTIVITIES AND VOLUNTEERING\nActivity 0; Activity 1; Activity 2; Activity 3; Activity 4\n", grouped)
+        self.assertIn("COURSES AND WORKSHOPS\nCourse 0 - 2024; Course 1 - 2024;", grouped)
+        self.assertIn("CERTIFICATIONS\n- Certificate 0\n- Certificate 1\n", grouped)   # never one line
+        short = self.long_student_cv().replace("\n- Activity 3\n- Activity 4", "")
+        self.assertIn("ACTIVITIES AND VOLUNTEERING\n- Activity 0\n", group_long_lists(short)[0])  # 3 items: a list
+
+    def test_roles_and_projects_after_three_keep_their_first_bullet(self):
+        from app.documents.cv_analysis import condense_beyond_three
+        cv, changed = condense_beyond_three(self.long_student_cv())
+        self.assertTrue(changed)
+        self.assertIn("- Did task 2 for role 2", cv)                       # the 3 newest keep all bullets
+        self.assertIn("ANALYST INTERN 3, Jun 2022 - Sep 2022\nCompany 3\n- Did task 0 for role 3\n", cv)
+        self.assertNotIn("- Did task 1 for role 3", cv)
+        self.assertIn("Project 3\n- Built part 0 of project 3\n", cv)
+        self.assertNotIn("- Built part 1 of project 3", cv)
+        self.assertEqual(condense_beyond_three(self.long_student_cv(roles=3, projects=3))[1], False)
+
+    def test_a_cv_over_its_target_length_is_condensed(self):
+        import pymupdf
+        from app.documents.cv_analysis import fit_to_length
+        analysis = ("CV ANALYSIS\nTarget length: 1 page (student / fresh graduate)\nWhat I changed:\n- Reordered sections.\n"
+                    "Most important to improve:\n1. Add numbers.")
+        pages = lambda pdf: pymupdf.open(stream=pdf, filetype="pdf").page_count
+        # a little over one page: grouping the lists is enough
+        cv, checked, pdf = fit_to_length(self.long_student_cv(roles=3, projects=3, bullets=2), analysis)
+        self.assertEqual(pages(pdf), 1)
+        self.assertIn("- Grouped long lists into one line to save space.", checked)
+        self.assertNotIn("still longer", checked)
+        self.assertIn("ANALYST INTERN 2", cv)                               # titles and dates stay
+        # much longer: both steps, and it is still too long
+        cv, checked, pdf = fit_to_length(self.long_student_cv(roles=8, projects=8, bullets=4), analysis)
+        self.assertIn("- Condensed older roles and extra projects to their main point to keep the CV focused.", checked)
+        self.assertEqual("still longer than the target length" in checked, pages(pdf) > 1)
+        self.assertTrue(all(f"ANALYST INTERN {n}" in cv for n in range(8)))
+        self.assertTrue(all(f"Certificate {n}" in cv for n in range(5)))
+        # a CV that fits is not touched
+        short = self.long_student_cv(roles=1, projects=1, bullets=1)
+        self.assertEqual(fit_to_length(short, analysis)[:2], (short, analysis))
+
     def test_summary_line_follows_the_summary(self):
         from app.documents.cv_analysis import check_analysis
         analysis = "Most important to improve:\n1. Add numbers.\nSection by section:\n- Summary: clear, and says what you are looking for."

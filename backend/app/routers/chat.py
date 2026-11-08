@@ -21,7 +21,6 @@ import re
 from dataclasses import asdict, dataclass, field, replace
 
 import httpx
-import pymupdf
 from fastapi import APIRouter, HTTPException, Request, Response
 from starlette.concurrency import run_in_threadpool
 
@@ -32,9 +31,8 @@ from app.attachments import combine_attachments, read_attachment
 from app.campus import BUILDINGS
 from app.db import get_connection
 from app.documents import storage
-from app.documents.cv_analysis import check_length
-from app.documents.cv_file import (cv_docx, cv_pdf, docx_to_cv_text, is_arabic, is_one_page_target,
-                                   is_restructured_cv, split_cv)
+from app.documents.cv_analysis import fit_to_length
+from app.documents.cv_file import cv_docx, cv_pdf, docx_to_cv_text, is_arabic, is_restructured_cv, split_cv
 from app.agents.internship_career import CV_REWRITE_WORDS
 from app.documents.editor import is_edit_request, is_pdf_request
 from app.documents.formats import EDITABLE_TYPES, check_file, document_pdf
@@ -242,10 +240,9 @@ def cv_files(response: AgentResponse, filename: str) -> Outcome:
     CV ANALYSIS after it is the chat message (a short note if the model wrote none)."""
     stem = storage.safe_name(filename).rsplit(".", 1)[0]
     cv, analysis = split_cv(response.answer)
-    pdf = cv_pdf(cv, one_page=is_one_page_target(analysis))
-    if analysis:  # "Your CV is still longer than the target length..." only when the PDF really is
-        with pymupdf.open(stream=pdf, filetype="pdf") as document:
-            analysis = check_length(analysis, document.page_count)
+    # A PDF longer than the target length: the CV is condensed and the PDF made again; the
+    # analysis then says what was condensed, and whether the CV is still too long
+    cv, analysis, pdf = fit_to_length(cv, analysis) if analysis else (cv, analysis, cv_pdf(cv))
     message = analysis or ("ده الـ CV بعد الترتيب." if is_arabic(cv) else "Here is your restructured CV.")
     return Outcome(replace(response, answer=message), new_document=f"{stem}.pdf", cv=True, files=[
         (pdf, ".pdf", f"{stem}_restructured.pdf"),

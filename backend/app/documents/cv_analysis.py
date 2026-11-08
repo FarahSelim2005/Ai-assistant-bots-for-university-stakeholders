@@ -35,7 +35,9 @@ job title (clean_role_line), roles are sorted newest first by start date (sort_r
 target-role placeholder goes when the summary already names the role (state_target_role),
 roles that ended more than 10 years ago keep only their first bullet (condense_old_roles),
 and degrees of the original CV that the model dropped are put back into EDUCATION
-(restore_degrees). An academic CV (2+ publications and a research,
+(restore_degrees). When the PDF is longer than the target length allows, fit_to_length
+condenses it step by step (long extra lists on one line, then roles after the 3 newest and
+projects after the first 3 to their first bullet). An academic CV (2+ publications and a research,
 conferences or clinical rotations section) gets the academic target length.
 Every change is logged in the backend terminal.
 """
@@ -45,7 +47,9 @@ import logging
 import math
 import re
 
-from app.documents.cv_file import ARABIC_LETTERS, blocks, is_arabic, is_heading
+import pymupdf
+
+from app.documents.cv_file import ARABIC_LETTERS, blocks, cv_pdf, is_arabic, is_heading, is_one_page_target
 
 log = logging.getLogger("uvicorn.error")
 
@@ -176,6 +180,9 @@ TARGET_LINE = re.compile(r"^(?P<prefix>[^\w\n]*(?:Target length|الطول[^:\n]
 CONDENSED = {"en": "Condensed older roles and extra projects to their main point to keep the CV focused.",
              "ar": "اختصرت الأدوار القديمة والمشاريع الزيادة لأهم نقطة فيها عشان الـ CV يفضل مركز."}
 ABOUT_CONDENSED = re.compile(r"condensed|اختصرت", re.IGNORECASE)
+GROUPED = {"en": "Grouped long lists into one line to save space.", "ar": "جمعت القوايم الطويلة في سطر واحد عشان المساحة."}
+ABOUT_GROUPED = re.compile(r"grouped long lists|جمعت القوايم", re.IGNORECASE)
+KEEP_AS_LIST = re.compile(r"CERTIF|AWARD|PUBLICATION|الشهادات|الجوائز|المنشورات", re.IGNORECASE)  # never one line
 CHANGED_LABEL = {"en": "What I changed:", "ar": "ما غيرته:"}
 MAX_CHANGES = 5
 # "Section by section" lines (prefix: "- " or "1. ")
@@ -295,8 +302,8 @@ def strip_model_tags(answer: str) -> str:
     return "\n".join(lines[start:])
 
 
-def experience_roles(cv: str) -> list[dict]:
-    """The roles under EXPERIENCE: each {"text": its title / company / date lines, "bullets":
+def experience_roles(cv: str, kind: str = "experience") -> list[dict]:
+    """The roles under EXPERIENCE (or the projects, with kind="projects"): each {"text": its title / company / date lines, "bullets":
     the line numbers of its "- " bullets, "lines": all its line numbers, "start" and "end":
     years (None if no year)}."""
     roles, section, current = [], None, None
@@ -307,7 +314,7 @@ def experience_roles(cv: str) -> list[dict]:
         if is_heading(line) and ":" not in line:
             section = next((k for k, names in SECTION_KINDS.items() if line.rstrip(":").upper() in names), "extras")
             current = None
-        elif section != "experience":
+        elif section != kind:
             continue
         elif line.startswith(("- ", "• ", "* ")):
             if current is None:
@@ -571,14 +578,15 @@ def dates_advice_not_needed(improvements: str, cv: str) -> list[re.Pattern]:
     return patterns
 
 
-def add_change(lines: list[str], note: str, language: str) -> list[str]:
-    """Add `note` to "What I changed" (at most 5 items: it replaces the last one when full)."""
+def add_change(lines: list[str], note: str, language: str, already: re.Pattern = ABOUT_CONDENSED) -> list[str]:
+    """Add `note` to "What I changed" unless a note there matches `already` (at most 5
+    items: it replaces the last one when full)."""
     start = next((i for i, line in enumerate(lines) if WHAT_I_CHANGED.match(line)), None)
     if start is None:
         log.info("CV analysis: 'What I changed' added with %r", note)
         return lines + ["", CHANGED_LABEL[language], f"- {note}"]
     end = block_end(lines, start)
-    if ABOUT_CONDENSED.search("\n".join(lines[start:end])):
+    if already.search("\n".join(lines[start:end])):
         return lines
     items = [i for i in range(start + 1, end) if ITEM.match(lines[i])]
     if len(items) >= MAX_CHANGES:
@@ -708,16 +716,85 @@ def check_analysis(analysis: str, cv: str, condensed: bool = False, original: st
     return f"{heading}\n{RATING_LABEL[language]} {rating}/10 - {verdict}\n{rest}".rstrip()
 
 
+def page_limit(analysis: str) -> int | None:
+    """The most pages the Target length line allows (1 page: 1, 1-2 pages and about 2
+    pages: 2, 2-3 pages: 3); None for an academic CV or without the line."""
+    target = TARGET_LINE.search(analysis)
+    value = target.group()[len(target["prefix"]):] if target else ""
+    if not target or ACADEMIC.search(value):
+        return None
+    return next((most for pattern, most in PAGE_LIMITS if pattern.search(value)), None)
+
+
+def group_long_lists(cv: str) -> tuple[str, bool]:
+    """The CV with each extra section of more than 3 items (activities, courses, other
+    sections; not certifications, awards or publications) on one line, "; " between items."""
+    lines, out, changed = cv.splitlines(), [], False
+    number = 0
+    while number < len(lines):
+        out.append(lines[number])
+        heading = lines[number].strip()
+        if is_heading(heading) and ":" not in heading and line_kind(heading) in ("activities", "extras") \
+                and not KEEP_AS_LIST.search(heading):
+            end = next((n for n in range(number + 1, len(lines)) if is_heading(lines[n].strip()) and ":" not in lines[n]),
+                       len(lines))
+            items = [re.sub(r"^[-•*]\s+", "", line.strip()).rstrip(".;") for line in lines[number + 1:end] if line.strip()]
+            if len(items) > 3:
+                out += ["; ".join(items), ""] if end < len(lines) else ["; ".join(items)]
+                log.info("CV: %s grouped on one line (%d items)", heading, len(items))
+                changed = True
+                number = end
+                continue
+        number += 1
+    return "\n".join(out), changed
+
+
+def condense_beyond_three(cv: str) -> tuple[str, bool]:
+    """The CV with roles after the 3 newest, and projects after the first 3, cut to their
+    first bullet (titles, companies and dates stay)."""
+    drop = set()
+    for kind in ("experience", "projects"):
+        for role in experience_roles(cv, kind)[3:]:
+            drop.update(role["bullets"][1:])
+            if role["bullets"][1:]:
+                log.info("CV: %s %r cut to its first bullet", kind, " | ".join(role["text"]))
+    if not drop:
+        return cv, False
+    return "\n".join(line for number, line in enumerate(cv.splitlines()) if number not in drop), True
+
+
+def fit_to_length(cv: str, analysis: str) -> tuple[str, str, bytes]:
+    """(CV, analysis, PDF) with the CV condensed when its PDF is longer than the Target length
+    allows: first long extra lists on one line, then, if still too long, roles after the 3
+    newest and projects after the first 3 cut to their first bullet; the PDF is made again
+    after each step. Nothing else is removed and the text stays at least 10pt. "What I
+    changed" notes each step, and the "still longer" advice follows the final page count."""
+    language = "ar" if ARABIC_LETTERS.search(analysis) else "en"
+    one_page = is_one_page_target(analysis)
+    pdf, limit = cv_pdf(cv, one_page=one_page), page_limit(analysis)
+    pages = lambda data: pymupdf.open(stream=data, filetype="pdf").page_count
+    notes = []
+    for step, note, already in ((group_long_lists, GROUPED, ABOUT_GROUPED), (condense_beyond_three, CONDENSED, ABOUT_CONDENSED)):
+        if limit is None or pages(pdf) <= limit:
+            break
+        cv, changed = step(cv)
+        if changed:
+            pdf = cv_pdf(cv, one_page=one_page)
+            notes.append((note[language], already))
+            log.info("CV: %s -> %d page(s) (target at most %d)", step.__name__, pages(pdf), limit)
+    lines = analysis.splitlines()
+    for note, already in notes:
+        lines = add_change(lines, note, language, already)
+    return cv, check_length("\n".join(lines), pages(pdf)), pdf
+
+
 def check_length(analysis: str, pages: int) -> str:
     """The "Your CV is still longer than the target length..." advice only when the PDF
     (`pages`) is longer than the upper limit of the Target length line (1 page: 1, 1-2 pages
     and about 2 pages: 2, 2-3 pages: 3, academic: no limit); added when it is and missing.
     Runs after the PDF is made, so not in check_analysis."""
     language = "ar" if ARABIC_LETTERS.search(analysis) else "en"
-    target = TARGET_LINE.search(analysis)
-    value = target.group()[len(target["prefix"]):] if target else ""
-    limit = None if not target or ACADEMIC.search(value) else next(
-        (most for pattern, most in PAGE_LIMITS if pattern.search(value)), None)
+    limit = page_limit(analysis)
     too_long = limit is not None and pages > limit
     lines = analysis.splitlines()
     if not too_long:
