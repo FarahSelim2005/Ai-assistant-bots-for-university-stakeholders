@@ -47,6 +47,29 @@ CHANGES_HEADINGS = ("What I changed:", "ما غيرته:")  # the model's own no
 # GIU written into a CV that names another university (the model was trained on GIU CVs).
 GIU_NAME = re.compile(r"German International University(?:\s*\(GIU\))?|\bGIU\b", re.IGNORECASE)
 GIU_IN_CV = re.compile(r"German International|الجامعة الألمانية", re.IGNORECASE)
+# A file is rewritten as a CV only with 2 of: an email, a phone number, 2+ CV headings
+EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
+PHONE = re.compile(r"(?<!\d)\+?\d[\d\s().-]{7,}\d(?!\d)")
+CV_HEADING_WORD = re.compile(r"\b(education|experience|employment|internships?|skills|projects|languages|certifications|"
+                             r"summary|profile|objective|references)\b|التعليم|الخبرات|الخبرة|المهارات|المشاريع|اللغات|"
+                             r"الملخص|الشهادات|الدورات", re.IGNORECASE)
+NOT_A_CV = {"en": "This file doesn't look like a CV. Please upload your CV (PDF, Word or text) and I'll rewrite it "
+                  "and analyze it for you.",
+            "ar": "الملف ده مش شكله CV. ارفع الـ CV بتاعك (PDF أو Word أو text) وأنا هظبطهولك وأحللهولك."}
+ARABIC_LETTERS = re.compile(r"[؀-ۿ]")
+
+
+def is_cv_text(text: str | None) -> bool:
+    """A CV has at least 2 of: an email address, a phone number, and 2+ different CV
+    headings (short lines such as "Education", "WORK EXPERIENCE", "S K I L L S", "التعليم")."""
+    text = text or ""
+    headings = set()
+    for line in text.splitlines():
+        line = re.sub(r"^\w(?: \w)+$", lambda m: m.group().replace(" ", ""), line.strip())  # "S K I L L S"
+        if line and len(line.split()) <= 5 and (match := CV_HEADING_WORD.search(line)):
+            headings.add(match.group().lower())
+    signals = [bool(EMAIL.search(text)), bool(PHONE.search(text)), len(headings) >= 2]
+    return sum(signals) >= 2
 
 
 def is_cv_rewrite(question: str, attachment: Attachment | None) -> bool:
@@ -182,6 +205,9 @@ class InternshipCareerAgent(BaseAgent):
             return super().generate(question, chunks, history, attachment)
         if attachment.is_image:
             attachment = Attachment(attachment.filename, text=self.transcribe(attachment))
+        if not is_cv_text(attachment.text):  # lecture notes etc.: no CV model, no PDF
+            log.warning("CV rewrite refused: %s does not look like a CV", attachment.filename)
+            return NOT_A_CV["ar" if ARABIC_LETTERS.search(question) else "en"]
         # The CV model gets the exact prompt it was trained on (full_prompt: no short local prompt).
         # The "reply in English only" note is left out too: the CV is always in English.
         messages = build_messages(self.system_prompt, question, chunks, history, attachment)

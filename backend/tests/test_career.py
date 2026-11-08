@@ -11,7 +11,7 @@ from app.agents import AGENTS
 from app.attachments import Attachment
 from app.rag.prompts import CAREER_SYSTEM_PROMPT
 
-CV = Attachment("cv.txt", text="Mariam Hassan\nComputer Science student\nPython, SQL")
+CV = Attachment("cv.txt", text="Mariam Hassan\nComputer Science student\nmariam@example.com | +20 100 000 1234\n\nSkills\nPython, SQL")
 HISTORY = [{"role": "user", "content": "old question"}, {"role": "assistant", "content": "old CV answer"}]
 
 
@@ -41,6 +41,21 @@ class CvRewrites(unittest.TestCase):
                 {"role": "user", "content": request},
             ])
         self.search.assert_not_called()
+
+    def test_a_file_that_is_not_a_cv_is_not_rewritten(self):
+        from app.agents.internship_career import is_cv_text
+        notes = Attachment("16_not_a_cv.txt", text="Lecture 5 - Computer Networks\nTopics: TCP vs UDP, three-way handshake."
+                                                   "\nHomework: read chapter 3 and solve problems 1-10.")
+        answer = self.career.run("Rewrite my CV.", "student", [], notes).answer
+        self.assertEqual(answer, "This file doesn't look like a CV. Please upload your CV (PDF, Word or text) "
+                                 "and I'll rewrite it and analyze it for you.")
+        self.assertEqual(self.career.run("ظبطلي الـ CV ده", "student", [], notes).answer,
+                         "الملف ده مش شكله CV. ارفع الـ CV بتاعك (PDF أو Word أو text) وأنا هظبطهولك وأحللهولك.")
+        self.assertEqual(self.sent, [])                                    # the CV model was not called
+        self.assertTrue(is_cv_text(ENGLISH_CV))                            # email + phone + headings
+        self.assertTrue(is_cv_text("Omar\nomar@example.com\n\nEducation\nB.Sc.\n\nSkills\nExcel"))  # email + headings
+        self.assertTrue(is_cv_text("Nour\n\nS U M M A R Y\nx\n\nE D U C A T I O N\ny\n\nPhone: +20 112 000 5566"))
+        self.assertFalse(is_cv_text("Notes\n\nSummary\nTCP and UDP.\n\nReferences\nChapter 3"))  # headings only
 
     def test_other_career_questions_still_search(self):
         self.career.run("How do I prepare for an interview?", "student", HISTORY, None)
