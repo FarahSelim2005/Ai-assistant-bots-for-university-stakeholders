@@ -599,6 +599,24 @@ class AnalysisCheck(unittest.TestCase):
         short = self.long_student_cv(roles=1, projects=1, bullets=1)
         self.assertEqual(fit_to_length(short, analysis)[:2], (short, analysis))
 
+    def test_languages_strength_and_levels(self):
+        from app.documents.cv_analysis import check_analysis
+        analysis = "Strengths:\n- Speaking several languages is a plus.\n- Clear dates.\nSection by section:\n- Languages: listed with levels."
+        two = NO_LINKEDIN_CV.replace("- Arabic - Native", "- Arabic\n- English (Good)")
+        checked = check_analysis(analysis, two)
+        self.assertNotIn("several languages", checked)                                 # 2 languages
+        self.assertIn("- Languages: add your level for each language.", checked)      # Arabic has no level
+        three = NO_LINKEDIN_CV.replace("- Arabic - Native", "- Arabic - Native\n- English - Fluent\n- French - Basic")
+        checked = check_analysis(analysis, three)
+        self.assertIn("several languages", checked)
+        self.assertIn("- Languages: listed with levels.", checked)
+        one_line = NO_LINKEDIN_CV.replace("- Arabic - Native", "Arabic (Native), English (Fluent), German (A2)")
+        self.assertIn("several languages", check_analysis(analysis, one_line))        # 3 on one line
+        arabic = "نقاط القوة:\n- إنك بتتكلم كذا لغة ميزة.\nتحليل كل جزء:\n- اللغات: موجودة بالمستوى."
+        checked = check_analysis(arabic, ARABIC_CV + "\n\nاللغات\n- العربية - اللغة الأم\n- الإنجليزية")
+        self.assertNotIn("كذا لغة", checked)
+        self.assertIn("- اللغات: اكتب مستواك في كل لغة.", checked)
+
     def test_summary_line_follows_the_summary(self):
         from app.documents.cv_analysis import check_analysis
         analysis = "Most important to improve:\n1. Add numbers.\nSection by section:\n- Summary: clear, and says what you are looking for."

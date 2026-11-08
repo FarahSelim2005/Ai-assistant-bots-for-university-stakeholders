@@ -86,6 +86,11 @@ ABOUT_NUMBERS = re.compile(r"measurable|quantif|numbers|metrics|أرقام|ار�
 # "You list a good range of skills." / "عندك مجموعة مهارات كويسة."
 ABOUT_SKILL_RANGE = re.compile(r"good range of skills|مجموعة مهارات كويسة", re.IGNORECASE)
 ABOUT_SEVERAL_ROLES = re.compile(r"experience in more than one role|خبرة عملية في أكتر من مكان", re.IGNORECASE)
+ABOUT_SEVERAL_LANGUAGES = re.compile(r"speaking several languages|بتتكلم كذا لغة", re.IGNORECASE)  # needs 3+
+LANGUAGE_LEVEL = re.compile(r"\s[-–—]\s*\S|:\s*\S|\(\s*\S")  # "Arabic - Native", "العربية: اللغة الأم", "English (Good)"
+LANGUAGES_LINE = {"en": re.compile(r"^(?P<prefix>[^\w\n]*)Languages?:.*$", re.MULTILINE | re.IGNORECASE),
+                  "ar": re.compile(r"^(?P<prefix>[^\w\n]*)اللغات:.*$", re.MULTILINE)}
+NO_LANGUAGE_LEVEL = {"en": "Languages: add your level for each language.", "ar": "اللغات: اكتب مستواك في كل لغة."}
 # "What I changed" notes checked against the CV
 ABOUT_PLACEHOLDERS = re.compile(r"placeholders", re.IGNORECASE)  # "Added [placeholders] ..." / "حطيت [placeholders] ..."
 ABOUT_SPELLING_FIXED = re.compile(r"fixed spelling mistakes|صلحت الأخطاء الإملائية", re.IGNORECASE)
@@ -596,6 +601,13 @@ def add_change(lines: list[str], note: str, language: str, already: re.Pattern =
     return lines[:end] + [f"- {note}"] + lines[end:]
 
 
+def spoken_languages(sections: dict) -> list[str]:
+    """The languages under LANGUAGE(S) / اللغات, one per bullet or several on a line
+    ("Arabic (Native), English (Fluent)"), each with its level if it has one."""
+    return [part.strip() for text in real(sections.get("languages", []))
+            for part in re.split(r"[,،;·|]", text) if part.strip()]
+
+
 def spelling_corrected(original: str, cv: str) -> bool:
     """A word of the original CV was really corrected: it is not in the rewritten CV, but a
     close match is ("Univeristy" -> "University"). A word that only gained or lost an ending
@@ -637,6 +649,9 @@ def check_analysis(analysis: str, cv: str, condensed: bool = False, original: st
     roles = [role for role in experience_roles(cv) if any(not PLACEHOLDER.match(t) for t in role["text"])]
     if len(roles) < 2:
         unsupported.append(ABOUT_SEVERAL_ROLES)
+    languages = spoken_languages(sections)
+    if len(languages) < 3:
+        unsupported.append(ABOUT_SEVERAL_LANGUAGES)
     spelling_fixed = original is None or spelling_corrected(original, cv)
     not_made = []  # "What I changed" notes the CV does not show
     if "[" not in cv:
@@ -696,6 +711,8 @@ def check_analysis(analysis: str, cv: str, condensed: bool = False, original: st
         analysis = replace_line(analysis, EXPERIENCE_LINE[language], NO_JOB_YET[language])
     if degrees_added:
         analysis = replace_line(analysis, EDUCATION_LINE[language], DEGREES_ADDED[language])
+    if any(not LANGUAGE_LEVEL.search(language_name) for language_name in languages):  # "Arabic" with no level
+        analysis = replace_line(analysis, LANGUAGES_LINE[language], NO_LANGUAGE_LEVEL[language])
     for line in PUBLICATIONS_ADD_MORE.findall(analysis):  # publications are not something to "add more" of
         log.info("CV analysis: line removed: %r", line.strip())
     analysis = PUBLICATIONS_ADD_MORE.sub("", analysis)
