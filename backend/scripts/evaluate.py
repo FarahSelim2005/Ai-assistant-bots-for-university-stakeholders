@@ -8,6 +8,7 @@ average and maximum response time.
 Run from the backend folder:
     python -m scripts.evaluate
     python -m scripts.evaluate --user-type staff --out data/results.csv
+    python -m scripts.evaluate --user-type staff --agent hr_policies --agent graduation_advising
 """
 import argparse
 import csv
@@ -40,11 +41,13 @@ def main() -> None:
     parser.add_argument("--csv", default=str(DEFAULT_CSV))
     parser.add_argument("--user-type", default="student", choices=["student", "staff"])
     parser.add_argument("--out", help="optional CSV file to save every answer and result")
+    parser.add_argument("--agent", action="append", choices=sorted(AGENTS),
+                        help="only this agent's questions (can be given more than once)")
     args = parser.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")  # Arabic answers in the Windows terminal
 
     with open(args.csv, newline="", encoding="utf-8") as f:
-        rows = list(csv.DictReader(f))
+        rows = [row for row in csv.DictReader(f) if not args.agent or row["agent"] in args.agent]
 
     results = []
     for number, row in enumerate(rows, start=1):
