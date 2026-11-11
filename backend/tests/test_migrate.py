@@ -60,7 +60,7 @@ class MigrationFiles(unittest.TestCase):
 
     def test_project_migrations_are_well_named(self):
         names = [p.name for p in migrate.migration_files()]
-        self.assertEqual(names[:3], ["000_base.sql", "001_tenants.sql", "002_tenant_required.sql"])
+        self.assertEqual(names[:4], ["000_base.sql", "001_tenants.sql", "002_tenant_required.sql", "003_row_level_security.sql"])
 
 
 class Applying(unittest.TestCase):
@@ -71,23 +71,22 @@ class Applying(unittest.TestCase):
         for name in ["000_base.sql", "001_tenants.sql", "002_rls.sql"]:
             (folder / name).write_text(f"SQL OF {name}", encoding="utf-8")
         log = []
-        connect = lambda: FakeConnection(log, applied=["000_base.sql"])
+        connect = lambda **kwargs: FakeConnection(log, applied=["000_base.sql"])
         with mock.patch.object(migrate, "MIGRATIONS_DIR", folder), \
-             mock.patch.object(migrate, "get_connection", connect), \
+             mock.patch.object(migrate, "get_admin_connection", connect), \
              mock.patch.object(sys, "argv", ["migrate"]), redirect_stdout(io.StringIO()):
             migrate.main()
         run = [entry[0] for entry in log if isinstance(entry, tuple) and entry[0].startswith("SQL OF")]
         self.assertEqual(run, ["SQL OF 001_tenants.sql", "SQL OF 002_rls.sql"])  # 000 was applied before
         recorded = [entry[1] for entry in log if isinstance(entry, tuple) and entry[0].startswith("INSERT")]
         self.assertEqual(recorded, [("001_tenants.sql",), ("002_rls.sql",)])
-        # One transaction to read schema_migrations, then one per file (its SQL and its record).
-        self.assertEqual(log.count("commit"), 3)
+        # Each file in its own transaction: its SQL, its record, then the commit.
         first_file = log.index(("SQL OF 001_tenants.sql", None))
         self.assertEqual(log[first_file + 1:first_file + 3], [(mock.ANY, ("001_tenants.sql",)), "commit"])
 
     def test_status_applies_nothing(self):
         log = []
-        with mock.patch.object(migrate, "get_connection", lambda: FakeConnection(log, applied=[])), \
+        with mock.patch.object(migrate, "get_admin_connection", lambda **kwargs: FakeConnection(log, applied=[])), \
              mock.patch.object(sys, "argv", ["migrate", "--status"]), redirect_stdout(io.StringIO()) as out:
             migrate.main()
         self.assertFalse(any(isinstance(e, tuple) and e[0].startswith("INSERT") for e in log))

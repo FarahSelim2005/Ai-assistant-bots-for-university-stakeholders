@@ -5,6 +5,9 @@ data/raw/internship_career/ ...; another tenant's are data/tenants/<slug>/<agent
 Who may see the chunks (students, staff) comes from the agent list in
 app/agents/directory.py. Every chunk is stored with the tenant's id.
 
+This script connects as the owner of the tables (DB_ADMIN_USER); the admin page, which
+also uses ingest_file, connects as the app (DB_USER).
+
 Run from the backend folder:
     python -m scripts.ingest                          # every GIU agent's folder
     python -m scripts.ingest --agent internship_career
@@ -21,7 +24,7 @@ from pypdf import PdfReader
 
 from app import config, tenants
 from app.agents.directory import AGENT_DIRECTORY
-from app.db import get_connection
+from app.db import get_connection, use_admin_login
 from app.rag.embeddings import embed_texts
 
 SUPPORTED_EXTENSIONS = {".pdf", ".txt", ".md"}
@@ -83,7 +86,7 @@ def ingest_file(path: Path, agent: str, audience: list[str]) -> int:
     embeddings = embed_texts(chunks)
 
     tenant_id = tenants.current_id()
-    with get_connection() as conn:
+    with get_connection(tenants.current_id()) as conn:
         conn.execute(
             "DELETE FROM chunks WHERE tenant_id = %s AND agent = %s AND source = %s",
             (tenant_id, agent, path.name),
@@ -117,6 +120,7 @@ def main() -> None:
     parser.add_argument("--tenant", default=config.DEFAULT_TENANT, help="tenant slug (default: giu)")
     args = parser.parse_args()
 
+    use_admin_login()
     tenant = tenants.for_script(args.tenant)
     root = tenants.data_dir(tenant)
     audiences = {a.key: list(a.user_types) for a in AGENT_DIRECTORY}
@@ -140,7 +144,7 @@ def remove_missing_files(agent: str, present: list[str]) -> list[tuple[str, int]
     """Delete the current tenant's chunks of this agent whose source file was removed from
     the folder, so the agent stops answering from deleted documents. Returns (file name,
     chunks removed)."""
-    with get_connection() as conn:
+    with get_connection(tenants.current_id()) as conn:
         rows = conn.execute(
             "DELETE FROM chunks WHERE tenant_id = %s AND agent = %s AND NOT (source = ANY(%s)) RETURNING source",
             (tenants.current_id(), agent, present),

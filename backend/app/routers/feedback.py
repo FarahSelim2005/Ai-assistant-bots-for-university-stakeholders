@@ -11,7 +11,7 @@ router = APIRouter()
 @router.post("/feedback", response_model=FeedbackResponse)
 def create_feedback(body: FeedbackRequest) -> FeedbackResponse:
     tenant_id = tenants.current_id()
-    with get_connection() as conn:
+    with get_connection(tenant_id) as conn:
         message = conn.execute(
             "SELECT role FROM messages WHERE id = %s AND tenant_id = %s", (body.message_id, tenant_id)
         ).fetchone()

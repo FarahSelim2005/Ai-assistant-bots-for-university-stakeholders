@@ -131,7 +131,7 @@ def from_id(doc_id: str) -> tuple[str, str, Path]:
 
 def delete_chunks(agent: str, filename: str) -> None:
     """Remove the current tenant's chunks of one file."""
-    with get_connection() as conn:
+    with get_connection(tenants.current_id()) as conn:
         conn.execute("DELETE FROM chunks WHERE tenant_id = %s AND agent = %s AND source = %s",
                      (tenants.current_id(), agent, filename))
 

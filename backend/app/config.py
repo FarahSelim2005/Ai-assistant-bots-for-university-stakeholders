@@ -7,12 +7,19 @@ from dotenv import load_dotenv
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BACKEND_DIR / ".env")
 
-# Database
+# Database. The app connects as DB_USER: the giu_app role from migration 003, which only sees
+# the current tenant's rows. migrate.py and ingest.py connect as DB_ADMIN_USER, the owner of
+# the tables. Without DB_ADMIN_USER both use DB_USER (a setup without giu_app keeps working).
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = int(os.getenv("DB_PORT", "5432"))
 DB_NAME = os.getenv("DB_NAME", "giu-bots")
 DB_USER = os.getenv("DB_USER", "postgres")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+DB_ADMIN_USER = os.getenv("DB_ADMIN_USER", "") or DB_USER
+DB_ADMIN_PASSWORD = os.getenv("DB_ADMIN_PASSWORD", "") or (DB_PASSWORD if DB_ADMIN_USER == DB_USER else "")
+# A separate database for the tests that need PostgreSQL: they migrate it themselves (as
+# DB_ADMIN_USER) and are skipped when it is not set. Never the real database.
+TEST_DB_NAME = os.getenv("TEST_DB_NAME", "")
 
 # OpenRouter (used for both embeddings and chat)
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
@@ -87,11 +94,17 @@ ADMIN_MAX_DOCUMENT_CHARS = 500_000  # about 100 pages of text
 
 # API
 FRONTEND_ORIGIN = "http://localhost:5173"  # the Vite dev server, allowed by CORS
-# "development": CORS also allows the Vite server on 127.0.0.1 and any *.localhost subdomain
-# (giu.localhost:5173, demo.localhost:5173), and an "X-Tenant: <slug>" header may choose the
-# tenant. Anything else (a server): only the host name decides.
-APP_ENV = os.getenv("APP_ENV", "development")
-TENANT_HEADER_ALLOWED = APP_ENV == "development"
+# APP_ENV=development (set it in .env on your own computer): CORS also allows the Vite server on
+# 127.0.0.1 and any *.localhost subdomain (giu.localhost:5173, demo.localhost:5173), and an
+# "X-Tenant: <slug>" header may choose the tenant. Anything else, also a missing APP_ENV (a
+# server that forgot it): only the host name decides, and only FRONTEND_ORIGIN is allowed.
+APP_ENV = os.getenv("APP_ENV", "production")
+
+
+def is_development() -> bool:
+    return APP_ENV == "development"
+
+
 DEV_ORIGIN_REGEX = r"^http://(localhost|127\.0\.0\.1|[a-z0-9-]+\.localhost):5173$"
 
 # Tenants (universities). GIU's documents stay in data/raw/<agent>/; every other

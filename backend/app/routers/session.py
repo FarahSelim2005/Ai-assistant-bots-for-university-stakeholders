@@ -13,7 +13,7 @@ router = APIRouter()
 def create_session(body: SessionRequest) -> SessionResponse:
     if body.user_type not in AGENTS[body.agent].allowed_user_types:
         raise HTTPException(403, f"This assistant is not available for {body.user_type} users.")
-    with get_connection() as conn:
+    with get_connection(tenants.current_id()) as conn:
         conversation_id = conn.execute(
             "INSERT INTO conversations (tenant_id, user_type, agent) VALUES (%s, %s, %s) RETURNING id",
             (tenants.current_id(), body.user_type, body.agent),

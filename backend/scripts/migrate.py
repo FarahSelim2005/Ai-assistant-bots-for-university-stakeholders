@@ -2,6 +2,7 @@
 
 Each file runs in its own transaction (all of it or nothing) and is recorded in the
 schema_migrations table, so running this again only applies files that are new.
+Connects as the owner of the tables (DB_ADMIN_USER, or DB_USER when that is not set).
 Back up the database first (pgAdmin: right-click the database -> Backup...).
 
 Run from the backend folder:
@@ -14,7 +15,7 @@ import re
 from pathlib import Path
 
 from app import config
-from app.db import get_connection
+from app.db import get_admin_connection
 
 MIGRATIONS_DIR = config.BACKEND_DIR / "migrations"
 FILE_NAME = re.compile(r"^\d{3}_[a-z0-9_]+\.sql$")  # "001_tenants.sql"
@@ -34,19 +35,28 @@ def migration_files(folder: Path | None = None) -> list[Path]:
     return files
 
 
-def applied_migrations() -> set[str]:
+def applied_migrations(database: str | None = None) -> set[str]:
     """File names already applied (creates the schema_migrations table the first time)."""
-    with get_connection() as conn:
+    with get_admin_connection(dbname=database) as conn:
         conn.execute("CREATE TABLE IF NOT EXISTS schema_migrations ("
                      "filename TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())")
         return {name for (name,) in conn.execute("SELECT filename FROM schema_migrations")}
 
 
-def apply(path: Path) -> None:
+def apply(path: Path, database: str | None = None) -> None:
     """Run one file and record it, in one transaction: an error leaves the database as it was."""
-    with get_connection() as conn:
+    with get_admin_connection(dbname=database) as conn:
         conn.execute(path.read_text(encoding="utf-8"))
         conn.execute("INSERT INTO schema_migrations (filename) VALUES (%s)", (path.name,))
+
+
+def migrate(database: str | None = None, log=print) -> list[str]:
+    """Apply every pending file; returns their names."""
+    pending = [p for p in migration_files() if p.name not in applied_migrations(database)]
+    for path in pending:
+        log(f"  applying {path.name} ...")
+        apply(path, database)
+    return [p.name for p in pending]
 
 
 def main() -> None:
@@ -54,20 +64,18 @@ def main() -> None:
     parser.add_argument("--status", action="store_true", help="only list applied and pending files")
     parser.add_argument("--database", help=f"database name (default: DB_NAME, {config.DB_NAME})")
     args = parser.parse_args()
-    if args.database:
-        config.DB_NAME = args.database
+    database = args.database or config.DB_NAME
 
     files = migration_files()
-    done = applied_migrations()
+    done = applied_migrations(database)
     pending = [p for p in files if p.name not in done]
-    print(f"Database {config.DB_NAME}: {len(files) - len(pending)} applied, {len(pending)} pending.")
+    print(f"Database {database} (as {config.DB_ADMIN_USER}): {len(files) - len(pending)} applied, {len(pending)} pending.")
     if args.status:
         for path in files:
             print(f"  {'applied' if path.name in done else 'pending'}  {path.name}")
         return
-    for path in pending:
-        print(f"  applying {path.name} ...", end=" ", flush=True)
-        apply(path)
+    migrate(database)
+    if pending:
         print("done")
 
 

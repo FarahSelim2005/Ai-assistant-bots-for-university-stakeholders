@@ -79,7 +79,10 @@ class AgentLink:
     available: bool = True  # False: this user may not use it (staff asking Career), so no button
 
 
-_description_vectors: np.ndarray | None = None  # computed once, on first use
+# Embeddings of agent descriptions, keyed by the description texts themselves: they hold no
+# tenant data, and once tenants have their own agents (with their own descriptions) each
+# set gets its own entry instead of one tenant's vectors being used for another's agents.
+_description_vectors: dict[tuple[str, ...], np.ndarray] = {}
 
 
 def suggest_agent(question: str, current_agent: str, user_type: str,
@@ -111,10 +114,10 @@ def closest_agent(question: str) -> str | None:
 
 def description_scores(question: str) -> np.ndarray | None:
     """Similarity of the question to every agent's description (None if embedding fails)."""
-    global _description_vectors
+    descriptions = tuple(a.description for a in AGENT_DIRECTORY)
     try:
-        if _description_vectors is None:
-            _description_vectors = np.array(embed_texts([a.description for a in AGENT_DIRECTORY]))
-        return cosine_similarity(np.array(embed_text(question)), _description_vectors)
+        if descriptions not in _description_vectors:
+            _description_vectors[descriptions] = np.array(embed_texts(list(descriptions)))
+        return cosine_similarity(np.array(embed_text(question)), _description_vectors[descriptions])
     except httpx.HTTPError:
         return None

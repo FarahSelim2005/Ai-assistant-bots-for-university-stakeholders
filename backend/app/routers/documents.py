@@ -54,7 +54,7 @@ async def edit(body: DocumentEditRequest, request: Request):
 
 def conversation_agent(conversation_id: int) -> str | None:
     """The agent of a conversation of the current tenant (None: no such conversation here)."""
-    with get_connection() as conn:
+    with get_connection(tenants.current_id()) as conn:
         row = conn.execute("SELECT agent FROM conversations WHERE id = %s AND tenant_id = %s",
                            (conversation_id, tenants.current_id())).fetchone()
     return row[0] if row else None
@@ -107,7 +107,7 @@ def edit_conversation_document(conversation_id: int, instruction: str, upload: t
 def save_messages(body: DocumentEditRequest, filename: str, answer: str) -> int:
     """Store the instruction and the answer (the document itself is not stored in the database)."""
     tenant_id = tenants.current_id()
-    with get_connection() as conn:
+    with get_connection(tenants.current_id()) as conn:
         conn.execute("INSERT INTO messages (tenant_id, conversation_id, role, content) VALUES (%s, %s, 'user', %s)",
                      (tenant_id, body.conversation_id, f"{body.instruction}\n[Edit document: {filename}]"))
         return conn.execute("INSERT INTO messages (tenant_id, conversation_id, role, content) "

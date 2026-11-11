@@ -92,7 +92,7 @@ async def chat(body: ChatRequest, request: Request):
 def answer_question(body: ChatRequest) -> Outcome:
     """Load the conversation and its recent messages, then answer, edit or restructure."""
     tenant_id = tenants.current_id()
-    with get_connection() as conn:
+    with get_connection(tenant_id) as conn:
         conversation = conn.execute(
             "SELECT user_type, agent FROM conversations WHERE id = %s AND tenant_id = %s",
             (body.conversation_id, tenant_id),
@@ -276,7 +276,7 @@ def save_messages(body: ChatRequest, answer: str) -> int:
         user_message += f"\n[Attached file{'s' if len(names) > 1 else ''}: {', '.join(names)}]"
 
     tenant_id = tenants.current_id()
-    with get_connection() as conn:
+    with get_connection(tenant_id) as conn:
         conn.execute(
             "INSERT INTO messages (tenant_id, conversation_id, role, content) VALUES (%s, %s, 'user', %s)",
             (tenant_id, body.conversation_id, user_message),

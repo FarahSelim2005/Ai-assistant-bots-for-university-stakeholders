@@ -1,7 +1,7 @@
 """Tenants (universities): which one a request is for, and the tenant of the current request.
 
 A request's tenant comes from its host name: the tenant_domains table maps hosts such as
-"giu.localhost" or plain "localhost" to a tenant. In development (APP_ENV=development) an
+"giu.localhost" or plain "localhost" to a tenant. Only with APP_ENV=development, an
 "X-Tenant: <slug>" header wins over the host, for tests and tools like curl.
 
 TenantMiddleware keeps the tenant in a context variable for the whole request, so the
@@ -102,8 +102,9 @@ def host_name(host_header: str) -> str:
 
 
 def resolve(host_header: str, tenant_header: str | None) -> Tenant | None:
-    """The tenant of a request: the X-Tenant header (development only), else the host."""
-    if tenant_header and config.TENANT_HEADER_ALLOWED:
+    """The tenant of a request: the X-Tenant header (development only, ignored otherwise),
+    else the host."""
+    if tenant_header and config.is_development():
         return by_slug(tenant_header)
     return by_host(host_name(host_header))
 

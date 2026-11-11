@@ -77,10 +77,34 @@ only applies new files. Every file is also safe to run twice by hand.
 | `000_base.sql` | The original tables (`chunks`, `conversations`, `messages`, `feedback`). Changes nothing on an existing database. |
 | `001_tenants.sql` | Multitenancy: a `tenants` table (one row per university; `giu` is created) and `tenant_domains` (which host opens which university: `localhost`, `127.0.0.1` and `giu.localhost` open GIU). Adds `tenant_id` to `chunks`, `conversations`, `messages` and `feedback`, fills it with GIU's id for all existing rows and makes it required. Until the app sends the tenant itself, `tenant_id` defaults to GIU, so nothing changes for the app. |
 | `002_tenant_required.sql` | Removes that temporary default (an INSERT without a tenant now fails instead of becoming GIU) and makes the database refuse cross-tenant links: a message must have its conversation's tenant, a rating its message's tenant. **Apply it only after restarting the backend with the tenant-aware code**: the old code's INSERTs have no `tenant_id`. |
+| `003_row_level_security.sql` | Row-level security. Creates the role `giu_app` (can log in; not a superuser, not the owner of the tables; only `SELECT/INSERT/UPDATE/DELETE` on `chunks`, `conversations`, `messages`, `feedback`, read-only `tenants` and `tenant_domains`). On the four tenant tables a policy shows and accepts only rows whose `tenant_id` is the current tenant (`app.tenant_id`, set by `get_connection(tenant_id)` for each transaction), even when a query forgets its `WHERE`; with no tenant set they look empty. The password is not in the file (see *Row-level security* below). |
 
 To try the migrations on a copy first: in pgAdmin create a database `giu-bots-copy` with
 *Template* `giu-bots` (no other connection to `giu-bots` may be open), then run
 `python -m scripts.migrate --database giu-bots-copy`.
+
+**Row-level security (after 003).** The app should log in as `giu_app`, not as `postgres`:
+superusers skip the policies. Give the role a password once, in pgAdmin's Query Tool (on any
+database; roles belong to the whole server) and put it in `backend/.env`:
+
+```sql
+ALTER ROLE giu_app PASSWORD 'choose-a-long-password';
+```
+
+```
+DB_USER=giu_app
+DB_PASSWORD=choose-a-long-password
+DB_ADMIN_USER=postgres          # migrations and the ingest script: the owner of the tables
+DB_ADMIN_PASSWORD=your-postgres-password
+```
+
+Without `DB_ADMIN_USER`, migrations and ingest use `DB_USER` too (fine before 003).
+
+**Test database.** The tests that need PostgreSQL (tenant isolation, row-level security) use a
+separate, empty database and never `giu-bots`. Create it once in pgAdmin (right-click
+*Databases* → *Create* → *Database...*, name `giu-bots-test`, owner `postgres`) and add
+`TEST_DB_NAME=giu-bots-test` to `backend/.env`. The tests apply the migrations to it themselves
+(as `DB_ADMIN_USER`) and roll back everything they insert; without `TEST_DB_NAME` they are skipped.
 
 pgvector is not used: embeddings are stored as `DOUBLE PRECISION[]` and the cosine
 similarity is computed in Python (`cosine_similarity` in `backend/app/rag/retriever.py`).
@@ -99,7 +123,8 @@ Open `backend/.env` and fill in:
 
 | Variable | Value |
 |---|---|
-| `DB_PASSWORD` | your PostgreSQL password (the other `DB_` values usually stay as they are) |
+| `DB_PASSWORD` | your PostgreSQL password (the other `DB_` values usually stay as they are; after migration 003 see *Row-level security* in step 1) |
+| `APP_ENV` | `development` on your own computer (allows `*.localhost:5173` and the `X-Tenant` header); leave it out on a server |
 | `OPENROUTER_API_KEY` | your key from https://openrouter.ai/keys |
 | `LABS_MODEL` | a chat model ID from https://openrouter.ai/models, e.g. `google/gemini-2.5-flash-lite` |
 | `VISION_MODEL` | a model that accepts **image** input, used only when a user attaches a picture, e.g. `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` (free, tested: reads English and Arabic text in images) or `google/gemini-2.5-flash-lite` (paid). Leave empty to allow documents only. |
@@ -332,9 +357,10 @@ chats or ratings; an unknown host gets `404`, a suspended tenant `403`.
   (`giu.localhost:5173` → `giu.localhost:8000`), so the backend sees which university is open.
   Chrome and Edge resolve every `*.localhost` name to your own computer, and Vite accepts them;
   no hosts-file change is needed.
-- In development (`APP_ENV=development`, the default) CORS allows `localhost`, `127.0.0.1` and
+- Only with `APP_ENV=development` (in `backend/.env`) CORS allows `localhost`, `127.0.0.1` and
   any `*.localhost` on port 5173, and an `X-Tenant: <slug>` header may choose the tenant
-  (for curl and tests). Set `APP_ENV=production` on a server: then only the host decides.
+  (for curl and tests). Without it (the default, for servers) the header is ignored, only the host
+  decides, and only `http://localhost:5173` may call the API from a browser.
 - Documents: GIU's stay in `backend/data/raw/<agent>/`; another tenant's are in
   `backend/data/tenants/<slug>/<agent>/` (not in git). `ingest`, `try_retrieve`, `try_chat` and
   `evaluate` take `--tenant <slug>` (default `giu`).
@@ -540,7 +566,7 @@ backend/
     test_documents.py    document editor tests (python -m unittest discover -s tests)
     test_admin.py        admin route tests
     test_migrate.py      migration runner tests
-    test_tenants.py      tenant detection and isolation tests (the database part is rolled back)
+    test_tenants.py      tenant detection, isolation and row-level security (needs TEST_DB_NAME, else skipped)
   migrations/            numbered SQL files (000_base.sql, 001_tenants.sql, ...)
   scripts/
     migrate.py           apply the pending migrations

@@ -28,7 +28,7 @@ def cosine_similarity(query: np.ndarray, matrix: np.ndarray) -> np.ndarray:
 def load_chunks(agent: str, user_type: str) -> list[tuple[str, str, list[float]]]:
     """Return (content, source, embedding) for the current tenant's chunks of this agent
     that this user type may see."""
-    with get_connection() as conn:
+    with get_connection(tenants.current_id()) as conn:
         return conn.execute(
             "SELECT content, source, embedding FROM chunks "
             "WHERE tenant_id = %s AND agent = %s AND %s = ANY(audience)",

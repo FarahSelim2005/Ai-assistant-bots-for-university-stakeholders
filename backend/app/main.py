@@ -34,19 +34,21 @@ async def lifespan(app: FastAPI):
     yield
 
 
+def cors_options(app_env: str) -> dict:
+    """Which browser origins may call the API: the Vite dev server on localhost, and in
+    development also on 127.0.0.1 and any *.localhost subdomain (one per university)."""
+    return {"allow_origins": [config.FRONTEND_ORIGIN],
+            "allow_origin_regex": config.DEV_ORIGIN_REGEX if app_env == "development" else None,
+            "allow_methods": ["*"], "allow_headers": ["*"]}
+
+
 app = FastAPI(title="GIU Labs & Research Assistant", lifespan=lifespan)
 
 # Every request gets its tenant from the host name (tenants.py). Added first, so CORS
 # (added after it) runs outside it: preflight requests need no tenant, and a "404 unknown
 # university" still carries the CORS headers the browser needs to show it.
 app.add_middleware(TenantMiddleware)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[config.FRONTEND_ORIGIN],
-    allow_origin_regex=config.DEV_ORIGIN_REGEX if config.APP_ENV == "development" else None,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.add_middleware(CORSMiddleware, **cors_options(config.APP_ENV))
 
 app.include_router(session.router)
 app.include_router(chat.router)
