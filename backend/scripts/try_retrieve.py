@@ -10,26 +10,28 @@ import sys
 import time
 
 from app import config, tenants
+from app.agents import script_agent
 from app.rag.retriever import retrieve
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Show the chunks retrieved for a question.")
     parser.add_argument("question")
-    parser.add_argument("--agent", default="labs_research")
+    parser.add_argument("--agent", help="the assistant: its id, or a GIU template key (default: the first one)")
     parser.add_argument("--user-type", default="student", choices=["student", "staff"])
     parser.add_argument("--tenant", default=config.DEFAULT_TENANT, help="tenant slug (default: giu)")
     args = parser.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")  # Arabic chunks in the Windows terminal
     tenant = tenants.use_for_script(args.tenant)
+    agent = script_agent(tenant.id, args.agent)
 
     start = time.perf_counter()
-    results = retrieve(args.question, args.agent, args.user_type)
+    results = retrieve(args.question, agent.name, args.user_type)
     elapsed = time.perf_counter() - start
 
-    print(f"Tenant: {tenant.slug}  |  threshold: {config.SIMILARITY_THRESHOLD}  |  took {elapsed:.2f}s")
+    print(f"Tenant: {tenant.slug}  |  {agent.display_name}  |  threshold: {config.SIMILARITY_THRESHOLD}  |  took {elapsed:.2f}s")
     if not results:
-        print("No chunks found for this agent and user type.")
+        print("No chunks found for this assistant and user type.")
     for r in results:
         mark = "PASS" if r.score >= config.SIMILARITY_THRESHOLD else "below"
         preview = r.content[:80].replace("\n", " ")

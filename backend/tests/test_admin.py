@@ -1,12 +1,13 @@
 """Tests for the admin routes (app/routers/admin.py). No database or embedding service is
-used: the documents folder is a temporary one and indexing is replaced by a stand-in.
+used: the documents folder is a temporary one, indexing is replaced by a stand-in, and GIU's
+four assistants come from tests/giu_agents.py. Documents are in folders by assistant id;
+requests may still name GIU's assistants by their old key ("labs_research").
 
 Run from the backend folder:
     python -m unittest discover -s tests -v
 """
 import tempfile
 import unittest
-import uuid
 from pathlib import Path
 from unittest import mock
 
@@ -15,17 +16,19 @@ from fastapi.testclient import TestClient
 from app import config, tenants
 from app.main import app
 from app.routers import admin
+from tests import giu_agents
 
 # Every request is GIU's (the TestClient's host "testserver" is in no tenant_domains table).
-GIU = tenants.Tenant(uuid.UUID(int=1), "giu", "German International University")
+GIU = giu_agents.GIU
+LABS, HR, ADVISING = giu_agents.ID["labs_research"], giu_agents.ID["hr_policies"], giu_agents.ID["graduation_advising"]
 
 
 class AdminRoutes(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.raw = Path(self.tmp.name) / "raw"
-        (self.raw / "labs_research").mkdir(parents=True)
-        (self.raw / "labs_research" / "campus.md").write_text("## Library\nFourth floor of S.", encoding="utf-8")
+        (self.raw / LABS).mkdir(parents=True)
+        (self.raw / LABS / "campus.md").write_text("## Library\nFourth floor of S.", encoding="utf-8")
         self.indexed, self.deleted = [], []
         fake_ingest = lambda path, agent, audience: self.indexed.append((agent, path.name, audience)) or 3
         self.patches = [
@@ -38,6 +41,7 @@ class AdminRoutes(unittest.TestCase):
         ]
         for p in self.patches:
             p.start()
+        giu_agents.activate(self)
         admin._tokens.clear()
         self.client = TestClient(app)
         self.auth = {"Authorization": "Bearer " + self.client.post("/admin/login", json={"password": "secret"}).json()["token"]}
@@ -74,23 +78,23 @@ class AdminRoutes(unittest.TestCase):
         body = {"agent": "hr_policies", "filename": "leave rules", "content": "## Annual leave\n21 days."}
         answer = self.client.post("/admin/documents", headers=self.auth, json=body).json()
         self.assertEqual(answer["chunks"], 3)
-        self.assertEqual((self.raw / "hr_policies" / "leave rules.md").read_text(encoding="utf-8"), body["content"])
-        self.assertEqual(self.indexed, [("hr_policies", "leave rules.md", ["staff"])])  # HR: staff only
+        self.assertEqual((self.raw / HR / "leave rules.md").read_text(encoding="utf-8"), body["content"])
+        self.assertEqual(self.indexed, [(HR, "leave rules.md", ["staff"])])  # HR: staff only
         self.assertEqual(self.client.post("/admin/documents", headers=self.auth, json=body).status_code, 409)
 
     def test_update_moves_to_another_agent(self):
         doc_id = self.client.get("/admin/documents", headers=self.auth).json()[0]["id"]
         body = {"agent": "graduation_advising", "filename": "campus.md", "content": "## Library\nFifth floor of S."}
         answer = self.client.put(f"/admin/documents/{doc_id}", headers=self.auth, json=body).json()
-        self.assertFalse((self.raw / "labs_research" / "campus.md").exists())
-        self.assertEqual((self.raw / "graduation_advising" / "campus.md").read_text(encoding="utf-8"), body["content"])
-        self.assertIn(("labs_research", "campus.md"), self.deleted)  # the old chunks are removed
+        self.assertFalse((self.raw / LABS / "campus.md").exists())
+        self.assertEqual((self.raw / ADVISING / "campus.md").read_text(encoding="utf-8"), body["content"])
+        self.assertIn((LABS, "campus.md"), self.deleted)  # the old chunks are removed
         self.assertNotEqual(answer["id"], doc_id)
 
     def test_delete(self):
         doc_id = self.client.get("/admin/documents", headers=self.auth).json()[0]["id"]
         self.assertEqual(self.client.delete(f"/admin/documents/{doc_id}", headers=self.auth).status_code, 200)
-        self.assertFalse((self.raw / "labs_research" / "campus.md").exists())
+        self.assertFalse((self.raw / LABS / "campus.md").exists())
         self.assertEqual(self.client.get(f"/admin/documents/{doc_id}", headers=self.auth).status_code, 404)
 
     def test_bad_input_is_refused(self):
@@ -101,8 +105,9 @@ class AdminRoutes(unittest.TestCase):
         self.assertEqual(self.client.post("/admin/documents", headers=self.auth, json=body).status_code, 400)
         body = {"agent": "labs_research", "filename": "a.md", "content": ""}
         self.assertEqual(self.client.post("/admin/documents", headers=self.auth, json=body).status_code, 422)
-        bad_id = admin.document_id("labs_research", "../../.env")
-        for doc_id in [bad_id, "not-base64!", admin.document_id("labs_research", "missing.md")]:
+        bad_id = admin.document_id(LABS, "../../.env")
+        for doc_id in [bad_id, "not-base64!", admin.document_id(LABS, "missing.md"),
+                       admin.document_id("labs_research", "campus.md")]:  # documents are found by assistant id
             self.assertEqual(self.client.get(f"/admin/documents/{doc_id}", headers=self.auth).status_code, 404)
 
 

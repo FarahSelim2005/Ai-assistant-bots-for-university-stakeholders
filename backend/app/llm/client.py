@@ -12,7 +12,7 @@ import time
 
 import httpx
 
-from app import config
+from app import config, tenants
 
 OLLAMA_PREFIX = "ollama/"
 GROQ_PREFIX = "groq/"
@@ -120,7 +120,8 @@ def describe(error: Exception) -> str:
     return str(error) or type(error).__name__
 
 
-# Short instructions for the small local model (the agents' full prompts are long).
+# Short instructions for the small local model (the agents' full prompts are long). "GIU" is
+# replaced by the current university's short name (local_system_prompt).
 LOCAL_SYSTEM_PROMPT = (
     "You are a GIU university assistant. Answer only from the CONTEXT below; if the answer "
     "is not there, say you don't have that information. Answer in 1-3 short sentences. "
@@ -195,10 +196,16 @@ def small_prompt(messages: list[dict]) -> list[dict]:
     if isinstance(content, list):  # picture questions: keep only the text part
         content = " ".join(part["text"] for part in content if part.get("type") == "text")
     return [
-        {"role": "system", "content": f"{LOCAL_SYSTEM_PROMPT}\n\nCONTEXT:\n{context}"},
+        {"role": "system", "content": f"{local_system_prompt()}\n\nCONTEXT:\n{context}"},
         *history,
         {"role": "user", "content": content},
     ]
+
+
+def local_system_prompt() -> str:
+    """LOCAL_SYSTEM_PROMPT with the current university's short name (GIU's: unchanged)."""
+    tenant = tenants.current_or_none()
+    return LOCAL_SYSTEM_PROMPT.replace("GIU", tenant.short) if tenant else LOCAL_SYSTEM_PROMPT
 
 
 def warm_up_ollama() -> None:

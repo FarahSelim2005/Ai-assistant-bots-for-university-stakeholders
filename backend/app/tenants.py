@@ -34,6 +34,14 @@ class Tenant:
     slug: str    # also the subdomain, e.g. "giu"
     name: str
     status: str = "active"
+    short_name: str = ""         # e.g. "GIU": used in prompts and texts ("{university}")
+    has_cv_model: bool = False   # a CV model trained on its CV templates: the "cv" skill works
+    campus_map: bool = False     # campus buildings, rooms and map: the "map" skill works (GIU only)
+
+    @property
+    def short(self) -> str:
+        """The short name, or the full name when it has none."""
+        return self.short_name or self.name
 
 
 _current: ContextVar[Tenant | None] = ContextVar("tenant", default=None)
@@ -50,6 +58,12 @@ def current() -> Tenant:
 
 def current_id() -> uuid.UUID:
     return current().id
+
+
+def current_or_none() -> Tenant | None:
+    """The tenant of this request or script, or None outside one (low-level code that also
+    runs without a tenant, such as the model client)."""
+    return _current.get()
 
 
 @contextmanager
@@ -69,7 +83,8 @@ def data_dir(tenant: Tenant) -> Path:
 
 # ---------------------------------------------------------------- finding a tenant
 
-SELECT_TENANT = "SELECT t.id, t.slug, t.name, t.status FROM tenants t "
+TENANT_COLUMNS = "t.id, t.slug, t.name, t.status, t.short_name, t.has_cv_model, t.campus_map"
+SELECT_TENANT = f"SELECT {TENANT_COLUMNS} FROM tenants t "
 
 
 def by_slug(slug: str) -> Tenant | None:

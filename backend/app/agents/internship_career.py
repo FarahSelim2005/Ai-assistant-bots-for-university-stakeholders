@@ -1,7 +1,8 @@
-"""The Internship & Career agent: internships, the career fair, CVs, interviews, skills and career paths.
+"""CV rewrites, for assistants with the "cv" skill (GIU's Internship & Career Assistant).
 
-Unlike Labs & Research, it may give general career advice from the model's own knowledge
-(marked "General advice:"), but GIU facts still come only from its documents.
+Such an assistant answers like any other configured assistant (its answer mode "advice" lets
+it give general career advice, marked "General advice:", while GIU facts still come only
+from its documents).
 
 CV rewrites (a CV attached + "rewrite / fix / template ..."): no document search and no
 history, so the fine-tuned CV model gets exactly its training format; a CV that is a picture
@@ -13,7 +14,8 @@ import logging
 import re
 
 from app import config
-from app.agents.base import AgentResponse, BaseAgent
+from app.agents.base import AgentResponse
+from app.agents.configured import ConfiguredAgent
 from app.attachments import Attachment
 from app.documents.cv_analysis import (check_analysis, clean_role_line, condense_old_roles, restore_degrees,
                                        sort_roles, state_target_role, strip_model_tags)
@@ -155,27 +157,11 @@ def check_university(answer: str, cv_text: str) -> str:
     return GIU_NAME.sub("[add your university]", answer)
 
 
-class InternshipCareerAgent(BaseAgent):
-    name = "internship_career"
-    allowed_user_types = ("student", "staff")
-    system_prompt = CAREER_SYSTEM_PROMPT
-    # General career questions use the normal models; CV rewrites use CAREER_MODEL (e.g. the
-    # fine-tuned CV model ollama/giu-cv), which was trained only to restructure attached CVs
-    # (asked other questions, it invents a CV or writes nonsense).
-    model = config.LABS_MODEL
-    backup_models = config.LABS_BACKUP_MODELS
-    vision_model = config.VISION_MODEL
-    vision_backup_models = config.VISION_BACKUP_MODELS
-    answers_without_documents = True  # CV, interview and career-path advice need no GIU document
-    max_answer_tokens = 1500          # a full CV rewrite is long
-    fallback_message = (
-        "Sorry, I don't have information about that. "
-        "Please contact the GIU Career Center or your faculty for help."
-    )
-    fallback_message_ar = (
-        "آسف، معنديش معلومات عن ده. "
-        "من فضلك تواصل مع الكارير سنتر في الجامعة أو مع الكلية."
-    )
+class CvAgent(ConfiguredAgent):
+    """An assistant with the "cv" skill (GIU's Internship & Career Assistant): like any
+    configured assistant, plus CV rewrites with the fine-tuned CV model (CAREER_MODEL, e.g.
+    ollama/giu-cv), which was trained only to restructure attached CVs (asked other questions,
+    it invents a CV or writes nonsense). General questions use the agent's normal models."""
 
     def run(self, question: str, user_type: str, history: list[dict] | None = None,
             attachment: Attachment | None = None) -> AgentResponse:
@@ -208,9 +194,10 @@ class InternshipCareerAgent(BaseAgent):
         if not is_cv_text(attachment.text):  # lecture notes etc.: no CV model, no PDF
             log.warning("CV rewrite refused: %s does not look like a CV", attachment.filename)
             return NOT_A_CV["ar" if ARABIC_LETTERS.search(question) else "en"]
-        # The CV model gets the exact prompt it was trained on (full_prompt: no short local prompt).
-        # The "reply in English only" note is left out too: the CV is always in English.
-        messages = build_messages(self.system_prompt, question, chunks, history, attachment)
+        # The CV model gets the exact prompt it was trained on (full_prompt: no short local prompt),
+        # whatever the assistant's own instructions say. The "reply in English only" note is left
+        # out too: the CV is always in English.
+        messages = build_messages(CAREER_SYSTEM_PROMPT, question, chunks, history, attachment)
         messages[0]["content"] = messages[0]["content"].removesuffix(ENGLISH_ONLY)
         answer = chat_with_backup(messages, [config.CAREER_MODEL, *config.CAREER_BACKUP_MODELS],
                                   self.max_answer_tokens, full_prompt=True)

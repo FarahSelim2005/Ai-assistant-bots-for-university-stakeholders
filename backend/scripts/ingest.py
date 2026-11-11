@@ -1,17 +1,19 @@
 """Load a tenant's documents, split them into chunks, embed them, and store them.
 
-Each agent has its own folder named after it: GIU's are data/raw/labs_research/,
-data/raw/internship_career/ ...; another tenant's are data/tenants/<slug>/<agent>/.
-Who may see the chunks (students, staff) comes from the agent list in
-app/agents/directory.py. Every chunk is stored with the tenant's id.
+Each assistant has its own folder, named by its id: GIU's are data/raw/<agent id>/ (for
+example data/raw/a0000000-0000-4000-8000-000000000004/ for Labs & Research); another
+tenant's are data/tenants/<slug>/<agent id>/. Who may see the chunks (students, staff) is the
+assistant's audiences. Every chunk is stored with the tenant's and the assistant's id.
+Folders still named by an old agent key (labs_research/) are moved with
+`python -m scripts.move_agent_folders`.
 
 This script connects as the owner of the tables (DB_ADMIN_USER); the admin page, which
 also uses ingest_file, connects as the app (DB_USER).
 
 Run from the backend folder:
-    python -m scripts.ingest                          # every GIU agent's folder
-    python -m scripts.ingest --agent internship_career
-    python -m scripts.ingest --tenant demo            # data/tenants/demo/<agent>/
+    python -m scripts.ingest                          # every GIU assistant's folder
+    python -m scripts.ingest --agent internship_career   # one assistant (id, or a GIU template key)
+    python -m scripts.ingest --tenant demo            # data/tenants/demo/<agent id>/
 
 Re-running is safe: chunks of a file are deleted before that file is ingested again,
 and chunks of files that were removed from the folder are deleted too.
@@ -23,7 +25,7 @@ from pathlib import Path
 from pypdf import PdfReader
 
 from app import config, tenants
-from app.agents.directory import AGENT_DIRECTORY
+from app.agents import agents_of, find_agent
 from app.db import get_connection, use_admin_login
 from app.rag.embeddings import embed_texts
 
@@ -78,7 +80,8 @@ def split_into_chunks(text: str, size: int, overlap: int) -> list[str]:
 
 
 def ingest_file(path: Path, agent: str, audience: list[str]) -> int:
-    """Chunk, embed and store one file for the current tenant. Returns the number of chunks stored."""
+    """Chunk, embed and store one file of an assistant (`agent`: its id) for the current tenant.
+    Returns the number of chunks stored."""
     text = read_file(path)
     chunks = split_into_chunks(text, config.CHUNK_SIZE_WORDS, config.CHUNK_OVERLAP_WORDS)
     if not chunks:
@@ -88,12 +91,12 @@ def ingest_file(path: Path, agent: str, audience: list[str]) -> int:
     tenant_id = tenants.current_id()
     with get_connection(tenants.current_id()) as conn:
         conn.execute(
-            "DELETE FROM chunks WHERE tenant_id = %s AND agent = %s AND source = %s",
+            "DELETE FROM chunks WHERE tenant_id = %s AND agent_id = %s AND source = %s",
             (tenant_id, agent, path.name),
         )
         with conn.cursor() as cur:
             cur.executemany(
-                "INSERT INTO chunks (tenant_id, agent, audience, source, content, embedding) "
+                "INSERT INTO chunks (tenant_id, agent_id, audience, source, content, embedding) "
                 "VALUES (%s, %s, %s, %s, %s, %s)",
                 [(tenant_id, agent, audience, path.name, chunk, emb)
                  for chunk, emb in zip(chunks, embeddings)],
@@ -101,8 +104,8 @@ def ingest_file(path: Path, agent: str, audience: list[str]) -> int:
     return len(chunks)
 
 
-def ingest_agent(agent: str, folder: Path, audience: list[str]) -> None:
-    """Index all documents in one agent's folder and remove chunks of deleted files."""
+def ingest_agent(agent: str, folder: Path, audience: list[str], label: str = "") -> None:
+    """Index all documents in one assistant's folder and remove chunks of deleted files."""
     files = sorted(p for p in folder.iterdir() if p.suffix.lower() in SUPPORTED_EXTENSIONS)
     total = 0
     for path in files:
@@ -111,42 +114,48 @@ def ingest_agent(agent: str, folder: Path, audience: list[str]) -> None:
         total += count
     for source, count in remove_missing_files(agent, [p.name for p in files]):
         print(f"  {source}: no longer in the folder, {count} old chunks removed")
-    print(f"  {total} chunks stored for '{agent}' (audience: {audience}).")
+    print(f"  {total} chunks stored for '{label or agent}' (audience: {audience}).")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Ingest documents into the chunks table.")
-    parser.add_argument("--agent", help="only this agent (default: every agent folder)")
+    parser.add_argument("--agent", help="only this assistant: its id, or a GIU template key (default: all)")
     parser.add_argument("--tenant", default=config.DEFAULT_TENANT, help="tenant slug (default: giu)")
     args = parser.parse_args()
 
     use_admin_login()
     tenant = tenants.for_script(args.tenant)
     root = tenants.data_dir(tenant)
-    audiences = {a.key: list(a.user_types) for a in AGENT_DIRECTORY}
-    folders = sorted(p for p in root.iterdir() if p.is_dir()) if root.is_dir() else []
-    if args.agent:
-        folders = [f for f in folders if f.name == args.agent]
-    if not folders:
-        print(f"No agent folders found in {root}")
-        return
-    print(f"Tenant {tenant.slug} ({tenant.name}), documents in {root}")
     with tenants.using(tenant):
+        agents = {agent.name: agent for agent in agents_of(tenant.id)}
+        if args.agent:
+            chosen = find_agent(tenant.id, args.agent)
+            if chosen is None:
+                raise SystemExit(f"{tenant.slug} has no assistant '{args.agent}'.")
+            agents = {chosen.name: chosen}
+        folders = sorted(p for p in root.iterdir() if p.is_dir() and (not args.agent or p.name in agents))             if root.is_dir() else []
+        if not folders:
+            print(f"No assistant folders found in {root}")
+            return
+        print(f"Tenant {tenant.slug} ({tenant.name}), documents in {root}")
         for folder in folders:
-            if folder.name not in audiences:
-                print(f"Skipping {folder.name}/: no agent with that name in app/agents/directory.py")
+            agent = agents.get(folder.name)
+            if agent is None:
+                hint = (" (an old agent key: run python -m scripts.move_agent_folders)"
+                        if find_agent(tenant.id, folder.name) else "")
+                print(f"Skipping {folder.name}/: {tenant.slug} has no assistant with that id{hint}")
                 continue
-            print(f"{folder.name}:")
-            ingest_agent(folder.name, folder, audiences[folder.name])
+            print(f"{agent.display_name} ({folder.name}):")
+            ingest_agent(agent.name, folder, list(agent.allowed_user_types), agent.display_name)
 
 
 def remove_missing_files(agent: str, present: list[str]) -> list[tuple[str, int]]:
-    """Delete the current tenant's chunks of this agent whose source file was removed from
+    """Delete the current tenant's chunks of this assistant (`agent`: its id) whose source file was removed from
     the folder, so the agent stops answering from deleted documents. Returns (file name,
     chunks removed)."""
     with get_connection(tenants.current_id()) as conn:
         rows = conn.execute(
-            "DELETE FROM chunks WHERE tenant_id = %s AND agent = %s AND NOT (source = ANY(%s)) RETURNING source",
+            "DELETE FROM chunks WHERE tenant_id = %s AND agent_id = %s AND NOT (source = ANY(%s)) RETURNING source",
             (tenants.current_id(), agent, present),
         ).fetchall()
     counts: dict[str, int] = {}

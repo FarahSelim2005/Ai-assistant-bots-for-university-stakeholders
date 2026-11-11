@@ -6,7 +6,7 @@ fallback message. No HTTP code here: routers call `run()` and save the result.
 from dataclasses import dataclass, field
 
 from app import config
-from app.agents.directory import AGENT_DIRECTORY, AgentLink, closest_agent, suggest_agent
+from app.agents.directory import AgentLink, closest_agent, directory_agents, link_to, suggest_agent
 from app.attachments import Attachment
 from app.campus import BUILDINGS, Location, Place, buildings_asked, find_locations, find_places, room_facts, rooms_in_question
 from app.llm.client import chat_with_backup
@@ -29,7 +29,10 @@ class AgentResponse:
 
 
 class BaseAgent:
-    name: str
+    name: str  # the agent's key for retrieval and hand-overs (a configured agent: its id)
+    display_name: str = ""  # the name people see
+    university: str = "GIU"  # the university's short name, for "(no matching ... documents)"
+    campus_map: bool = True  # rooms, buildings and places on the campus map (the "map" skill)
     allowed_user_types: tuple[str, ...]
     system_prompt: str
     model: str
@@ -64,7 +67,7 @@ class BaseAgent:
         relevant = self.validate(chunks)
         # A room code in the question (e.g. "Where is A107?") adds its building and
         # floor from the numbering rules, so any valid room can be answered.
-        asked_rooms = rooms_in_question(question)
+        asked_rooms = rooms_in_question(question) if self.campus_map else []
         if asked_rooms:
             relevant.insert(0, RetrievedChunk(room_facts(asked_rooms), ROOM_FACTS_SOURCE, 1.0))
         # Which agent a question belongs to is decided on the question alone: with the
@@ -95,6 +98,8 @@ class BaseAgent:
                 return AgentResponse(answer=self.fallback_for(question), sources=[], redirect=owner)
         # 4. Generate
         answer = self.generate(question, relevant, self.history_for(question, history, attachment), attachment)
+        if not self.campus_map:
+            return AgentResponse(answer=answer, sources=unique_sources(relevant))
         # Show only the places the user asked about (an answer about the gym may also
         # mention the supermarket next to it); use the answer only if the question
         # names no place, e.g. "where can I work out?".
@@ -110,7 +115,7 @@ class BaseAgent:
                     attachment: Attachment | None = None) -> None:
         """Reject requests this agent must not handle (raises ValueError)."""
         if user_type not in self.allowed_user_types:
-            raise ValueError(f"The {self.name} agent is not available for '{user_type}' users.")
+            raise ValueError(f"The {self.display_name or self.name} is not available for '{user_type}' users.")
         if not question:
             raise ValueError("The question is empty.")
         if len(question) > MAX_QUESTION_LENGTH:
@@ -120,7 +125,7 @@ class BaseAgent:
 
     def owner_by_documents(self, question: str, search_texts: list[str], user_type: str,
                            own_best: float) -> AgentLink | None:
-        """Another built agent whose documents answer the question clearly better than
+        """Another agent of this university whose documents answer the question clearly better than
         ours, e.g. "Where is the admission office?" asked to Career -> Labs & Research
         (its documents list the offices). Not when the question fits this agent's own
         topic best: "How do I get a job in digital marketing?" stays with Career even
@@ -128,13 +133,13 @@ class BaseAgent:
         if closest_agent(question) == self.name:
             return None
         owner, owner_best = None, 0.0  # the agent whose documents match best (not just the first that passes)
-        for other in AGENT_DIRECTORY:
-            if not other.built or other.key == self.name or user_type not in other.user_types:
+        for other in directory_agents():
+            if other.name == self.name or user_type not in other.allowed_user_types:
                 continue
-            best = max((c.score for c in retrieve_best(search_texts, other.key, user_type)), default=0.0)
+            best = max((c.score for c in retrieve_best(search_texts, other.name, user_type)), default=0.0)
             if best >= config.SIMILARITY_THRESHOLD and best - own_best >= config.HANDOVER_MIN_GAP and best > owner_best:
                 owner, owner_best = other, best
-        return AgentLink(agent=owner.key, name=owner.name, url=f"/?agent={owner.key}") if owner else None
+        return link_to(owner, user_type) if owner else None
 
     def history_for(self, question: str, history: list[dict] | None,
                     attachment: Attachment | None) -> list[dict] | None:
@@ -163,7 +168,7 @@ class BaseAgent:
     def generate(self, question: str, chunks: list[RetrievedChunk],
                  history: list[dict] | None, attachment: Attachment | None = None) -> str:
         """Ask the model to answer from the relevant chunks and the attachment only."""
-        messages = build_messages(self.system_prompt, question, chunks, history, attachment)
+        messages = build_messages(self.system_prompt, question, chunks, history, attachment, self.university)
         if attachment and attachment.is_image:
             return chat_with_backup(messages, [self.vision_model, *self.vision_backup_models],
                                     self.max_answer_tokens)

@@ -44,9 +44,11 @@ def applied_migrations(database: str | None = None) -> set[str]:
 
 
 def apply(path: Path, database: str | None = None) -> None:
-    """Run one file and record it, in one transaction: an error leaves the database as it was."""
+    """Run one file and record it, in one transaction: an error leaves the database as it was.
+    Windows line endings are read as plain newlines, so text the file inserts (such as the
+    prompts in 004) is the same on every computer, whatever the checkout has."""
     with get_admin_connection(dbname=database) as conn:
-        conn.execute(path.read_text(encoding="utf-8"))
+        conn.execute(path.read_text(encoding="utf-8").replace("\r\n", "\n"))
         conn.execute("INSERT INTO schema_migrations (filename) VALUES (%s)", (path.name,))
 
 

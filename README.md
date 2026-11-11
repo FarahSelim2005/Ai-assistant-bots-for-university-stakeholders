@@ -78,6 +78,8 @@ only applies new files. Every file is also safe to run twice by hand.
 | `001_tenants.sql` | Multitenancy: a `tenants` table (one row per university; `giu` is created) and `tenant_domains` (which host opens which university: `localhost`, `127.0.0.1` and `giu.localhost` open GIU). Adds `tenant_id` to `chunks`, `conversations`, `messages` and `feedback`, fills it with GIU's id for all existing rows and makes it required. Until the app sends the tenant itself, `tenant_id` defaults to GIU, so nothing changes for the app. |
 | `002_tenant_required.sql` | Removes that temporary default (an INSERT without a tenant now fails instead of becoming GIU) and makes the database refuse cross-tenant links: a message must have its conversation's tenant, a rating its message's tenant. **Apply it only after restarting the backend with the tenant-aware code**: the old code's INSERTs have no `tenant_id`. |
 | `003_row_level_security.sql` | Row-level security. Creates the role `giu_app` (can log in; not a superuser, not the owner of the tables; only `SELECT/INSERT/UPDATE/DELETE` on `chunks`, `conversations`, `messages`, `feedback`, read-only `tenants` and `tenant_domains`). On the four tenant tables a policy shows and accepts only rows whose `tenant_id` is the current tenant (`app.tenant_id`, set by `get_connection(tenant_id)` for each transaction), even when a query forgets its `WHERE`; with no tenant set they look empty. The password is not in the file (see *Row-level security* below). |
+| `004_agents.sql` | Assistants in the database (see *Assistants* below): `agent_templates` (GIU's four agents as ready-made templates, copied exactly from the code) and `agents` (each university's own assistants, any number and any name, with row-level security). GIU gets its four agents with fixed ids; every other tenant gets one per agent key it already used (demo: Labs & Research). `chunks` and `conversations` get a required `agent_id` (an agent of the same tenant), filled from the agent key; the old `agent` column stays, no longer required. After applying it, run `python -m scripts.move_agent_folders` once (see *Assistants*). |
+| `005_skills.sql` | Skills and prompts from parts. `tenants` get `short_name` (for `{university}` in texts), `has_cv_model` and `campus_map` (GIU: `GIU`, true, true; others: their name, false, false). Templates and agents get `prompt_mode`: GIU's four keep their complete prompts unchanged; the templates become prompts built from parts with `{university}` instead of GIU, and other universities' assistants that still had 004's (GIU) text get the new template text. |
 
 To try the migrations on a copy first: in pgAdmin create a database `giu-bots-copy` with
 *Template* `giu-bots` (no other connection to `giu-bots` may be open), then run
@@ -168,22 +170,31 @@ possible, and always report which model ID you used.
 
 ## 3. Ingest documents
 
-Each agent has its own folder: put `.pdf`, `.txt` or `.md` files in
-`backend/data/raw/<agent>/` (`labs_research`, `internship_career`, `graduation_advising`), then:
+Each assistant has its own folder, named by its id: put `.pdf`, `.txt` or `.md` files in
+`backend/data/raw/<agent id>/` (GIU's four have fixed ids, see the table below; the admin page
+and `GET /admin/agents` show every assistant's id), then:
 
 ```bash
-python -m scripts.ingest                            # every agent's folder
-python -m scripts.ingest --agent internship_career  # only one agent
+python -m scripts.ingest                            # every assistant's folder
+python -m scripts.ingest --agent internship_career  # only one (its id, or a GIU template key)
 python -m scripts.ingest --tenant demo              # another university's documents (see "Several universities")
 ```
 
 Each file is split into chunks (paragraphs kept together, a new chunk at every
-Markdown heading, at most 200 words), embedded, and stored with the folder's agent
-and that agent's audience from `backend/app/agents/directory.py` (HR: staff
-only). Re-running is safe: a file's old chunks are replaced, and chunks of files you
+Markdown heading, at most 200 words), embedded, and stored with the folder's assistant
+and that assistant's audiences (HR: staff only). Re-running is safe: a file's old chunks are replaced, and chunks of files you
 deleted are removed.
 
-The documents:
+GIU's folders (fixed ids, the same on every computer):
+
+| Assistant | Folder `backend/data/raw/...` |
+|---|---|
+| Graduation & Advising (`graduation_advising`) | `a0000000-0000-4000-8000-000000000001/` |
+| HR & Policies (`hr_policies`) | `a0000000-0000-4000-8000-000000000002/` |
+| Internship & Career (`internship_career`) | `a0000000-0000-4000-8000-000000000003/` |
+| Labs & Research (`labs_research`) | `a0000000-0000-4000-8000-000000000004/` |
+
+The documents (by assistant):
 
 - `graduation_advising/advising_guidelines.md`: the slides "Advising Process – General
   Guidelines" (Heba El Mougy, Academic Performance Department) written out as text: what
@@ -306,8 +317,9 @@ The real GPS positions of the entrances (M: 2, A: 3, S: 1) are in
 
 **Links to the other agents:** the GIU chatbot has four agents (Graduation & Advising,
 HR & Policies, Internship & Career, Labs & Research). When an agent has no answer, the
-question is compared with each agent's description (`backend/app/agents/directory.py`,
-embeddings only, no chat model call) and the fallback message gets a button to the
+question is compared with the description of each of the university's own live assistants
+(`backend/app/agents/directory.py`; embeddings only, no chat model call; each description's
+embedding is stored in `agents.description_embedding` the first time it is needed) and the fallback message gets a button to the
 best-matching agent. Students can be sent to Graduation & Advising, Internship & Career and Labs &
 Research; staff to all four. An agent the user may not use (HR, for a student) is named without a button. Nothing is suggested when no agent matches
 (`AGENT_LINK_MIN_GAP` in `config.py`: the best agent must clearly beat the second best). Agents that are not built yet open a
@@ -361,11 +373,12 @@ chats or ratings; an unknown host gets `404`, a suspended tenant `403`.
   any `*.localhost` on port 5173, and an `X-Tenant: <slug>` header may choose the tenant
   (for curl and tests). Without it (the default, for servers) the header is ignored, only the host
   decides, and only `http://localhost:5173` may call the API from a browser.
-- Documents: GIU's stay in `backend/data/raw/<agent>/`; another tenant's are in
-  `backend/data/tenants/<slug>/<agent>/` (not in git). `ingest`, `try_retrieve`, `try_chat` and
+- Documents: GIU's are in `backend/data/raw/<agent id>/`; another tenant's in
+  `backend/data/tenants/<slug>/<agent id>/` (not in git). `ingest`, `try_retrieve`, `try_chat` and
   `evaluate` take `--tenant <slug>` (default `giu`).
 - An admin login works only on the host (tenant) where it was made.
-- Not done yet: every tenant has the same four agents and the GIU look (logo, texts, campus map).
+- Each tenant has its own assistants and skills (see *Assistants*). Not done yet: the frontend
+  still shows GIU's look (logo, texts, colours) for every tenant (step 2c).
 
 **Trying a second university ("demo")**
 
@@ -375,7 +388,15 @@ chats or ratings; an unknown host gets `404`, a suspended tenant `403`.
    INSERT INTO tenant_domains (host, tenant_id, is_primary)
    SELECT 'demo.localhost', id, true FROM tenants WHERE slug = 'demo';
    ```
-2. Give it one small document, `backend/data/tenants/demo/labs_research/zebra-lab.md`:
+2. Give it an assistant and one small document. A demo that already had the Labs &
+   Research documents before migration 004 got that assistant from the migration (run
+   `python -m scripts.move_agent_folders --tenant demo` to move its folder). A new demo gets
+   one from the template (admin routes open, no `ADMIN_PASSWORD`; otherwise log in first):
+   ```bash
+   curl -X POST http://demo.localhost:8000/admin/agents -H "Content-Type: application/json" \
+        -d '{"template_key": "labs_research", "name": "Demo Lab Assistant"}'   # -> {"id": "..."}
+   ```
+   Then put the document in `backend/data/tenants/demo/<that id>/zebra-lab.md`:
    ```markdown
    ## Zebra Lab
    The Zebra Lab of Demo University is in room Z901 in building Z. It is open Sunday to
@@ -404,7 +425,7 @@ chats or ratings; an unknown host gets `404`, a suspended tenant `403`.
 ## Admin page
 
 **http://localhost:5173/admin** lists the documents the agents answer from (GIU:
-`backend/data/raw/<agent>/`, another tenant: `backend/data/tenants/<slug>/<agent>/`; `.md` and
+`backend/data/raw/<agent id>/`, another tenant: `backend/data/tenants/<slug>/<agent id>/`; `.md` and
 `.txt`), with a filter per agent. An admin can **add** a document (pick a file or paste
 Markdown; start each topic with a `## Heading`), **edit** it, **move** it to another agent and
 **delete** it. Every change is re-indexed at once (`app/routers/admin.py` uses `ingest_file` from
@@ -415,7 +436,84 @@ Login: put `ADMIN_PASSWORD=...` in `backend/.env` and set `LOGIN_REQUIRED = true
 `frontend/src/admin/AdminPage.jsx`; a login then lasts 8 hours (`ADMIN_TOKEN_HOURS`), and a wrong
 password waits 1 second. Without a password the admin routes are open (the backend logs a
 warning at start-up): fine on your own computer, never on a server. File names are cleaned (no
-folders, only `.md` / `.txt`), and document ids cannot point outside `data/raw/<agent>/`.
+folders, only `.md` / `.txt`), and document ids cannot point outside the assistant's folder.
+
+## Assistants
+
+Each university creates its own assistants, any number and any name. They are rows of the
+`agents` table (migration 004, with row-level security), loaded by `app/agents/__init__.py`
+(`agents_of`, `load_agent`) and cached per university until one of its rows changes. Each row
+becomes a `ConfiguredAgent` (`app/agents/configured.py`); the shared flow `BaseAgent.run()`
+(rules, retrieve, validate, generate) is the same for all.
+
+| Setting | What it does |
+|---|---|
+| `name`, `summary`, `subtitle` | what people see (start screen, chat header) |
+| `description` | what it handles; decides hand-overs between the university's assistants |
+| `audiences` | `student` and/or `staff` |
+| `answer_mode` | `docs`: only from its documents (fallback message otherwise); `advice`: may also give general advice |
+| `instructions`, `prompt_mode` | `composed` (default): what this assistant does, in a few sentences; the prompt is built around it. `complete`: the instructions are the whole system prompt (GIU's four) |
+| `fallback_en`, `fallback_ar` | the "no information" answer |
+| `welcome`, `placeholder`, `examples` | the chat screen |
+| `skills` | what it can do (see *Skills* below) |
+| `model`, `backup_models`, `similarity_threshold`, `max_answer_tokens` | empty: the platform's settings from `.env` |
+| `position`, `live` | order, and whether users see it |
+
+**Prompts.** A `composed` prompt (`system_prompt` in `app/rag/prompts.py`) is: "You are the
+<name> of <university>.", the assistant's instructions, then the rules of its answer mode, of
+its skills (attachments, room codes) and of the platform (copy facts exactly, plain text, the
+user's language). `{university}` in any text becomes the university's short name. Another
+university's assistants never mention GIU.
+
+**Skills.**
+
+| Skill | Without it |
+|---|---|
+| `files` | attached documents are refused |
+| `images` | attached pictures are refused (pictures also need `VISION_MODEL`) |
+| `editor` | "translate this file", "make it shorter", "send it as PDF" are answered as questions; `POST /documents/edit` gives 403 |
+| `cv` | no CV rewrites. Also needs a university with a trained CV model (`tenants.has_cv_model`, GIU only): the Career prompt, "(no matching GIU documents)" and the CV checks stay exactly as giu-cv was trained |
+| `map` | no room facts, buildings, places or campus map. Also needs `tenants.campus_map` (GIU only): other universities never see GIU's buildings |
+| `voice` | the frontend hides the voice call button (step 2c) |
+
+`GET /admin/agents` shows each assistant's `skills` and its `active_skills` (those that work at
+this university). A university's settings are changed in SQL for now, as the owner:
+
+```sql
+UPDATE tenants SET short_name = 'DU', campus_map = false, has_cv_model = false WHERE slug = 'demo';
+```
+
+**Templates.** `agent_templates` holds the four ready-made assistants for any university, in
+parts (`app/agents/templates.py`: `TEMPLATES`; migration 005). GIU's own four assistants
+(`GIU_AGENTS`, fixed ids) keep their complete prompts and texts, so GIU answers
+exactly as before (checked on all 66 evaluation questions, for students and staff, with the model and
+embeddings replaced by recorders: the same prompts, models, sources, fallbacks, hand-over
+links and map data as the original fixed-agent code).
+
+**Admin API** (`app/routers/admin.py`; the screens come in step 2c):
+
+```
+GET  /admin/agents                 this university's assistants
+GET  /admin/agent-templates        ready-made ones to start from
+POST /admin/agents                 {template_key?, name?, description?, ...} -> {id}
+PUT  /admin/agents/{id}            {name?, ..., live?}   (live: false hides it)
+```
+
+Until the frontend reads ids (step 2c), the API also accepts and returns GIU's template keys
+(`labs_research`) wherever it names an assistant, so the current pages keep working. The
+evaluation CSV names assistants the same way.
+
+**After applying migration 004**, move document folders still named by an agent key
+(`data/tenants/demo/labs_research/`) to the assistant's id:
+
+```bash
+python -m scripts.move_agent_folders --dry-run   # what would move
+python -m scripts.move_agent_folders
+```
+
+GIU's folders are already renamed in git. If you change `EMBEDDING_MODEL`, ingest every
+folder again and clear the stored description embeddings
+(`UPDATE agents SET description_embedding = NULL;` as the owner).
 
 ## Document editor
 
@@ -559,17 +657,22 @@ backend/
     schemas.py           request/response models
     routers/             session.py, chat.py, feedback.py, speech.py, documents.py (document editor), admin.py (admin page)
     documents/           document editor: formats.py (read/edit/save each format), editor.py (model -> JSON edits), storage.py
-    agents/              base.py (shared flow), labs_research.py, internship_career.py, graduation_advising.py, directory.py
+    agents/              base.py (shared flow), configured.py (an assistant from the agents table), __init__.py (loading
+                         and caching each university's assistants), templates.py, internship_career.py (CV rewrites),
+                         directory.py (hand-overs)
     rag/                 embeddings.py, retriever.py, prompts.py, transliteration.py
     llm/client.py        chat completions (OpenRouter or local Ollama)
   tests/
     test_documents.py    document editor tests (python -m unittest discover -s tests)
     test_admin.py        admin route tests
     test_migrate.py      migration runner tests
-    test_tenants.py      tenant detection, isolation and row-level security (needs TEST_DB_NAME, else skipped)
+    test_tenants.py      tenant detection, isolation, row-level security, assistants API (needs TEST_DB_NAME, else skipped)
+    test_agents.py       configured assistants and their cache
+    test_skills.py       skills, prompts built from parts, chat routing by skill
   migrations/            numbered SQL files (000_base.sql, 001_tenants.sql, ...)
   scripts/
     migrate.py           apply the pending migrations
+    move_agent_folders.py  rename agent-key document folders to agent ids (once, after 004)
     ingest.py            load documents into the chunks table
     evaluate.py          accuracy and response time on test questions
     try_retrieve.py      show retrieved chunks for a question

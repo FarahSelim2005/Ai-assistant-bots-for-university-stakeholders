@@ -20,7 +20,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from starlette.concurrency import run_in_threadpool
 
 from app import config, tenants
-from app.agents import AGENTS
+from app.agents import load_agent
 from app.db import get_connection
 from app.documents import storage
 from app.documents.editor import edit_document
@@ -36,8 +36,8 @@ STOPPED_BY_USER = 499  # the user pressed Stop: nothing is saved (same as /chat)
 
 @router.post("/documents/edit", response_model=DocumentEditResponse)
 async def edit(body: DocumentEditRequest, request: Request):
-    agent_name = await run_in_threadpool(require_conversation, body.conversation_id)
-    result, info = await run_in_threadpool(run_edit, body, agent_name)
+    agent = await run_in_threadpool(require_conversation, body.conversation_id)
+    result, info = await run_in_threadpool(run_edit, body, agent)
     if await request.is_disconnected():
         return Response(status_code=STOPPED_BY_USER)
     saved = await run_in_threadpool(storage.save_version, body.conversation_id, result.data, result.extension)
@@ -52,22 +52,35 @@ async def edit(body: DocumentEditRequest, request: Request):
     )
 
 
-def conversation_agent(conversation_id: int) -> str | None:
-    """The agent of a conversation of the current tenant (None: no such conversation here)."""
+def conversation_agent(conversation_id: int):
+    """The agent id of a conversation of the current tenant (None: no such conversation here)."""
     with get_connection(tenants.current_id()) as conn:
-        row = conn.execute("SELECT agent FROM conversations WHERE id = %s AND tenant_id = %s",
+        row = conn.execute("SELECT agent_id FROM conversations WHERE id = %s AND tenant_id = %s",
                            (conversation_id, tenants.current_id())).fetchone()
     return row[0] if row else None
 
 
-def require_conversation(conversation_id: int) -> str:
-    agent_name = conversation_agent(conversation_id)
-    if agent_name is None:  # also another university's conversation
+def require_conversation(conversation_id: int):
+    """The assistant of a conversation of the current tenant, which must edit documents (the
+    "editor" skill; 403 otherwise)."""
+    agent = conversation_assistant(conversation_id)
+    if not agent.edits_documents:
+        raise HTTPException(403, "This assistant does not edit documents.")
+    return agent
+
+
+def conversation_assistant(conversation_id: int):
+    """The assistant of a conversation of the current tenant (404 / 410 if there is none)."""
+    agent_id = conversation_agent(conversation_id)
+    if agent_id is None:  # also another university's conversation
         raise HTTPException(404, "Conversation not found. Start a new session.")
-    return agent_name
+    agent = load_agent(tenants.current_id(), agent_id)
+    if agent is None or not agent.live:
+        raise HTTPException(410, "This assistant is no longer available. Start a new chat.")
+    return agent
 
 
-def run_edit(body: DocumentEditRequest, agent_name: str):
+def run_edit(body: DocumentEditRequest, agent):
     """Edit a new upload or the current document; errors become HTTP errors."""
     upload = None
     if body.document:
@@ -77,7 +90,7 @@ def run_edit(body: DocumentEditRequest, agent_name: str):
             raise HTTPException(400, "The file could not be read. Please try uploading it again.")
     try:
         return edit_conversation_document(body.conversation_id, body.instruction, upload,
-                                          body.document_token, agent_name)
+                                          body.document_token, agent)
     except ValueError as error:  # a bad file or an impossible request: tell the user why
         raise HTTPException(400, str(error))
     except (httpx.HTTPError, LLMError):
@@ -85,7 +98,7 @@ def run_edit(body: DocumentEditRequest, agent_name: str):
 
 
 def edit_conversation_document(conversation_id: int, instruction: str, upload: tuple[str, bytes] | None,
-                               token: str | None, agent_name: str):
+                               token: str | None, agent):
     """Edit an uploaded file ((filename, bytes), stored as version 0) or the chat's current
     document (needs the token of its latest version). Also used by POST /chat. Returns
     (EditResult, stored info); raises ValueError, LLMError or httpx errors."""
@@ -98,7 +111,6 @@ def edit_conversation_document(conversation_id: int, instruction: str, upload: t
         raise ValueError("There is no document to edit in this chat any more (files are kept for "
                          f"{config.DOC_EDIT_KEEP_MINUTES} minutes). Attach it again.")
     data, ext = storage.latest_file(conversation_id)
-    agent = AGENTS[agent_name]
     result = edit_document(data, ext, instruction, [config.DOC_EDIT_MODEL, *config.DOC_EDIT_BACKUP_MODELS],
                            [agent.vision_model, *agent.vision_backup_models])
     return result, storage.current(conversation_id)

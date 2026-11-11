@@ -7,7 +7,7 @@ import unittest
 from unittest import mock
 
 import app.agents.base as base
-from app.agents import AGENTS
+from tests import giu_agents
 from app.attachments import Attachment
 from app.rag.prompts import CAREER_SYSTEM_PROMPT
 
@@ -26,7 +26,7 @@ class CvRewrites(unittest.TestCase):
         self.search = self.patches[0].start()
         for p in self.patches[1:]:
             p.start()
-        self.career = AGENTS["internship_career"]
+        self.career = giu_agents.activate(self)["internship_career"]  # GIU's assistant with the cv skill
 
     def tearDown(self):
         for p in self.patches:
@@ -124,7 +124,7 @@ class CvAnalysis(unittest.TestCase):
         answer = f"Template: Student\n{ENGLISH_CV}\n- Led 87 people\n\n{ENGLISH_ANALYSIS}"
         attachment = Attachment("cv.txt", text=ENGLISH_CV)
         with mock.patch.object(career_module, "chat_with_backup", return_value=answer):
-            result = AGENTS["internship_career"].generate("fix my cv", [], [], attachment)
+            result = giu_agents.AGENTS["internship_career"].generate("fix my cv", [], [], attachment)
         self.assertIn("- Led [add the number] people", result)  # invented in the CV: replaced
         self.assertTrue(result.endswith("Most important to improve:\n1. Add 2 projects"
                                         "\n2. Say in your summary which role or internship you are looking for."
@@ -776,9 +776,10 @@ class PdfAndCvRouting(unittest.TestCase):
         from app.agents.base import AgentResponse
         asked = []
         run = lambda question, *args: asked.append(question) or AgentResponse(answer="Sorry.", sources=[])
-        with mock.patch.object(AGENTS["internship_career"], "run", run):
-            chat.restructure_cv("fix this", "student", [], CV, "01_senior_12_years.txt")
-            chat.restructure_cv("Use the Modern template for my CV", "student", [], CV, "cv.txt")
+        career = giu_agents.AGENTS["internship_career"]
+        with mock.patch.object(career, "run", run):
+            chat.restructure_cv(career, "fix this", "student", [], CV, "01_senior_12_years.txt")
+            chat.restructure_cv(career, "Use the Modern template for my CV", "student", [], CV, "cv.txt")
         self.assertEqual(asked, [chat.CV_REQUEST, "Use the Modern template for my CV"])
 
     def test_skills_line_without_groups_is_not_bold(self):
@@ -815,15 +816,16 @@ class PdfAndCvRouting(unittest.TestCase):
         from app import config
         used = []
         reply = lambda messages, models, *args, **kwargs: used.append(models[0]) or "Template: Student\n\nOmar"
-        career = AGENTS["internship_career"]
+        career = giu_agents.AGENTS["internship_career"]
         # The agent's normal models are read from .env (LABS_MODEL) when the class is made,
         # so they are set here too: the test must not depend on what .env says.
         with mock.patch.object(base, "retrieve_best", return_value=[]), \
              mock.patch.object(base, "chat_with_backup", reply), mock.patch.object(career_module, "chat_with_backup", reply), \
              mock.patch.object(config, "CAREER_MODEL", "ollama/giu-cv"), mock.patch.object(config, "CAREER_BACKUP_MODELS", []), \
-             mock.patch.object(career, "model", "test/normal-model"), mock.patch.object(career, "backup_models", []):
-            AGENTS["internship_career"].run("What is the difference between the templates?", "student", [], None)
-            AGENTS["internship_career"].run("fix my cv", "student", [], CV)
+             mock.patch.object(career, "model", "test/normal-model"), mock.patch.object(career, "backup_models", []), \
+             giu_agents.active():
+            career.run("What is the difference between the templates?", "student", [], None)
+            career.run("fix my cv", "student", [], CV)
         self.assertNotEqual(used[0], "ollama/giu-cv")   # a general question: the normal models
         self.assertEqual(used[1], "ollama/giu-cv")      # a CV rewrite: the CV model
 

@@ -1,10 +1,13 @@
 """POST /chat: answer a question in a conversation and store both messages.
 
-The message is handled in one of three ways, decided automatically:
+The message is handled in one of three ways, decided automatically (and by the assistant's
+skills: "editor" for editing and converting documents, "cv" for CV rewrites, which also needs
+a university with a trained CV model):
 - a request to change an attached file ("restructure my CV", "translate this report") or
   the chat's open document ("now make it shorter"): the document editor edits it, and the
   answer comes with the file to view and download;
-- a CV restructure in the Internship & Career agent: the fine-tuned CV model rewrites the CV;
+- a CV restructure in an assistant with the "cv" skill (GIU's Internship & Career Assistant):
+  the fine-tuned CV model rewrites the CV;
   the CV becomes a PDF (and a Word file) to view and download, and its CV ANALYSIS (rating,
   changes, what to improve) is the chat message;
 - anything else, including questions about an attached file: the agent answers.
@@ -25,7 +28,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from starlette.concurrency import run_in_threadpool
 
 from app import config, tenants
-from app.agents import AGENTS
+from app.agents import load_agent
 from app.agents.base import AgentResponse
 from app.attachments import combine_attachments, read_attachment
 from app.campus import BUILDINGS
@@ -94,12 +97,12 @@ def answer_question(body: ChatRequest) -> Outcome:
     tenant_id = tenants.current_id()
     with get_connection(tenant_id) as conn:
         conversation = conn.execute(
-            "SELECT user_type, agent FROM conversations WHERE id = %s AND tenant_id = %s",
+            "SELECT user_type, agent_id FROM conversations WHERE id = %s AND tenant_id = %s",
             (body.conversation_id, tenant_id),
         ).fetchone()
         if conversation is None:  # also another university's conversation
             raise HTTPException(404, "Conversation not found. Start a new session.")
-        user_type, agent_name = conversation
+        user_type, agent_id = conversation
 
         # Last messages, newest first in SQL, then reversed into chronological order.
         rows = conn.execute(
@@ -108,49 +111,56 @@ def answer_question(body: ChatRequest) -> Outcome:
             (body.conversation_id, tenant_id, HISTORY_SIZE),
         ).fetchall()
     history = [{"role": role, "content": content} for role, content in reversed(rows)]
+    agent = load_agent(tenant_id, agent_id)
+    if agent is None or not agent.live:
+        raise HTTPException(410, "This assistant is no longer available. Start a new chat.")
 
     try:
         wants_edit, wants_pdf = is_edit_request(body.query), is_pdf_request(body.query)
         # "Convert it to pdf" only wants a PDF (no model); "translate it and send it as pdf" also edits.
         only_pdf = wants_pdf and not is_edit_request(CONVERSION_WORDS.sub(" ", body.query))
         wants_edit = wants_edit and not only_pdf
-        career = agent_name == "internship_career"
+        asks_change = wants_edit or wants_pdf  # also how a CV rewrite is asked for ("fix my CV")
+        career = agent.rewrites_cvs  # the "cv" skill, at a university with a trained CV model
+        if not agent.edits_documents:  # no "editor" skill: files are only asked about
+            wants_edit = wants_pdf = only_pdf = False
         uploads = sent_files(body)
         if len(uploads) > 1:  # several files: questions about them ("compare these", "summarize them")
             if wants_pdf:
                 raise ValueError("To get a file back (a PDF, an edited file or a restructured CV), "
                                  "attach one file at a time.")
             attachment = combine_attachments([read_attachment(f.filename, f.data_base64) for f in uploads])
-            return Outcome(AGENTS[agent_name].run(body.query, user_type, history, attachment))
+            return Outcome(agent.run(body.query, user_type, history, attachment))
         if uploads:
             upload = uploads[0]
             filename = upload.filename
             extension = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
             is_cv = career and bool(CV_WORDS.search(body.query) or CV_FILE_NAME.search(filename))
-            if career and not is_cv and (wants_edit or wants_pdf):
+            if career and not is_cv and asks_change:
                 is_cv = looks_like_cv(read_attachment(filename, upload.data_base64).text)
-            if is_cv and (wants_edit or wants_pdf):  # restructure the CV (and send it as PDF + Word)
+            if is_cv and asks_change:  # restructure the CV (and send it as PDF + Word)
                 attachment = read_attachment(filename, upload.data_base64)
-                return restructure_cv(body.query, user_type, history, attachment, filename)
+                return restructure_cv(agent, body.query, user_type, history, attachment, filename)
             if extension in EDITABLE_TYPES and wants_edit:
-                return edit(body, agent_name, upload=(filename, decode(upload.data_base64)), also_pdf=wants_pdf)
+                return edit(body, agent, upload=(filename, decode(upload.data_base64)), also_pdf=wants_pdf)
             if extension in EDITABLE_TYPES and wants_pdf:
                 return as_pdf(decode(upload.data_base64), filename=filename)
             attachment = read_attachment(filename, upload.data_base64)
-            return Outcome(AGENTS[agent_name].run(body.query, user_type, history, attachment))
+            return Outcome(agent.run(body.query, user_type, history, attachment))
         info = (storage.current(body.conversation_id)
                 if body.document_token and storage.is_latest(body.conversation_id, body.document_token) else None)
         if info and only_pdf:  # "send it as pdf": the open document as a PDF
             return current_as_pdf(body.conversation_id, info)
-        if info and wants_edit:
+        if info and (wants_edit or (career and asks_change)):
             cv_file_open = career and not info.get("cv") and bool(CV_WORDS.search(body.query) or CV_FILE_NAME.search(info["filename"]))
             if cv_file_open and CV_REWRITE_WORDS.search(body.query):  # "restructure it": the CV model, not the editor
                 data, extension = storage.latest_file(body.conversation_id)
                 name = info["filename"].rsplit(".", 1)[0] + extension
                 attachment = read_attachment(name, base64.b64encode(data).decode())
-                return restructure_cv(body.query, user_type, history, attachment, name)
-            return edit(body, agent_name, upload=None, also_pdf=wants_pdf)
-        return Outcome(AGENTS[agent_name].run(body.query, user_type, history, None))
+                return restructure_cv(agent, body.query, user_type, history, attachment, name)
+            if wants_edit:
+                return edit(body, agent, upload=None, also_pdf=wants_pdf)
+        return Outcome(agent.run(body.query, user_type, history, None))
     except ValueError as error:  # a bad attachment or a broken agent rule
         raise HTTPException(400, str(error))
     except (httpx.HTTPError, LLMError):  # OpenRouter unreachable, an error, or no answer
@@ -176,9 +186,9 @@ def decode(data_base64: str) -> bytes:
         raise ValueError("The file could not be read. Please try uploading it again.")
 
 
-def edit(body: ChatRequest, agent_name: str, upload, also_pdf: bool = False) -> Outcome:
+def edit(body: ChatRequest, agent, upload, also_pdf: bool = False) -> Outcome:
     """The document editor's answer: what changed, and the edited file."""
-    result, info = edit_conversation_document(body.conversation_id, body.query, upload, body.document_token, agent_name)
+    result, info = edit_conversation_document(body.conversation_id, body.query, upload, body.document_token, agent)
     answer = result.summary + "".join(f"\n- {note}" for note in result.notes)
     files = [(result.data, result.extension, None)]
     if upload is None and info.get("cv") and result.extension == ".docx":
@@ -193,13 +203,13 @@ def edit(body: ChatRequest, agent_name: str, upload, also_pdf: bool = False) -> 
     return Outcome(AgentResponse(answer=answer, sources=[]), files=files, changes=result.changes)
 
 
-def restructure_cv(query: str, user_type: str, history, attachment, filename: str) -> Outcome:
+def restructure_cv(agent, query: str, user_type: str, history, attachment, filename: str) -> Outcome:
     """The CV model restructures the CV; a restructured CV comes back as PDF + Word files.
     A request that only asks for a PDF ("send my CV as pdf"), or that does not mention a CV or
     a template ("fix this"), is sent as a training-style rewrite request."""
     names_it = CV_WORDS.search(query) or re.search(r"template|student|london|modern", query, re.IGNORECASE)
     question = query if CV_REWRITE_WORDS.search(query) and names_it else CV_REQUEST
-    response = AGENTS["internship_career"].run(question, user_type, history, attachment)
+    response = agent.run(question, user_type, history, attachment)
     return cv_files(response, filename) if is_restructured_cv(response.answer) else Outcome(response)
 
 
