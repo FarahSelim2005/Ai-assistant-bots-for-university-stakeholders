@@ -19,7 +19,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse
 from starlette.concurrency import run_in_threadpool
 
-from app import config
+from app import config, tenants
 from app.agents import AGENTS
 from app.db import get_connection
 from app.documents import storage
@@ -36,7 +36,7 @@ STOPPED_BY_USER = 499  # the user pressed Stop: nothing is saved (same as /chat)
 
 @router.post("/documents/edit", response_model=DocumentEditResponse)
 async def edit(body: DocumentEditRequest, request: Request):
-    agent_name = await run_in_threadpool(conversation_agent, body.conversation_id)
+    agent_name = await run_in_threadpool(require_conversation, body.conversation_id)
     result, info = await run_in_threadpool(run_edit, body, agent_name)
     if await request.is_disconnected():
         return Response(status_code=STOPPED_BY_USER)
@@ -52,12 +52,19 @@ async def edit(body: DocumentEditRequest, request: Request):
     )
 
 
-def conversation_agent(conversation_id: int) -> str:
+def conversation_agent(conversation_id: int) -> str | None:
+    """The agent of a conversation of the current tenant (None: no such conversation here)."""
     with get_connection() as conn:
-        row = conn.execute("SELECT agent FROM conversations WHERE id = %s", (conversation_id,)).fetchone()
-    if row is None:
+        row = conn.execute("SELECT agent FROM conversations WHERE id = %s AND tenant_id = %s",
+                           (conversation_id, tenants.current_id())).fetchone()
+    return row[0] if row else None
+
+
+def require_conversation(conversation_id: int) -> str:
+    agent_name = conversation_agent(conversation_id)
+    if agent_name is None:  # also another university's conversation
         raise HTTPException(404, "Conversation not found. Start a new session.")
-    return row[0]
+    return agent_name
 
 
 def run_edit(body: DocumentEditRequest, agent_name: str):
@@ -99,29 +106,33 @@ def edit_conversation_document(conversation_id: int, instruction: str, upload: t
 
 def save_messages(body: DocumentEditRequest, filename: str, answer: str) -> int:
     """Store the instruction and the answer (the document itself is not stored in the database)."""
+    tenant_id = tenants.current_id()
     with get_connection() as conn:
-        conn.execute("INSERT INTO messages (conversation_id, role, content) VALUES (%s, 'user', %s)",
-                     (body.conversation_id, f"{body.instruction}\n[Edit document: {filename}]"))
-        return conn.execute("INSERT INTO messages (conversation_id, role, content) "
-                            "VALUES (%s, 'assistant', %s) RETURNING id",
-                            (body.conversation_id, answer)).fetchone()[0]
+        conn.execute("INSERT INTO messages (tenant_id, conversation_id, role, content) VALUES (%s, %s, 'user', %s)",
+                     (tenant_id, body.conversation_id, f"{body.instruction}\n[Edit document: {filename}]"))
+        return conn.execute("INSERT INTO messages (tenant_id, conversation_id, role, content) "
+                            "VALUES (%s, %s, 'assistant', %s) RETURNING id",
+                            (tenant_id, body.conversation_id, answer)).fetchone()[0]
+
+
+def file_of(conversation_id: int, token: str):
+    """(path, name, media type) of a stored version; 404 if it is gone or the conversation
+    belongs to another university (the files themselves are kept per conversation id)."""
+    found = storage.file_for_download(conversation_id, token)
+    if found is None or conversation_agent(conversation_id) is None:
+        raise HTTPException(404, FILE_GONE)
+    return found
 
 
 @router.get("/documents/{conversation_id}/{token}")
 def download(conversation_id: int, token: str):
-    found = storage.file_for_download(conversation_id, token)
-    if found is None:
-        raise HTTPException(404, FILE_GONE)
-    path, name, media_type = found
+    path, name, media_type = file_of(conversation_id, token)
     return FileResponse(path, media_type=media_type, filename=name, headers={"Cache-Control": "no-store"})
 
 
 @router.get("/documents/{conversation_id}/{token}/view")
 def view(conversation_id: int, token: str):
-    found = storage.file_for_download(conversation_id, token)
-    if found is None:
-        raise HTTPException(404, FILE_GONE)
-    path, name, media_type = found
+    path, name, media_type = file_of(conversation_id, token)
     safe = {"Cache-Control": "no-store", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
             "X-Content-Type-Options": "nosniff"}
     if path.suffix in (".pdf", ".txt", ".md"):  # the browser shows these itself
@@ -132,6 +143,6 @@ def view(conversation_id: int, token: str):
 
 @router.delete("/documents/{conversation_id}/{token}")
 def stop_editing(conversation_id: int, token: str):
-    if storage.is_latest(conversation_id, token):
+    if storage.is_latest(conversation_id, token) and conversation_agent(conversation_id) is not None:
         storage.remove(conversation_id)
     return {"ok": True}

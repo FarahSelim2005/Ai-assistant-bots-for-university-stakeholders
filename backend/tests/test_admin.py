@@ -6,14 +6,18 @@ Run from the backend folder:
 """
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 from unittest import mock
 
 from fastapi.testclient import TestClient
 
-from app import config
+from app import config, tenants
 from app.main import app
 from app.routers import admin
+
+# Every request is GIU's (the TestClient's host "testserver" is in no tenant_domains table).
+GIU = tenants.Tenant(uuid.UUID(int=1), "giu", "German International University")
 
 
 class AdminRoutes(unittest.TestCase):
@@ -26,6 +30,7 @@ class AdminRoutes(unittest.TestCase):
         fake_ingest = lambda path, agent, audience: self.indexed.append((agent, path.name, audience)) or 3
         self.patches = [
             mock.patch.object(config, "RAW_DATA_DIR", self.raw),
+            mock.patch.object(tenants, "resolve", lambda host, tenant_header: GIU),
             mock.patch.object(config, "ADMIN_PASSWORD", "secret"),
             mock.patch.object(admin, "ingest_file", fake_ingest),
             mock.patch.object(admin, "delete_chunks", lambda agent, name: self.deleted.append((agent, name))),

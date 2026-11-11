@@ -16,6 +16,7 @@ from app.llm.client import warm_up_ollama
 from app.documents.storage import remove_old_files
 from app.routers import admin, chat, documents, feedback, session, speech
 from app.speech import get_model
+from app.tenants import TenantMiddleware
 
 
 @asynccontextmanager
@@ -35,9 +36,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="GIU Labs & Research Assistant", lifespan=lifespan)
 
+# Every request gets its tenant from the host name (tenants.py). Added first, so CORS
+# (added after it) runs outside it: preflight requests need no tenant, and a "404 unknown
+# university" still carries the CORS headers the browser needs to show it.
+app.add_middleware(TenantMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[config.FRONTEND_ORIGIN],
+    allow_origin_regex=config.DEV_ORIGIN_REGEX if config.APP_ENV == "development" else None,
     allow_methods=["*"],
     allow_headers=["*"],
 )

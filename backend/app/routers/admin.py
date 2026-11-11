@@ -1,4 +1,5 @@
-"""Admin routes: manage the documents the agents answer from (data/raw/<agent>/*.md|*.txt).
+"""Admin routes: manage the documents the agents answer from: the current tenant's folder
+(GIU: data/raw/<agent>/*.md|*.txt, other tenants: data/tenants/<slug>/<agent>/).
 
 POST   /admin/login              {password} -> {token}
 GET    /admin/documents          [{id, agent, filename, updated_at}]
@@ -11,8 +12,9 @@ Every change is re-indexed at once (chunks + embeddings, like `python -m scripts
 so the agents answer from the new text right away.
 
 Login: with ADMIN_PASSWORD in backend/.env, every route except login needs the header
-"Authorization: Bearer <token>" (tokens last ADMIN_TOKEN_HOURS). Without a password the
-routes are open, for local development only (a warning is logged at start-up).
+"Authorization: Bearer <token>" (tokens last ADMIN_TOKEN_HOURS). A token only works for the
+tenant (host) it was issued on. Without a password the routes are open, for local
+development only (a warning is logged at start-up).
 """
 import base64
 import binascii
@@ -28,7 +30,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from app import config
+from app import config, tenants
 from app.agents.directory import AGENT_DIRECTORY
 from app.db import get_connection
 from scripts.ingest import ingest_file
@@ -39,6 +41,7 @@ log = logging.getLogger("uvicorn.error")
 DOCUMENT_TYPES = (".md", ".txt")
 AUDIENCES = {agent.key: list(agent.user_types) for agent in AGENT_DIRECTORY}  # who may read each agent's documents
 _tokens: dict[str, float] = {}  # token -> expiry time (kept in memory: a restart logs everyone out)
+_token_tenants: dict[str, object] = {}  # token -> id of the tenant it was issued for
 
 
 class LoginRequest(BaseModel):
@@ -64,17 +67,19 @@ async def login(body: LoginRequest):
     for token, expiry in list(_tokens.items()):  # forget expired tokens
         if expiry < now:
             del _tokens[token]
+            _token_tenants.pop(token, None)
     token = secrets.token_urlsafe(32)
     _tokens[token] = now + config.ADMIN_TOKEN_HOURS * 3600
+    _token_tenants[token] = tenants.current_id()
     return {"token": token}
 
 
 def require_admin(authorization: str = Header(default="")) -> None:
-    """Every route below needs a valid login token (unless no password is set up)."""
+    """Every route below needs a valid login token of this tenant (unless no password is set up)."""
     if not config.ADMIN_PASSWORD:
         return
     token = authorization.removeprefix("Bearer ").strip()
-    if _tokens.get(token, 0) < time.time():
+    if _tokens.get(token, 0) < time.time() or _token_tenants.get(token) != tenants.current_id():
         raise HTTPException(401, "Please log in again.")
 
 
@@ -103,7 +108,7 @@ def clean_filename(filename: str) -> str:
 
 
 def path_of(agent: str, filename: str) -> Path:
-    folder = (config.RAW_DATA_DIR / agent).resolve()
+    folder = (tenants.data_dir(tenants.current()) / agent).resolve()
     path = (folder / filename).resolve()
     if path.parent != folder:
         raise HTTPException(400, "Invalid file name.")
@@ -125,8 +130,10 @@ def from_id(doc_id: str) -> tuple[str, str, Path]:
 
 
 def delete_chunks(agent: str, filename: str) -> None:
+    """Remove the current tenant's chunks of one file."""
     with get_connection() as conn:
-        conn.execute("DELETE FROM chunks WHERE agent = %s AND source = %s", (agent, filename))
+        conn.execute("DELETE FROM chunks WHERE tenant_id = %s AND agent = %s AND source = %s",
+                     (tenants.current_id(), agent, filename))
 
 
 def save_and_index(agent: str, filename: str, content: str) -> int:
@@ -147,7 +154,7 @@ def save_and_index(agent: str, filename: str, content: str) -> int:
 def list_documents():
     documents = []
     for agent in AUDIENCES:
-        folder = config.RAW_DATA_DIR / agent
+        folder = tenants.data_dir(tenants.current()) / agent
         if not folder.is_dir():
             continue
         for path in sorted(folder.iterdir()):

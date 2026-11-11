@@ -1,5 +1,7 @@
-// All calls to the backend live here. Change API_URL if the backend runs elsewhere.
-export const API_URL = "http://localhost:8000";
+// All calls to the backend live here. The backend runs on port 8000 of the same host name
+// as this page, so it sees which university is open: giu.localhost:5173 calls
+// giu.localhost:8000, demo.localhost:5173 calls demo.localhost:8000 (plain localhost is GIU).
+export const API_URL = `${window.location.protocol}//${window.location.hostname}:8000`;
 
 // `signal` (optional) lets the caller cancel the request, e.g. the chat's Stop button.
 async function post(path, body, signal) {

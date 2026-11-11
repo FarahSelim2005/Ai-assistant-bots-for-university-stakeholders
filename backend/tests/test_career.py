@@ -815,9 +815,13 @@ class PdfAndCvRouting(unittest.TestCase):
         from app import config
         used = []
         reply = lambda messages, models, *args, **kwargs: used.append(models[0]) or "Template: Student\n\nOmar"
+        career = AGENTS["internship_career"]
+        # The agent's normal models are read from .env (LABS_MODEL) when the class is made,
+        # so they are set here too: the test must not depend on what .env says.
         with mock.patch.object(base, "retrieve_best", return_value=[]), \
              mock.patch.object(base, "chat_with_backup", reply), mock.patch.object(career_module, "chat_with_backup", reply), \
-             mock.patch.object(config, "CAREER_MODEL", "ollama/giu-cv"):
+             mock.patch.object(config, "CAREER_MODEL", "ollama/giu-cv"), mock.patch.object(config, "CAREER_BACKUP_MODELS", []), \
+             mock.patch.object(career, "model", "test/normal-model"), mock.patch.object(career, "backup_models", []):
             AGENTS["internship_career"].run("What is the difference between the templates?", "student", [], None)
             AGENTS["internship_career"].run("fix my cv", "student", [], CV)
         self.assertNotEqual(used[0], "ollama/giu-cv")   # a general question: the normal models

@@ -9,6 +9,7 @@ Run from the backend folder:
     python -m scripts.evaluate
     python -m scripts.evaluate --user-type staff --out data/results.csv
     python -m scripts.evaluate --user-type staff --agent hr_policies --agent graduation_advising
+    python -m scripts.evaluate --tenant demo   # another tenant's documents (default: giu)
 """
 import argparse
 import csv
@@ -17,7 +18,7 @@ import time
 
 import httpx
 
-from app import config
+from app import config, tenants
 from app.agents import AGENTS
 from app.llm.client import LLMError
 
@@ -43,7 +44,9 @@ def main() -> None:
     parser.add_argument("--out", help="optional CSV file to save every answer and result")
     parser.add_argument("--agent", action="append", choices=sorted(AGENTS),
                         help="only this agent's questions (can be given more than once)")
+    parser.add_argument("--tenant", default=config.DEFAULT_TENANT, help="tenant slug (default: giu)")
     args = parser.parse_args()
+    tenants.use_for_script(args.tenant)
     sys.stdout.reconfigure(encoding="utf-8")  # Arabic answers in the Windows terminal
 
     with open(args.csv, newline="", encoding="utf-8") as f:

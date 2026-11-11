@@ -87,6 +87,16 @@ ADMIN_MAX_DOCUMENT_CHARS = 500_000  # about 100 pages of text
 
 # API
 FRONTEND_ORIGIN = "http://localhost:5173"  # the Vite dev server, allowed by CORS
+# "development": CORS also allows the Vite server on 127.0.0.1 and any *.localhost subdomain
+# (giu.localhost:5173, demo.localhost:5173), and an "X-Tenant: <slug>" header may choose the
+# tenant. Anything else (a server): only the host name decides.
+APP_ENV = os.getenv("APP_ENV", "development")
+TENANT_HEADER_ALLOWED = APP_ENV == "development"
+DEV_ORIGIN_REGEX = r"^http://(localhost|127\.0\.0\.1|[a-z0-9-]+\.localhost):5173$"
+
+# Tenants (universities). GIU's documents stay in data/raw/<agent>/; every other
+# tenant's are in data/tenants/<slug>/<agent>/ (not in git).
+DEFAULT_TENANT = "giu"
 
 # Retrieval
 TOP_K = 4                    # how many chunks the retriever returns
@@ -106,5 +116,6 @@ SIMILARITY_THRESHOLD = 0.48  # chunks scoring below this are not used to answer 
 
 # Ingestion
 RAW_DATA_DIR = BACKEND_DIR / "data" / "raw"
+TENANTS_DATA_DIR = BACKEND_DIR / "data" / "tenants"
 CHUNK_SIZE_WORDS = 200
 CHUNK_OVERLAP_WORDS = 40

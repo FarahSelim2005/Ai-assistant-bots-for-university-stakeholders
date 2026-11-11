@@ -76,6 +76,7 @@ only applies new files. Every file is also safe to run twice by hand.
 |---|---|
 | `000_base.sql` | The original tables (`chunks`, `conversations`, `messages`, `feedback`). Changes nothing on an existing database. |
 | `001_tenants.sql` | Multitenancy: a `tenants` table (one row per university; `giu` is created) and `tenant_domains` (which host opens which university: `localhost`, `127.0.0.1` and `giu.localhost` open GIU). Adds `tenant_id` to `chunks`, `conversations`, `messages` and `feedback`, fills it with GIU's id for all existing rows and makes it required. Until the app sends the tenant itself, `tenant_id` defaults to GIU, so nothing changes for the app. |
+| `002_tenant_required.sql` | Removes that temporary default (an INSERT without a tenant now fails instead of becoming GIU) and makes the database refuse cross-tenant links: a message must have its conversation's tenant, a rating its message's tenant. **Apply it only after restarting the backend with the tenant-aware code**: the old code's INSERTs have no `tenant_id`. |
 
 To try the migrations on a copy first: in pgAdmin create a database `giu-bots-copy` with
 *Template* `giu-bots` (no other connection to `giu-bots` may be open), then run
@@ -148,6 +149,7 @@ Each agent has its own folder: put `.pdf`, `.txt` or `.md` files in
 ```bash
 python -m scripts.ingest                            # every agent's folder
 python -m scripts.ingest --agent internship_career  # only one agent
+python -m scripts.ingest --tenant demo              # another university's documents (see "Several universities")
 ```
 
 Each file is split into chunks (paragraphs kept together, a new chunk at every
@@ -316,10 +318,68 @@ Scanned PDFs have no text; upload them as images instead.
 The backend URL is set in `frontend/src/api.js`. The backend only accepts requests
 from `http://localhost:5173` (CORS, set in `backend/app/config.py`).
 
+## Several universities (tenants)
+
+The app can serve several universities (tenants) from one backend and one database. Each
+request's tenant comes from its **host name**: the `tenant_domains` table maps hosts to tenants
+(`app/tenants.py`, `TenantMiddleware`). Every query on `chunks`, `conversations`, `messages` and
+`feedback` is filtered by that tenant, so a university never sees another one's documents,
+chats or ratings; an unknown host gets `404`, a suspended tenant `403`.
+
+- **GIU** is tenant `giu`. Plain `localhost` and `127.0.0.1` still open GIU, so
+  http://localhost:5173 works as before; http://giu.localhost:5173 is the same.
+- The frontend calls the backend on the **same host name** as the page
+  (`giu.localhost:5173` → `giu.localhost:8000`), so the backend sees which university is open.
+  Chrome and Edge resolve every `*.localhost` name to your own computer, and Vite accepts them;
+  no hosts-file change is needed.
+- In development (`APP_ENV=development`, the default) CORS allows `localhost`, `127.0.0.1` and
+  any `*.localhost` on port 5173, and an `X-Tenant: <slug>` header may choose the tenant
+  (for curl and tests). Set `APP_ENV=production` on a server: then only the host decides.
+- Documents: GIU's stay in `backend/data/raw/<agent>/`; another tenant's are in
+  `backend/data/tenants/<slug>/<agent>/` (not in git). `ingest`, `try_retrieve`, `try_chat` and
+  `evaluate` take `--tenant <slug>` (default `giu`).
+- An admin login works only on the host (tenant) where it was made.
+- Not done yet: every tenant has the same four agents and the GIU look (logo, texts, campus map).
+
+**Trying a second university ("demo")**
+
+1. In pgAdmin's Query Tool on `giu-bots`:
+   ```sql
+   INSERT INTO tenants (slug, name) VALUES ('demo', 'Demo University');
+   INSERT INTO tenant_domains (host, tenant_id, is_primary)
+   SELECT 'demo.localhost', id, true FROM tenants WHERE slug = 'demo';
+   ```
+2. Give it one small document, `backend/data/tenants/demo/labs_research/zebra-lab.md`:
+   ```markdown
+   ## Zebra Lab
+   The Zebra Lab of Demo University is in room Z901 in building Z. It is open Sunday to
+   Thursday from 9:00 to 17:00. The lab supervisor is Dr. Demo Example.
+   ```
+3. Index it and compare what each university retrieves (embeddings only, no chat model):
+   ```bash
+   python -m scripts.ingest --tenant demo
+   python -m scripts.try_retrieve "Where is the Zebra Lab?" --tenant demo   # zebra-lab.md, PASS
+   python -m scripts.try_retrieve "Where is the Zebra Lab?"                 # GIU: never zebra-lab.md
+   python -m scripts.try_retrieve "Where is the gym?" --tenant demo         # only zebra-lab.md, below the threshold
+   ```
+4. In the browser (uses the chat model): http://demo.localhost:5173 → Student → Labs & Research →
+   "Where is the Zebra Lab?" answers Z901 from `zebra-lab.md`; "Where is the gym?" gets the
+   "no information" answer. On http://localhost:5173 the Zebra Lab question gets that answer,
+   and the gym question is answered from GIU's documents as before.
+   http://demo.localhost:5173/admin lists only `zebra-lab.md`.
+5. To remove the demo university again:
+   ```sql
+   DELETE FROM conversations WHERE tenant_id = (SELECT id FROM tenants WHERE slug = 'demo');  -- with their messages and ratings
+   DELETE FROM chunks        WHERE tenant_id = (SELECT id FROM tenants WHERE slug = 'demo');
+   DELETE FROM tenants WHERE slug = 'demo';                                                   -- with its hosts
+   ```
+   and delete the folder `backend/data/tenants/demo/`.
+
 ## Admin page
 
-**http://localhost:5173/admin** lists the documents the agents answer from (`backend/data/raw/<agent>/`,
-`.md` and `.txt`), with a filter per agent. An admin can **add** a document (pick a file or paste
+**http://localhost:5173/admin** lists the documents the agents answer from (GIU:
+`backend/data/raw/<agent>/`, another tenant: `backend/data/tenants/<slug>/<agent>/`; `.md` and
+`.txt`), with a filter per agent. An admin can **add** a document (pick a file or paste
 Markdown; start each topic with a `## Heading`), **edit** it, **move** it to another agent and
 **delete** it. Every change is re-indexed at once (`app/routers/admin.py` uses `ingest_file` from
 `scripts/ingest.py`), so the agents answer from the new text right away; the message shows the
@@ -469,6 +529,7 @@ backend/
     campus.py            finds room codes in answers for the campus map
     speech.py            speech-to-text for the voice call (Groq Whisper, local fallback)
     db.py                PostgreSQL connection
+    tenants.py           which university (tenant) a request is for
     schemas.py           request/response models
     routers/             session.py, chat.py, feedback.py, speech.py, documents.py (document editor), admin.py (admin page)
     documents/           document editor: formats.py (read/edit/save each format), editor.py (model -> JSON edits), storage.py
@@ -479,6 +540,7 @@ backend/
     test_documents.py    document editor tests (python -m unittest discover -s tests)
     test_admin.py        admin route tests
     test_migrate.py      migration runner tests
+    test_tenants.py      tenant detection and isolation tests (the database part is rolled back)
   migrations/            numbered SQL files (000_base.sql, 001_tenants.sql, ...)
   scripts/
     migrate.py           apply the pending migrations
@@ -487,7 +549,8 @@ backend/
     try_retrieve.py      show retrieved chunks for a question
     try_chat.py          ask the agent from the terminal
   data/
-    raw/                 documents to ingest
+    raw/                 GIU's documents to ingest
+    tenants/<slug>/      other universities' documents (not in git)
     test_questions.csv   evaluation questions
 frontend/
   src/
