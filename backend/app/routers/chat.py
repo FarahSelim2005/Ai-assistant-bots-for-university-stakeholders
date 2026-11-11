@@ -27,7 +27,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request, Response
 from starlette.concurrency import run_in_threadpool
 
-from app import config, tenants
+from app import config, tenants, usage
 from app.agents import load_agent
 from app.agents.base import AgentResponse
 from app.attachments import combine_attachments, read_attachment
@@ -114,8 +114,10 @@ def answer_question(body: ChatRequest) -> Outcome:
     agent = load_agent(tenant_id, agent_id)
     if agent is None or not agent.live:
         raise HTTPException(410, "This assistant is no longer available. Start a new chat.")
+    usage.for_agent(agent.id)
 
     try:
+        usage.check_allowance()  # over the monthly cap: say so before any search or model call
         wants_edit, wants_pdf = is_edit_request(body.query), is_pdf_request(body.query)
         # "Convert it to pdf" only wants a PDF (no model); "translate it and send it as pdf" also edits.
         only_pdf = wants_pdf and not is_edit_request(CONVERSION_WORDS.sub(" ", body.query))
@@ -163,6 +165,8 @@ def answer_question(body: ChatRequest) -> Outcome:
         return Outcome(agent.run(body.query, user_type, history, None))
     except ValueError as error:  # a bad attachment or a broken agent rule
         raise HTTPException(400, str(error))
+    except usage.AllowanceUsedUp as error:  # the university's monthly token cap
+        raise HTTPException(429, str(error))
     except (httpx.HTTPError, LLMError):  # OpenRouter unreachable, an error, or no answer
         raise HTTPException(502, "The assistant is temporarily unavailable. Please try again.")
 

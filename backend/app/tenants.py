@@ -44,6 +44,7 @@ class Tenant:
     brand_dark: str = "#1a1a1a"
     intro: str = ""
     audiences: list = field(default_factory=list)  # [{"key", "title", "text"}]: who the assistants are for
+    plan: str = "free"  # plans.key (migration 008): monthly token cap and number of assistants
 
     @property
     def short(self) -> str:
@@ -91,7 +92,7 @@ def data_dir(tenant: Tenant) -> Path:
 # ---------------------------------------------------------------- finding a tenant
 
 TENANT_COLUMNS = ("t.id, t.slug, t.name, t.status, t.short_name, t.has_cv_model, t.campus_map, t.logo_url, "
-                  "t.brand_primary, t.brand_accent, t.brand_dark, t.intro, t.audiences")
+                  "t.brand_primary, t.brand_accent, t.brand_dark, t.intro, t.audiences, t.plan")
 SELECT_TENANT = f"SELECT {TENANT_COLUMNS} FROM tenants t "
 
 

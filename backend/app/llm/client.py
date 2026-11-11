@@ -12,7 +12,7 @@ import time
 
 import httpx
 
-from app import config, tenants
+from app import config, tenants, usage
 
 OLLAMA_PREFIX = "ollama/"
 GROQ_PREFIX = "groq/"
@@ -39,6 +39,7 @@ def chat(messages: list[dict], model: str,
     """
     if not model:
         raise RuntimeError("No chat model given. Set LABS_MODEL in backend/.env")
+    usage.check_allowance()  # a university over its monthly cap gets no more model calls
     if model == "ollama" or model.startswith(OLLAMA_PREFIX):
         name = model.removeprefix(OLLAMA_PREFIX).removeprefix("ollama")
         return chat_ollama(messages, name, max_tokens if full_prompt else None)
@@ -58,6 +59,9 @@ def chat(messages: list[dict], model: str,
     )
     response.raise_for_status()
     data = response.json()
+    tokens = data.get("usage") or {}
+    usage.record(model, "chat", tokens.get("prompt_tokens", 0), tokens.get("completion_tokens", 0),
+                 tokens.get("total_tokens", 0))
     # OpenRouter can answer "200 OK" with an error instead of choices (e.g. the provider
     # failed or a limit was hit mid-request).
     if not data.get("choices"):
@@ -141,7 +145,7 @@ def chat_ollama(messages: list[dict], model: str = "", max_tokens: int | None = 
     full = max_tokens is not None
     started = time.perf_counter()
     if full:
-        content = generate_raw(messages, model, max_tokens)
+        content = generate_raw(messages, model, max_tokens)  # logs its usage
         log.info("Ollama %s answered in %.1f s", model, time.perf_counter() - started)
         if not content.strip():
             raise LLMError(f"Local model '{model}' returned an empty answer.")
@@ -157,6 +161,7 @@ def chat_ollama(messages: list[dict], model: str = "", max_tokens: int | None = 
                     "temperature": 0.1},
     })
     response.raise_for_status()
+    record_ollama(model, response.json())
     content = without_thinking((response.json().get("message") or {}).get("content") or "")
     log.info("Ollama %s answered in %.1f s", model, time.perf_counter() - started)
     if not content:
@@ -182,7 +187,13 @@ def generate_raw(messages: list[dict], model: str, max_tokens: int) -> str:
                     "temperature": 0.1, "stop": ["<|im_end|>"]},
     })
     response.raise_for_status()
+    record_ollama(model, response.json())
     return response.json().get("response") or ""
+
+
+def record_ollama(model: str, data: dict) -> None:
+    """Ollama counts tokens as prompt_eval_count and eval_count."""
+    usage.record(f"ollama/{model}", "chat", data.get("prompt_eval_count") or 0, data.get("eval_count") or 0)
 
 
 def small_prompt(messages: list[dict]) -> list[dict]:

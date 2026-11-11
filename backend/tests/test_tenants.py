@@ -20,13 +20,15 @@ from fastapi.testclient import TestClient
 from starlette.middleware.cors import CORSMiddleware
 
 import app.agents as registry
-from app import auth, config, db, main, tenants
+from app import auth, config, db, main, tenants, usage
+import app.agents.base as base
+from app.llm import client
 from app.agents import directory
 from app.agents.templates import GIU_AGENT_IDS, GIU_AGENTS, TEMPLATES
 from tests import giu_agents
 from app.main import app
 from app.rag import retriever
-from app.routers import admin, chat, documents, feedback, session
+from app.routers import admin, chat, console, documents, feedback, session
 from scripts import ingest, migrate
 
 GIU = tenants.Tenant(uuid.UUID(int=1), "giu", "German International University")
@@ -251,7 +253,8 @@ class TestDatabaseCase(unittest.TestCase):
                 self.skipTest(f"cannot act as {self.role}: {error}")
 
     def add_tenant(self, slug: str) -> tenants.Tenant:
-        tenant_id = self.insert("INSERT INTO tenants (slug, name) VALUES (%s, %s) RETURNING id", (slug, slug.upper()))
+        tenant_id = self.insert("INSERT INTO tenants (slug, name, plan) VALUES (%s, %s, 'unlimited') RETURNING id",
+                                (slug, slug.upper()))
         self.conn.execute("INSERT INTO tenant_domains (host, tenant_id, is_primary) VALUES (%s, %s, true)",
                           (f"{slug}.test", tenant_id))
         return tenants.Tenant(tenant_id, slug, slug.upper())
@@ -649,6 +652,139 @@ class UniversityAdmin(TestDatabaseCase):
         self.assertEqual(self.rows("SELECT deleted_at IS NOT NULL FROM agents WHERE id = %s", (self.a_agent,)), [(True,)])
         self.assertEqual(self.rows("SELECT count(*) FROM chunks WHERE agent_id = %s", (self.a_agent,)), [(1,)])
         self.assertEqual(self.rows("SELECT count(*) FROM conversations WHERE agent_id = %s", (self.a_agent,)), [(1,)])
+
+
+class PlansAndUsage(TestDatabaseCase):
+    """Step 4: every model call is logged per university; plans cap tokens and assistants (as giu_app)."""
+    role = "giu_app"
+
+    def setUp(self):
+        super().setUp()
+        self.use_app_code()
+        patch = mock.patch.object(usage, "get_connection", SharedConnection(self.conn))
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def set_plan(self, tenant, plan):
+        self.conn.execute("RESET ROLE")  # the owner changes plans (giu_app may not)
+        self.conn.execute("UPDATE tenants SET plan = %s WHERE id = %s", (plan, tenant.id))
+        self.conn.execute("SET LOCAL ROLE giu_app")
+
+    def test_model_calls_are_logged_per_university(self):
+        answer = mock.Mock(**{"json.return_value": {"choices": [{"message": {"content": "Hello"}}],
+                                                    "usage": {"prompt_tokens": 90, "completion_tokens": 10, "total_tokens": 100}}})
+        with tenants.using(self.a), mock.patch.object(client._openrouter, "post", return_value=answer), \
+             mock.patch.object(config, "OPENROUTER_API_KEY", "test-key"):
+            usage.for_agent(self.a_agent)
+            self.assertEqual(client.chat([{"role": "user", "content": "hi"}], "provider/model"), "Hello")
+            usage.for_agent(None)
+        db.set_tenant(self.conn, self.a.id)
+        self.assertEqual(self.rows("SELECT agent_id, model, kind, prompt_tokens, completion_tokens, total_tokens FROM usage"),
+                         [(self.a_agent, "provider/model", "chat", 90, 10, 100)])
+        db.set_tenant(self.conn, self.b.id)
+        self.assertEqual(self.rows("SELECT count(*) FROM usage"), [(0,)])  # B sees none of A's usage
+
+    def test_monthly_cap(self):
+        self.set_plan(self.a, "free")  # 300,000 tokens a month
+        db.set_tenant(self.conn, self.a.id)
+        self.conn.execute("INSERT INTO usage (tenant_id, model, kind, total_tokens) VALUES (%s, 'm', 'chat', 299999)", (self.a.id,))
+        a = tenants.Tenant(self.a.id, self.a.slug, self.a.name)
+        with tenants.using(a):
+            usage.check_allowance()  # 1 token left: still allowed
+            usage.record("m", "chat", total_tokens=1)
+            with self.assertRaises(usage.AllowanceUsedUp):
+                usage.check_allowance()
+        # The chat route says so (429), before any model call
+        db.set_tenant(self.conn, None)
+        with mock.patch.object(base, "retrieve_best", side_effect=AssertionError("no search after the cap")):
+            answer = self.client(self.a).post("/chat", json={"conversation_id": self.a_conversation, "query": "hello"})
+        self.assertEqual(answer.status_code, 429)
+        self.assertIn("allowance", answer.json()["detail"])
+        with tenants.using(self.b):
+            usage.check_allowance()  # B (unlimited) is not affected
+
+    def test_plan_limits_assistants(self):
+        self.set_plan(self.a, "free")  # 2 assistants; A has 1
+        a = self.client(self.a, "tenant_admin")
+        self.assertEqual(a.post("/admin/agents", json={"name": "Second"}).status_code, 200)
+        third = a.post("/admin/agents", json={"name": "Third"})
+        self.assertEqual(third.status_code, 403)
+        self.assertIn("allows 2 assistants", third.json()["detail"])
+        a.delete(f"/admin/agents/{self.a_agent}")  # deleted ones do not count
+        self.assertEqual(a.post("/admin/agents", json={"name": "Third"}).status_code, 200)
+
+
+class PlatformConsole(TestDatabaseCase):
+    """Step 4: the console, as the platform owner (owner connection, like the real routes)."""
+
+    def setUp(self):
+        super().setUp()
+        self.use_app_code()
+        shared = SharedConnection(self.conn)
+        for module in (console, auth):
+            patch = mock.patch.object(module, "get_admin_connection", lambda *args, **kwargs: shared())
+            patch.start()
+            self.addCleanup(patch.stop)
+        patch = mock.patch.object(console.time, "sleep", lambda seconds: None)
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.owner_email = f"owner-{uuid.uuid4().hex[:6]}@platform.example"
+        self.conn.execute("INSERT INTO users (tenant_id, email, role, password_hash) VALUES (NULL, %s, 'platform_owner', %s)",
+                          (self.owner_email, auth.hash_password("the owner's password")))
+
+    def console(self) -> TestClient:
+        token = self.client(self.a).post("/console/login", json={"email": self.owner_email,
+                                                                 "password": "the owner's password"}).json()["token"]
+        client = self.client(self.a)
+        client.headers["Authorization"] = f"Bearer {token}"
+        return client
+
+    def test_login_and_universities(self):
+        self.assertEqual(self.client(self.a).post("/console/login", json={"email": self.owner_email, "password": "wrong"}).status_code, 401)
+        self.assertEqual(self.client(self.a, "tenant_admin").get("/console/universities").status_code, 401)  # not an owner
+        universities = {u["slug"]: u for u in self.console().get("/console/universities").json()}
+        self.assertEqual((universities[self.a.slug]["assistants"], universities[self.a.slug]["conversations"],
+                          universities[self.a.slug]["hosts"], universities[self.a.slug]["plan"]),
+                         (1, 1, [f"{self.a.slug}.test"], "unlimited"))
+        self.assertIn("giu", universities)
+        # A platform owner cannot log in to a university's admin page
+        self.assertEqual(self.client(self.a).post("/admin/login", json={"email": self.owner_email,
+                                                                       "password": "the owner's password"}).status_code, 401)
+
+    def test_new_university_wizard(self):
+        slug = f"new-{uuid.uuid4().hex[:6]}"
+        body = {"name": "New University", "short_name": "NU", "slug": slug, "host": f"{slug}.test",
+                "brand_primary": "#123456", "plan": "standard", "templates": ["labs_research", "internship_career"],
+                "admin": {"email": f"admin@{slug}.example", "name": "First Admin", "password": "first admin password"}}
+        console_client = self.console()
+        made = console_client.post("/console/universities", json=body)
+        self.assertEqual(made.status_code, 200, made.text)
+        self.assertEqual(made.json()["url"], f"http://{slug}.test:5173")
+        page = client_for(f"{slug}.test:8000").get("/tenant").json()
+        self.assertEqual((page["name"], page["short_name"], page["colors"]["primary"]), ("New University", "NU", "#123456"))
+        self.assertEqual([a["name"] for a in page["assistants"]], ["Internship & Career Assistant", "Labs & Research Assistant"])
+        self.assertTrue(all("cv" not in a["skills"] and "map" not in a["skills"] for a in page["assistants"]))
+        self.assertNotIn("GIU", str(page))
+        login = client_for(f"{slug}.test:8000").post("/admin/login", json={"email": f"admin@{slug}.example",
+                                                                            "password": "first admin password"})
+        self.assertEqual(login.json()["user"]["role"], "tenant_admin")
+        # Refused: taken subdomain, too many assistants for the plan, a bad colour
+        self.assertEqual(console_client.post("/console/universities", json={**body, "host": None}).status_code, 409)
+        self.assertEqual(console_client.post("/console/universities", json={
+            **body, "slug": slug + "x", "host": None, "plan": "free",
+            "templates": ["labs_research", "hr_policies", "internship_career"],
+            "admin": {**body["admin"], "email": f"other@{slug}.example"}}).status_code, 400)
+        self.assertEqual(console_client.post("/console/universities", json={**body, "slug": slug + "y", "host": None,
+                                                                          "brand_primary": "red"}).status_code, 400)
+
+    def test_suspend_and_reactivate(self):
+        console_client = self.console()
+        self.assertEqual(console_client.put(f"/console/universities/{self.b.id}", json={"status": "suspended"}).status_code, 200)
+        self.assertEqual(self.client(self.b).get("/tenant").status_code, 403)
+        self.assertEqual(self.client(self.a).get("/tenant").status_code, 200)  # the others are not affected
+        self.assertEqual(console_client.put(f"/console/universities/{self.b.id}", json={"status": "active", "plan": "free"}).status_code, 200)
+        self.assertEqual(self.client(self.b).get("/tenant").status_code, 200)
+        self.assertEqual(console_client.put(f"/console/universities/{self.b.id}", json={"plan": "gold"}).status_code, 400)
 
 
 if __name__ == "__main__":

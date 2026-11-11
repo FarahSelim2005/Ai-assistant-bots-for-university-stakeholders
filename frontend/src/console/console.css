@@ -1,0 +1,16 @@
+/* Platform console: the admin page's styles (admin.css) plus these */
+.console-main { max-width: 1200px; }
+.console-table td { vertical-align: top; }
+.console-table .hint a { margin-right: 8px; }
+.colour-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+.status { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 2px 10px; }
+.status.active { background: #e3f9e5; color: #1f7a33; }
+.status.suspended { background: #fde8e8; color: #9b1c1c; }
+.usage-bar { height: 6px; background: var(--border); border-radius: 3px; margin-top: 4px; overflow: hidden; width: 120px; }
+.usage-bar span { display: block; height: 100%; background: var(--brand-accent); }
+.usage-bar span.full { background: #c4161c; }
+
+.wizard-steps { display: flex; gap: 8px; list-style: none; padding: 0; margin: 0 0 20px; flex-wrap: wrap; }
+.wizard-steps li { font-size: 13px; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; }
+.wizard-steps li.current { color: #fff; background: var(--brand-primary); border-color: var(--brand-primary); }
+.wizard-steps li.done { color: var(--brand-primary); }

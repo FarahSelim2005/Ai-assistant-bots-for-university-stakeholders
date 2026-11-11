@@ -19,7 +19,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import FileResponse, HTMLResponse
 from starlette.concurrency import run_in_threadpool
 
-from app import config, tenants
+from app import config, tenants, usage
 from app.agents import load_agent
 from app.db import get_connection
 from app.documents import storage
@@ -77,6 +77,7 @@ def conversation_assistant(conversation_id: int):
     agent = load_agent(tenants.current_id(), agent_id)
     if agent is None or not agent.live:
         raise HTTPException(410, "This assistant is no longer available. Start a new chat.")
+    usage.for_agent(agent.id)
     return agent
 
 
@@ -93,6 +94,8 @@ def run_edit(body: DocumentEditRequest, agent):
                                           body.document_token, agent)
     except ValueError as error:  # a bad file or an impossible request: tell the user why
         raise HTTPException(400, str(error))
+    except usage.AllowanceUsedUp as error:  # the university's monthly token cap
+        raise HTTPException(429, str(error))
     except (httpx.HTTPError, LLMError):
         raise HTTPException(502, "The assistant is temporarily unavailable. Please try again.")
 

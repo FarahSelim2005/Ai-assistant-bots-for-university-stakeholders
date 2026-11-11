@@ -82,6 +82,7 @@ only applies new files. Every file is also safe to run twice by hand.
 | `005_skills.sql` | Skills and prompts from parts. `tenants` get `short_name` (for `{university}` in texts), `has_cv_model` and `campus_map` (GIU: `GIU`, true, true; others: their name, false, false). Templates and agents get `prompt_mode`: GIU's four keep their complete prompts unchanged; the templates become prompts built from parts with `{university}` instead of GIU, and other universities' assistants that still had 004's (GIU) text get the new template text. |
 | `006_branding_and_folders.sql` | Each university's look: `logo_url`, `brand_primary`, `brand_accent`, `brand_dark`, `intro` (start screen) and `audiences` (who the assistants are for, with the start screen's text); GIU keeps exactly its logo, colours and texts. `agents.folder`: each assistant's readable document folder, unique per university (GIU's: `labs_research` ... again). After applying it, run `python -m scripts.move_agent_folders` once. |
 | `007_users_and_audiences.sql` | The university admin: a `users` table (email, scrypt password hash, role `tenant_admin`, `editor` or `platform_owner`; row-level security per university; platform owners invisible to `giu_app`) replacing `ADMIN_PASSWORD`; audiences per university (the fixed student/staff checks become format checks); `agents.deleted_at` (a deleted assistant is hidden but kept with its chats and documents); `tenants` readable by all, and `giu_app` may change only its own university's name, look, intro and audiences. |
+| `008_plans_and_usage.sql` | Plans (`free`: 300,000 tokens a month and 2 assistants; `standard`: 5,000,000 and 8; `unlimited`) and `tenants.plan` (GIU: `unlimited`, so it keeps working as before); a `usage` table with one row per model call (university, assistant, model, kind, tokens), with row-level security. |
 
 To try the migrations on a copy first: in pgAdmin create a database `giu-bots-copy` with
 *Template* `giu-bots` (no other connection to `giu-bots` may be open), then run
@@ -396,7 +397,8 @@ chats or ratings; an unknown host gets `404`, a suspended tenant `403`.
 
 **Trying a second university ("demo")**
 
-1. In pgAdmin's Query Tool on `giu-bots`:
+1. Easiest: the console's **New university** wizard (see *Platform console*). Or by hand,
+   in pgAdmin's Query Tool on `giu-bots`:
    ```sql
    INSERT INTO tenants (slug, name) VALUES ('demo', 'Demo University');
    INSERT INTO tenant_domains (host, tenant_id, is_primary)
@@ -478,6 +480,37 @@ Logins last 8 hours (`ADMIN_TOKEN_HOURS`, kept in memory: a restart logs everyon
 work on their own university's address, and a wrong password waits 1 second. `ADMIN_PASSWORD`
 is no longer used. File names are cleaned (no folders, only `.md` / `.txt`), and document ids
 cannot point outside the assistant's folder.
+
+## Platform console
+
+**http://localhost:5173/console** is for the platform owner (role `platform_owner`, no
+university; make the account with
+`python -m scripts.create_user --email owner@platform.example --role platform_owner --generate`).
+It shows every university with its status, plan, addresses, assistants (and the plan's
+maximum), users, chats and tokens used this month (against the plan's cap) and in total, and:
+
+- **New university** (a wizard): name and short name → subdomain (`<slug>.localhost`, or its
+  own address) → colours and logo → plan and ready-made assistants → first admin (email,
+  name, password). Everything is made at once: the university, its address, its assistants
+  (each in its own folder, without CV rewrites or campus map) and its admin. Its chat is then
+  at `http://<slug>.localhost:5173` and its admin page at `.../admin`.
+- **Suspend / Reactivate**: a suspended university's chat and admin pages answer
+  "not available" (403) until it is reactivated; nothing is deleted.
+- **Plan**: change it in the table.
+
+**Usage and limits** (`app/usage.py`): every model call (chat models, pictures, CV rewrites,
+document edits, local Ollama, embeddings) is logged with its tokens for the university of the
+request. When a university reaches its plan's monthly token cap, chat questions are refused
+with a clear message (429) until the next calendar month, before any search or model call;
+documents saved on the admin page are kept but not indexed. A plan's `max_assistants` limits
+new assistants (deleted ones do not count). Plans are changed in SQL, as the owner:
+
+```sql
+UPDATE plans SET monthly_token_cap = 1000000, max_assistants = 4 WHERE key = 'free';
+```
+
+The console's routes (`app/routers/console.py`) work across universities, so they use the
+owner's connection (`DB_ADMIN_USER`, a superuser) and only accept platform owners.
 
 ## Assistants
 
@@ -695,8 +728,9 @@ backend/
     db.py                PostgreSQL connection
     tenants.py           which university (tenant) a request is for
     auth.py              logins: users, passwords, sessions, roles
+    usage.py             tokens per model call, the monthly cap
     schemas.py           request/response models
-    routers/             tenant.py (GET /tenant), session.py, chat.py, feedback.py, speech.py, documents.py (document editor), admin.py (admin page)
+    routers/             tenant.py (GET /tenant), console.py (/console), session.py, chat.py, feedback.py, speech.py, documents.py (document editor), admin.py (admin page)
     documents/           document editor: formats.py (read/edit/save each format), editor.py (model -> JSON edits), storage.py
     agents/              base.py (shared flow), configured.py (an assistant from the agents table), __init__.py (loading
                          and caching each university's assistants), templates.py, internship_career.py (CV rewrites),
@@ -728,6 +762,8 @@ frontend/
   src/
     api.js               all backend calls (API URL)
     tenant.js            the university of this page (GET /tenant): look, audiences, assistants
+    admin/               the university admin (/admin): AdminPage.jsx and its tabs
+    console/             the platform console (/console): ConsolePage.jsx, NewUniversity.jsx
     App.jsx              chat state and flow
     components/          StartScreen.jsx, Message.jsx, CampusMap.jsx, CallScreen.jsx, ComingSoon.jsx, BrandLogo.jsx
     App.css              styles

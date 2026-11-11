@@ -44,7 +44,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from app import auth, config, tenants
+from app import auth, config, tenants, usage
 from app.agents import agents_of, find_agent, load_agent
 from app.agents.templates import ANSWER_MODES, PROMPT_MODES, SKILLS
 from app.auth import Session, tenant_admin, university_user
@@ -237,6 +237,7 @@ def create_agent(body: AgentIn):
         checked_settings(settings)
         if not settings.get("name"):
             raise HTTPException(400, "Give the assistant a name (or start from a template).")
+        check_assistant_limit(conn, tenant_id)
         settings["folder"] = new_folder(settings["name"], body.template_key, conn, tenant_id)
         if "position" not in settings:
             settings["position"] = conn.execute("SELECT coalesce(max(position), 0) + 1 FROM agents WHERE tenant_id = %s",
@@ -247,6 +248,16 @@ def create_agent(body: AgentIn):
             (tenant_id, body.template_key, *settings.values())).fetchone()[0]
     log.info("Admin: new assistant %s (%s)", settings["name"], agent_id)
     return {"id": str(agent_id)}
+
+
+def check_assistant_limit(conn, tenant_id) -> None:
+    """403 when the university's plan allows no more assistants (deleted ones do not count)."""
+    count, limit = conn.execute(
+        "SELECT (SELECT count(*) FROM agents WHERE tenant_id = %s AND deleted_at IS NULL), "
+        "       (SELECT p.max_assistants FROM tenants t JOIN plans p ON p.key = t.plan WHERE t.id = %s)",
+        (tenant_id, tenant_id)).fetchone()
+    if limit is not None and count >= limit:
+        raise HTTPException(403, f"Your plan allows {limit} assistants. Delete one, or ask for a bigger plan.")
 
 
 def new_folder(name: str, template_key: str | None, conn, tenant_id) -> str:
@@ -494,6 +505,8 @@ def save_and_index(agent, filename: str, content: str) -> int:
     delete_chunks(agent.name, filename)
     try:
         return ingest_file(path, agent.name, list(agent.allowed_user_types))
+    except usage.AllowanceUsedUp as error:
+        raise HTTPException(429, f"The document was saved, but not indexed: {error}")
     except (httpx.HTTPError, KeyError) as error:
         log.warning("Admin: re-indexing %s/%s failed: %s", agent.display_name, filename, type(error).__name__)
         raise HTTPException(502, "The document was saved, but re-indexing failed (the embedding service "
