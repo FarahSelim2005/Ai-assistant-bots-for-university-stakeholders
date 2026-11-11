@@ -28,5 +28,30 @@ class RawPromptForCvModel(unittest.TestCase):
             client.chat_ollama([{"role": "user", "content": "x"}], "giu-cv", 10)
 
 
+class ErrorReasons(unittest.TestCase):
+    """describe() never fails, whatever error format the server sends (a crash there once
+    broke the Ollama warm-up at start-up)."""
+
+    def reason(self, status: int, body: bytes) -> str:
+        import httpx
+        response = httpx.Response(status, content=body, request=httpx.Request("POST", "http://x/api/chat"))
+        return client.describe(httpx.HTTPStatusError("failed", request=response.request, response=response))
+
+    def test_every_error_format(self):
+        self.assertEqual(self.reason(404, b'{"error": "model gemma3:1b not found"}'), "404 model gemma3:1b not found")  # Ollama
+        self.assertEqual(self.reason(429, b'{"error": {"message": "Rate limit exceeded"}}'), "429 Rate limit exceeded")  # OpenRouter
+        self.assertEqual(self.reason(502, b"<html>Bad gateway</html>"), "502 <html>Bad gateway</html>")
+        self.assertEqual(self.reason(500, b'["unexpected"]'), "500 ['unexpected']")
+        self.assertEqual(self.reason(503, b"{}"), "503")
+
+    def test_warm_up_logs_instead_of_crashing(self):
+        import httpx
+        response = httpx.Response(404, json={"error": "model 'gemma3:1b' not found"},
+                                  request=httpx.Request("POST", "http://localhost:11434/api/chat"))
+        with mock.patch.object(client._ollama, "post", return_value=response), self.assertLogs("uvicorn.error", "WARNING") as logs:
+            client.warm_up_ollama()
+        self.assertIn("404 model 'gemma3:1b' not found", logs.output[0])
+
+
 if __name__ == "__main__":
     unittest.main()

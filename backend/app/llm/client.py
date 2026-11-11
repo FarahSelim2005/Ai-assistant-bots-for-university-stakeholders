@@ -106,13 +106,16 @@ def chat_with_backup(messages: list[dict], models: list[str], max_tokens: int = 
 
 
 def describe(error: Exception) -> str:
-    """A short reason for the log, e.g. "429 Rate limit exceeded: free-models-per-day"."""
+    """A short reason for the log, e.g. "429 Rate limit exceeded: free-models-per-day".
+    OpenRouter and Groq send {"error": {"message": ...}}, Ollama {"error": "model ... not found"}."""
     response = getattr(error, "response", None)
     if response is not None:
         try:
-            message = response.json().get("error", {}).get("message", "")
+            data = response.json()
         except ValueError:
-            message = response.text[:100]
+            data = response.text[:100]
+        reason = data.get("error", "") if isinstance(data, dict) else data
+        message = reason.get("message", "") if isinstance(reason, dict) else str(reason)
         return f"{response.status_code} {message}".strip()
     return str(error) or type(error).__name__
 
