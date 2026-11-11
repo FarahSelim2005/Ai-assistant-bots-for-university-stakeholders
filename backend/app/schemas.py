@@ -7,7 +7,7 @@ MAX_FILES = 5  # files sent with one message (must match the frontend)
 
 
 class SessionRequest(BaseModel):
-    user_type: Literal["student", "staff"]
+    user_type: str = Field(pattern=r"^[a-z0-9_]{1,30}$")  # one of the university's audiences (e.g. "student")
     # The assistant: its id (old links may still name one of GIU's by its key, "labs_research").
     agent: str = Field(min_length=1, max_length=64)
 

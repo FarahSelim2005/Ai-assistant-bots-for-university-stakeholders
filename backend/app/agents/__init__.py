@@ -35,7 +35,8 @@ def agents_of(tenant_id: uuid.UUID) -> list[ConfiguredAgent]:
         cached = _cache.get(tenant_id)
         if cached and cached[0] == stamp:
             return cached[1]
-        rows = conn.execute(f"SELECT {COLUMNS} FROM agents WHERE tenant_id = %s ORDER BY position, name, id",
+        rows = conn.execute(f"SELECT {COLUMNS} FROM agents WHERE tenant_id = %s AND deleted_at IS NULL "
+                            "ORDER BY position, name, id",
                             (tenant_id,)).fetchall()
     tenant = Tenant(*stamp[:-2])
     agents = [make_agent(AgentSettings.from_row(row), tenant) for row in rows]

@@ -1,5 +1,6 @@
-// All calls to the backend's /admin routes. Every route except login needs the token
-// from login in the "Authorization: Bearer <token>" header.
+// All calls to the backend's /admin routes (the university admin) and /console routes (the
+// platform console). Every route except login needs the token from login in the
+// "Authorization: Bearer <token>" header.
 import { API_URL as CHAT_API_URL } from "../api.js";
 
 // VITE_API_URL (in frontend/.env) wins; otherwise the same backend as the chat.
@@ -8,7 +9,7 @@ const API_URL = import.meta.env.VITE_API_URL || CHAT_API_URL;
 // Thrown when the backend answers 401: the page then shows the login form again.
 export class UnauthorizedError extends Error {}
 
-async function request(path, { method = "GET", token, body } = {}) {
+export async function request(path, { method = "GET", token, body } = {}) {
   let response;
   try {
     response = await fetch(`${API_URL}${path}`, {
@@ -22,46 +23,45 @@ async function request(path, { method = "GET", token, body } = {}) {
   } catch {
     throw new Error("The server could not be reached. Is the backend running?");
   }
-  if (response.status === 401) throw new UnauthorizedError("Please log in again.");
+  if (response.status === 401 && !path.endsWith("/login")) throw new UnauthorizedError("Please log in again.");
   const data = await response.json().catch(() => ({})); // DELETE may send no body
   if (!response.ok) {
     // FastAPI sends a string for our own errors and a list for validation errors.
     const detail = Array.isArray(data.detail) ? data.detail[0]?.msg : data.detail;
-    // FastAPI's own 404 ("Not Found"): the backend does not have this route (yet).
-    if (response.status === 404 && (!detail || detail === "Not Found")) {
-      throw new Error(`The backend does not have this admin route yet (${method} ${path}).`);
-    }
     throw new Error(detail || `Request failed (${response.status})`);
   }
   return data;
 }
 
-export function login(password) {
-  return request("/admin/login", { method: "POST", body: { password } }); // -> { token }
-}
+const send = (method) => (path, token, body) => request(path, { method, token, body });
+const get = (path, token) => request(path, { token });
+const post = send("POST");
+const put = send("PUT");
+const del = send("DELETE");
 
-// This university's assistants: [{id, name, folder, ...}]
-export function listAgents(token) {
-  return request("/admin/agents", { token });
-}
+// ---- login (this university) -> { token, user: { email, name, role } }
+export const login = (email, password) => post("/admin/login", null, { email, password });
+export const logout = (token) => post("/admin/logout", token);
+export const me = (token) => get("/admin/me", token);
 
-export function listDocuments(token) {
-  return request("/admin/documents", { token }); // -> [{ id, agent, filename, updated_at }]
-}
+// ---- assistants
+export const listAgents = (token) => get("/admin/agents", token);
+export const listTemplates = (token) => get("/admin/agent-templates", token);
+export const createAgent = (token, values) => post("/admin/agents", token, values); // -> { id }
+export const updateAgent = (token, id, values) => put(`/admin/agents/${id}`, token, values);
+export const deleteAgent = (token, id) => del(`/admin/agents/${id}`, token);
+export const orderAgents = (token, ids) => post("/admin/agents/order", token, { ids });
 
-export function getDocument(token, id) {
-  return request(`/admin/documents/${id}`, { token }); // -> { id, agent, filename, content }
-}
+// ---- branding and users
+export const getBranding = (token) => get("/admin/branding", token);
+export const updateBranding = (token, values) => put("/admin/branding", token, values);
+export const listUsers = (token) => get("/admin/users", token);
+export const createUser = (token, values) => post("/admin/users", token, values);
+export const updateUser = (token, id, values) => put(`/admin/users/${id}`, token, values);
 
-// `doc` is { agent, filename, content }. Both return { id, chunks }.
-export function createDocument(token, doc) {
-  return request("/admin/documents", { method: "POST", token, body: doc });
-}
-
-export function updateDocument(token, id, doc) {
-  return request(`/admin/documents/${id}`, { method: "PUT", token, body: doc });
-}
-
-export function deleteDocument(token, id) {
-  return request(`/admin/documents/${id}`, { method: "DELETE", token });
-}
+// ---- documents: { agent, filename, content }; create and update return { id, chunks }
+export const listDocuments = (token) => get("/admin/documents", token);
+export const getDocument = (token, id) => get(`/admin/documents/${id}`, token);
+export const createDocument = (token, doc) => post("/admin/documents", token, doc);
+export const updateDocument = (token, id, doc) => put(`/admin/documents/${id}`, token, doc);
+export const deleteDocument = (token, id) => del(`/admin/documents/${id}`, token);

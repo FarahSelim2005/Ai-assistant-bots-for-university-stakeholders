@@ -4,7 +4,6 @@ Run from the backend folder:
     uvicorn app.main:app --reload
 Interactive docs: http://localhost:8000/docs
 """
-import logging
 import threading
 from contextlib import asynccontextmanager
 
@@ -25,9 +24,6 @@ async def lifespan(app: FastAPI):
     # question does not have to wait for it (the first run also downloads it).
     threading.Thread(target=get_model, daemon=True).start()
     remove_old_files()  # documents left from editing before the restart
-    if not config.ADMIN_PASSWORD:
-        logging.getLogger("uvicorn.error").warning(
-            "ADMIN_PASSWORD is not set: the /admin routes are open to anyone who can reach this server.")
     # Same for the local Ollama model, if one of the configured models uses it.
     if any(m == "ollama" or m.startswith("ollama/") for m in [config.LABS_MODEL, *config.LABS_BACKUP_MODELS]):
         threading.Thread(target=warm_up_ollama, daemon=True).start()

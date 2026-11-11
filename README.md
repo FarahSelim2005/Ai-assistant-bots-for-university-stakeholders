@@ -81,6 +81,7 @@ only applies new files. Every file is also safe to run twice by hand.
 | `004_agents.sql` | Assistants in the database (see *Assistants* below): `agent_templates` (GIU's four agents as ready-made templates, copied exactly from the code) and `agents` (each university's own assistants, any number and any name, with row-level security). GIU gets its four agents with fixed ids; every other tenant gets one per agent key it already used (demo: Labs & Research). `chunks` and `conversations` get a required `agent_id` (an agent of the same tenant), filled from the agent key; the old `agent` column stays, no longer required. After applying it, run `python -m scripts.move_agent_folders` once (see *Assistants*). |
 | `005_skills.sql` | Skills and prompts from parts. `tenants` get `short_name` (for `{university}` in texts), `has_cv_model` and `campus_map` (GIU: `GIU`, true, true; others: their name, false, false). Templates and agents get `prompt_mode`: GIU's four keep their complete prompts unchanged; the templates become prompts built from parts with `{university}` instead of GIU, and other universities' assistants that still had 004's (GIU) text get the new template text. |
 | `006_branding_and_folders.sql` | Each university's look: `logo_url`, `brand_primary`, `brand_accent`, `brand_dark`, `intro` (start screen) and `audiences` (who the assistants are for, with the start screen's text); GIU keeps exactly its logo, colours and texts. `agents.folder`: each assistant's readable document folder, unique per university (GIU's: `labs_research` ... again). After applying it, run `python -m scripts.move_agent_folders` once. |
+| `007_users_and_audiences.sql` | The university admin: a `users` table (email, scrypt password hash, role `tenant_admin`, `editor` or `platform_owner`; row-level security per university; platform owners invisible to `giu_app`) replacing `ADMIN_PASSWORD`; audiences per university (the fixed student/staff checks become format checks); `agents.deleted_at` (a deleted assistant is hidden but kept with its chats and documents); `tenants` readable by all, and `giu_app` may change only its own university's name, look, intro and audiences. |
 
 To try the migrations on a copy first: in pgAdmin create a database `giu-bots-copy` with
 *Template* `giu-bots` (no other connection to `giu-bots` may be open), then run
@@ -404,7 +405,8 @@ chats or ratings; an unknown host gets `404`, a suspended tenant `403`.
 2. Give it an assistant and one small document. A demo that already had the Labs &
    Research documents before migration 004 got that assistant from the migration (run
    `python -m scripts.move_agent_folders --tenant demo` to move its folder). A new demo gets
-   one from the template (admin routes open, no `ADMIN_PASSWORD`; otherwise log in first):
+   one from the template: on http://demo.localhost:5173/admin (log in as demo's admin) →
+   Assistants → Ready-made assistant → Labs & Research → Add; or with curl and a login token:
    ```bash
    curl -X POST http://demo.localhost:8000/admin/agents -H "Content-Type: application/json" \
         -d '{"template_key": "labs_research", "name": "Demo Lab Assistant"}'   # -> {"id": "..."}
@@ -442,19 +444,40 @@ chats or ratings; an unknown host gets `404`, a suspended tenant `403`.
 
 ## Admin page
 
-**http://localhost:5173/admin** lists the documents the agents answer from (GIU:
-`backend/data/raw/<agent id>/`, another tenant: `backend/data/tenants/<slug>/<agent id>/`; `.md` and
-`.txt`), with a filter per agent. An admin can **add** a document (pick a file or paste
-Markdown; start each topic with a `## Heading`), **edit** it, **move** it to another agent and
-**delete** it. Every change is re-indexed at once (`app/routers/admin.py` uses `ingest_file` from
-`scripts/ingest.py`), so the agents answer from the new text right away; the message shows the
-number of chunks.
+**http://localhost:5173/admin** (or `http://<university>.localhost:5173/admin`) is the admin of
+the university of that address. Log in with **email and password**; accounts are made with:
 
-Login: put `ADMIN_PASSWORD=...` in `backend/.env` and set `LOGIN_REQUIRED = true` in
-`frontend/src/admin/AdminPage.jsx`; a login then lasts 8 hours (`ADMIN_TOKEN_HOURS`), and a wrong
-password waits 1 second. Without a password the admin routes are open (the backend logs a
-warning at start-up): fine on your own computer, never on a server. File names are cleaned (no
-folders, only `.md` / `.txt`), and document ids cannot point outside the assistant's folder.
+```bash
+python -m scripts.create_user --tenant giu --email admin@giu.example --role tenant_admin --generate
+python -m scripts.create_user --tenant giu --email editor@giu.example --role editor --generate
+python -m scripts.create_user --email admin@giu.example --new-password     # a new password
+```
+
+(`--generate` makes up a password and prints it once; without it the script asks for one.)
+Admins can also add users on the Users tab. Roles:
+
+| Role | Tabs |
+|---|---|
+| `tenant_admin` | **Assistants** (add from a ready-made template or new; edit every setting: name, texts, audiences, answer mode, prompt, instructions, "no information" answers, examples, skills, model; reorder; hide/show; delete), **Documents**, **Branding** (name, short name, logo, colours, start screen text, audiences), **Users** (add, change role, new password, deactivate) |
+| `editor` | **Documents** only |
+
+**Documents:** per assistant (filter), **add** (pick a file or paste Markdown; start each topic
+with a `## Heading`), **edit**, **move** to another assistant, **delete**. Every change is
+re-indexed at once (`app/routers/admin.py` uses `ingest_file` from `scripts/ingest.py`), so the
+assistant answers from the new text right away; the message shows the number of chunks.
+
+**Deleting an assistant** hides it everywhere and it never answers again, but its row, chats
+and documents are kept (`agents.deleted_at`). **Deactivating a user** logs them out; accounts
+are never deleted. A university always keeps at least one active admin.
+
+**Audiences** (Branding tab) are who the assistants are for: the start screen's "Who are you?"
+cards (GIU: Student, Staff). Each assistant is for some of them; changing an assistant's
+audiences also changes who may read its documents.
+
+Logins last 8 hours (`ADMIN_TOKEN_HOURS`, kept in memory: a restart logs everyone out), only
+work on their own university's address, and a wrong password waits 1 second. `ADMIN_PASSWORD`
+is no longer used. File names are cleaned (no folders, only `.md` / `.txt`), and document ids
+cannot point outside the assistant's folder.
 
 ## Assistants
 
@@ -508,7 +531,7 @@ exactly as before (checked on all 66 evaluation questions, for students and staf
 embeddings replaced by recorders: the same prompts, models, sources, fallbacks, hand-over
 links and map data as the original fixed-agent code).
 
-**Admin API** (`app/routers/admin.py`; the screens come in step 2c):
+**Admin API** (`app/routers/admin.py`; the Assistants tab of the admin page uses it):
 
 ```
 GET  /admin/agents                 this university's assistants
@@ -671,6 +694,7 @@ backend/
     speech.py            speech-to-text for the voice call (Groq Whisper, local fallback)
     db.py                PostgreSQL connection
     tenants.py           which university (tenant) a request is for
+    auth.py              logins: users, passwords, sessions, roles
     schemas.py           request/response models
     routers/             tenant.py (GET /tenant), session.py, chat.py, feedback.py, speech.py, documents.py (document editor), admin.py (admin page)
     documents/           document editor: formats.py (read/edit/save each format), editor.py (model -> JSON edits), storage.py
@@ -683,12 +707,14 @@ backend/
     test_documents.py    document editor tests (python -m unittest discover -s tests)
     test_admin.py        admin route tests
     test_migrate.py      migration runner tests
-    test_tenants.py      tenant detection, isolation, row-level security, assistants API (needs TEST_DB_NAME, else skipped)
+    test_tenants.py      tenant detection, isolation, row-level security, assistants API, logins, users,
+                         branding, audiences (needs TEST_DB_NAME, else skipped)
     test_agents.py       configured assistants and their cache
     test_skills.py       skills, prompts built from parts, chat routing by skill
   migrations/            numbered SQL files (000_base.sql, 001_tenants.sql, ...)
   scripts/
     migrate.py           apply the pending migrations
+    create_user.py       make a login (or set a new password)
     move_agent_folders.py  rename agent-key document folders to agent ids (once, after 004)
     ingest.py            load documents into the chunks table
     evaluate.py          accuracy and response time on test questions

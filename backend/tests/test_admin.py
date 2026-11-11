@@ -7,13 +7,15 @@ Run from the backend folder:
     python -m unittest discover -s tests -v
 """
 import tempfile
+import time
 import unittest
+import uuid
 from pathlib import Path
 from unittest import mock
 
 from fastapi.testclient import TestClient
 
-from app import config, tenants
+from app import auth, config, tenants
 from app.main import app
 from app.routers import admin
 from tests import giu_agents
@@ -36,7 +38,6 @@ class AdminRoutes(unittest.TestCase):
         self.patches = [
             mock.patch.object(config, "RAW_DATA_DIR", self.raw),
             mock.patch.object(tenants, "resolve", lambda host, tenant_header: GIU),
-            mock.patch.object(config, "ADMIN_PASSWORD", "secret"),
             mock.patch.object(admin, "ingest_file", fake_ingest),
             mock.patch.object(admin, "delete_chunks", lambda agent, name: self.deleted.append((agent, name))),
             mock.patch.object(admin.time, "sleep", lambda seconds: None),  # no 1 s wait for wrong passwords
@@ -44,9 +45,16 @@ class AdminRoutes(unittest.TestCase):
         for p in self.patches:
             p.start()
         giu_agents.activate(self)
-        admin._tokens.clear()
+        auth._sessions.clear()
         self.client = TestClient(app)
-        self.auth = {"Authorization": "Bearer " + self.client.post("/admin/login", json={"password": "secret"}).json()["token"]}
+        self.auth = self.login("tenant_admin")
+
+    def login(self, role: str, tenant_id=None, expiry: float | None = None) -> dict:
+        """A session as auth.log_in makes it (the users table is tested in test_tenants.py)."""
+        token = f"token-{role}-{len(auth._sessions)}"
+        auth._sessions[token] = auth.Session(uuid.uuid4(), f"{role}@giu.example", "", role, tenant_id or GIU.id,
+                                             expiry or time.time() + 3600)
+        return {"Authorization": f"Bearer {token}"}
 
     def tearDown(self):
         for p in self.patches:
@@ -54,20 +62,30 @@ class AdminRoutes(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_login(self):
-        self.assertEqual(self.client.post("/admin/login", json={"password": "wrong"}).status_code, 401)
-        self.assertEqual(self.client.get("/admin/documents").status_code, 401)
+        with mock.patch.object(auth, "log_in", return_value=None):
+            self.assertEqual(self.client.post("/admin/login", json={"email": "a@b.c", "password": "wrong"}).status_code, 401)
+        self.assertEqual(self.client.get("/admin/documents").status_code, 401)  # no login, no access (no open mode)
         self.assertEqual(self.client.get("/admin/documents", headers={"Authorization": "Bearer made-up"}).status_code, 401)
         self.assertEqual(self.client.get("/admin/documents", headers=self.auth).status_code, 200)
 
     def test_expired_token(self):
-        token = self.auth["Authorization"].split()[1]
-        admin._tokens[token] = 0
-        self.assertEqual(self.client.get("/admin/documents", headers=self.auth).status_code, 401)
+        self.assertEqual(self.client.get("/admin/documents", headers=self.login("tenant_admin", expiry=1)).status_code, 401)
 
-    def test_open_without_password(self):
-        with mock.patch.object(config, "ADMIN_PASSWORD", ""):
-            self.assertEqual(self.client.get("/admin/documents").status_code, 200)
-            self.assertEqual(self.client.post("/admin/login", json={"password": "x"}).status_code, 503)
+    def test_another_universitys_login_is_refused(self):
+        self.assertEqual(self.client.get("/admin/documents", headers=self.login("tenant_admin", uuid.uuid4())).status_code, 401)
+        self.assertEqual(self.client.get("/admin/documents", headers=self.login("platform_owner")).status_code, 401)
+
+    def test_editors_manage_documents_only(self):
+        editor = self.login("editor")
+        self.assertEqual(self.client.get("/admin/documents", headers=editor).status_code, 200)
+        self.assertEqual(self.client.get("/admin/agents", headers=editor).status_code, 200)
+        body = {"agent": "hr_policies", "filename": "x.md", "content": "## X\ny"}
+        self.assertEqual(self.client.post("/admin/documents", headers=editor, json=body).status_code, 200)
+        for method, path in [("post", "/admin/agents"), ("put", f"/admin/agents/{LABS}"), ("delete", f"/admin/agents/{LABS}"),
+                             ("get", "/admin/branding"), ("put", "/admin/branding"), ("get", "/admin/users"),
+                             ("post", "/admin/users")]:
+            answer = getattr(self.client, method)(path, headers=editor, **({"json": {}} if method in ("post", "put") else {}))
+            self.assertEqual(answer.status_code, 403, (method, path))
 
     def test_list_and_get(self):
         documents = self.client.get("/admin/documents", headers=self.auth).json()

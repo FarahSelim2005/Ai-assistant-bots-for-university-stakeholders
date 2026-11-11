@@ -20,7 +20,7 @@ from fastapi.testclient import TestClient
 from starlette.middleware.cors import CORSMiddleware
 
 import app.agents as registry
-from app import config, db, main, tenants
+from app import auth, config, db, main, tenants
 from app.agents import directory
 from app.agents.templates import GIU_AGENT_IDS, GIU_AGENTS, TEMPLATES
 from tests import giu_agents
@@ -154,12 +154,12 @@ class Cors(unittest.TestCase):
 
 class AdminLogins(unittest.TestCase):
     def test_a_login_works_only_for_its_own_tenant(self):
-        with mock.patch.object(tenants, "by_host", HOSTS.get), mock.patch.object(config, "ADMIN_PASSWORD", "secret"),              giu_agents.active():  # GIU's assistants (demo, made up here, has none)
-            admin._tokens.clear()
-            token = client_for("localhost:8000").post("/admin/login", json={"password": "secret"}).json()["token"]
-            auth = {"Authorization": f"Bearer {token}"}
-            self.assertEqual(client_for("giu.localhost:8000").get("/admin/documents", headers=auth).status_code, 200)
-            self.assertEqual(client_for("demo.localhost:8000").get("/admin/documents", headers=auth).status_code, 401)
+        with mock.patch.object(tenants, "by_host", HOSTS.get), giu_agents.active():  # GIU's assistants
+            auth._sessions["giu-token"] = auth.Session(uuid.uuid4(), "a@giu.example", "", "tenant_admin", GIU.id, 1e12)
+            login = {"Authorization": "Bearer giu-token"}
+            self.assertEqual(client_for("giu.localhost:8000").get("/admin/documents", headers=login).status_code, 200)
+            self.assertEqual(client_for("demo.localhost:8000").get("/admin/documents", headers=login).status_code, 401)
+            auth._sessions.pop("giu-token")
 
 
 class Connections(unittest.TestCase):
@@ -266,15 +266,23 @@ class TestDatabaseCase(unittest.TestCase):
     def use_app_code(self):
         """The app's code runs on this test's connection (and transaction)."""
         shared = SharedConnection(self.conn)
-        for module in [tenants, retriever, chat, session, feedback, documents, admin, ingest, registry, directory]:
+        for module in [tenants, retriever, chat, session, feedback, documents, admin, ingest, registry, directory, auth]:
             patch = mock.patch.object(module, "get_connection", shared)
             patch.start()
             self.addCleanup(patch.stop)
         tenants._by_host.clear()
         self.addCleanup(tenants._by_host.clear)
 
-    def client(self, tenant: tenants.Tenant) -> TestClient:
-        return client_for(f"{tenant.slug}.test:8000")  # the real host lookup in tenant_domains
+    def client(self, tenant: tenants.Tenant, role: str | None = None) -> TestClient:
+        """A client on the tenant's host (the real host lookup in tenant_domains), logged in
+        with `role` when given (a session as auth.log_in makes it)."""
+        client = client_for(f"{tenant.slug}.test:8000")
+        if role:
+            token = f"test-{tenant.slug}-{role}"
+            auth._sessions[token] = auth.Session(uuid.uuid4(), f"{role}@test.example", "", role, tenant.id, 1e12)
+            self.addCleanup(auth._sessions.pop, token, None)
+            client.headers["Authorization"] = f"Bearer {token}"
+        return client
 
 
 class AppIsolation(TestDatabaseCase):
@@ -482,12 +490,9 @@ class AssistantsApi(TestDatabaseCase):
     def setUp(self):
         super().setUp()
         self.use_app_code()
-        patch = mock.patch.object(config, "ADMIN_PASSWORD", "")  # admin routes open (no login needed)
-        patch.start()
-        self.addCleanup(patch.stop)
 
     def test_create_change_and_hide(self):
-        a, b = self.client(self.a), self.client(self.b)
+        a, b = self.client(self.a, "tenant_admin"), self.client(self.b, "tenant_admin")
         made = a.post("/admin/agents", json={"template_key": "hr_policies", "name": "People Office"})
         self.assertEqual(made.status_code, 200, made.text)
         new_id = made.json()["id"]
@@ -511,7 +516,7 @@ class AssistantsApi(TestDatabaseCase):
         self.assertEqual(start(a, "staff").status_code, 404)     # hidden
 
     def test_folders_are_readable_and_unique(self):
-        a = self.client(self.a)
+        a = self.client(self.a, "tenant_admin")
         first = a.post("/admin/agents", json={"template_key": "hr_policies"}).json()["id"]
         second = a.post("/admin/agents", json={"template_key": "hr_policies", "name": "HR again"}).json()["id"]
         third = a.post("/admin/agents", json={"name": "Labs Research!"}).json()["id"]
@@ -528,7 +533,7 @@ class AssistantsApi(TestDatabaseCase):
         self.assertTrue(all(c.startswith("#") for c in page["colors"].values()))
 
     def test_refused_settings(self):
-        a = self.client(self.a)
+        a = self.client(self.a, "tenant_admin")
         for body in [{"description": "no name and no template"}, {"name": "X", "skills": ["teleport"]},
                      {"name": "X", "audiences": ["alumni"]}, {"name": "X", "answer_mode": "guess"},
                      {"name": "X", "prompt_mode": "magic"},
@@ -537,13 +542,113 @@ class AssistantsApi(TestDatabaseCase):
             self.assertEqual(a.post("/admin/agents", json=body).status_code, 400, body)
 
     def test_custom_assistant_without_template(self):
-        made = self.client(self.a).post("/admin/agents", json={
+        made = self.client(self.a, "tenant_admin").post("/admin/agents", json={
             "name": "Library Helper", "description": "Books and opening hours",
             "instructions": "You help with the library.", "audiences": ["student"]})
         self.assertEqual(made.status_code, 200, made.text)
         agent = registry.load_agent(self.a.id, made.json()["id"])
         self.assertEqual((agent.display_name, agent.allowed_user_types, agent.settings.template_key, agent.settings.position,
                           agent.settings.folder), ("Library Helper", ("student",), None, 1, "library_helper"))  # after A's Labs
+
+
+class UniversityAdmin(TestDatabaseCase):
+    """Step 3: logins, users, branding, audiences, deleting and ordering assistants (as giu_app)."""
+    role = "giu_app"
+
+    def setUp(self):
+        super().setUp()
+        self.use_app_code()
+        patch = mock.patch.object(admin.time, "sleep", lambda seconds: None)  # no 1 s wait for wrong passwords
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def add_user(self, tenant, email, role="tenant_admin", password="a long password 1"):
+        db.set_tenant(self.conn, tenant.id)
+        self.conn.execute("INSERT INTO users (tenant_id, email, role, password_hash) VALUES (%s, %s, %s, %s)",
+                          (tenant.id, email, role, auth.hash_password(password)))
+
+    def test_login_with_email_and_password(self):
+        self.add_user(self.a, f"boss@{self.a.slug}.example")
+        login = lambda tenant, password: self.client(tenant).post(
+            "/admin/login", json={"email": f"Boss@{self.a.slug}.example", "password": password})
+        answer = login(self.a, "a long password 1")
+        self.assertEqual(answer.status_code, 200, answer.text)
+        self.assertEqual(answer.json()["user"]["role"], "tenant_admin")
+        token = {"Authorization": f"Bearer {answer.json()['token']}"}
+        self.assertEqual(self.client(self.a).get("/admin/me", headers=token).json()["university"]["slug"], self.a.slug)
+        self.assertEqual(login(self.a, "wrong password").status_code, 401)
+        self.assertEqual(login(self.b, "a long password 1").status_code, 401)   # A's user, on B's host
+        self.assertEqual(self.client(self.b).get("/admin/agents", headers=token).status_code, 401)
+        self.client(self.a).post("/admin/logout", headers=token)
+        self.assertEqual(self.client(self.a).get("/admin/me", headers=token).status_code, 401)
+
+    def test_users_of_a_university(self):
+        a = self.client(self.a, "tenant_admin")
+        made = a.post("/admin/users", json={"email": f"ed@{self.a.slug}.example", "name": "Ed", "role": "editor",
+                                            "password": "another long one"})
+        self.assertEqual(made.status_code, 200, made.text)
+        self.assertEqual([u["email"] for u in a.get("/admin/users").json()], [f"ed@{self.a.slug}.example"])
+        self.assertEqual(self.client(self.b, "tenant_admin").get("/admin/users").json(), [])  # B sees none of A's
+        self.assertEqual(a.post("/admin/users", json={"email": "x@y.z", "role": "editor", "password": "short"}).status_code, 400)
+        self.assertEqual(a.post("/admin/users", json={"email": f"ed@{self.a.slug}.example", "role": "editor",
+                                                     "password": "another long one"}).status_code, 409)
+        # The last active admin cannot be removed or demoted
+        self.add_user(self.a, f"only@{self.a.slug}.example")
+        only = next(u for u in a.get("/admin/users").json() if u["role"] == "tenant_admin")
+        self.assertEqual(a.put(f"/admin/users/{only['id']}", json={"active": False}).status_code, 400)
+        self.assertEqual(a.put(f"/admin/users/{only['id']}", json={"role": "editor"}).status_code, 400)
+        self.assertEqual(a.put(f"/admin/users/{made.json()['id']}", json={"role": "tenant_admin"}).status_code, 200)
+        self.assertEqual(a.put(f"/admin/users/{only['id']}", json={"role": "editor"}).status_code, 200)  # now there is another
+
+    def test_branding_changes_only_the_own_university(self):
+        a = self.client(self.a, "tenant_admin")
+        body = {"name": "Alpha University", "short_name": "AU", "brand_primary": "#0b6e4f",
+                "logo_url": "data:image/png;base64,iVBORw0KGgo=", "intro": "Ask {university} anything.",
+                "audiences": [{"key": "student", "title": "Student"}, {"key": "alumni", "title": "Alumni", "text": "Graduates"}]}
+        self.assertEqual(a.put("/admin/branding", json=body).status_code, 200)
+        page = self.client(self.a).get("/tenant").json()
+        self.assertEqual((page["name"], page["short_name"], page["colors"]["primary"], page["intro"]),
+                         ("Alpha University", "AU", "#0b6e4f", "Ask AU anything."))
+        self.assertEqual([x["key"] for x in page["audiences"]], ["student", "alumni"])
+        self.assertEqual(self.client(self.b).get("/tenant").json()["name"], self.b.name)  # B unchanged
+        for bad in [{"brand_primary": "red"}, {"logo_url": "javascript:alert(1)"},
+                    {"audiences": [{"key": "Bad Key", "title": "X"}]}, {"audiences": [{"key": "a", "title": "A"}] * 2}]:
+            self.assertEqual(a.put("/admin/branding", json=bad).status_code, 400, bad)
+        # giu_app itself cannot change another university's row, even without a WHERE on the tenant
+        db.set_tenant(self.conn, self.a.id)
+        self.assertEqual(self.conn.execute("UPDATE tenants SET intro = 'hacked' WHERE id = %s", (self.b.id,)).rowcount, 0)
+        with self.assertRaises(psycopg.errors.InsufficientPrivilege), self.conn.transaction():
+            self.conn.execute("UPDATE tenants SET status = 'suspended' WHERE id = %s", (self.a.id,))  # not its column
+
+    def test_audiences_are_the_universitys_own(self):
+        a = self.client(self.a, "tenant_admin")
+        a.put("/admin/branding", json={"audiences": [{"key": "alumni", "title": "Alumni"}, {"key": "student", "title": "Student"}]})
+        made = a.post("/admin/agents", json={"name": "Alumni Desk", "audiences": ["alumni"]})
+        self.assertEqual(made.status_code, 200, made.text)
+        self.assertEqual(a.post("/admin/agents", json={"name": "X", "audiences": ["staff"]}).status_code, 400)  # not A's
+        start = lambda user_type: self.client(self.a).post("/session", json={"user_type": user_type, "agent": made.json()["id"]})
+        self.assertEqual(start("alumni").status_code, 200)
+        self.assertEqual(start("student").status_code, 403)
+        self.assertEqual(start("staff").status_code, 400)  # not one of A's audiences
+        # New audiences also apply to the assistant's documents
+        a.put(f"/admin/agents/{self.a_agent}", json={"audiences": ["alumni"]})
+        db.set_tenant(self.conn, self.a.id)
+        self.assertEqual(self.rows("SELECT DISTINCT audience FROM chunks WHERE agent_id = %s", (self.a_agent,)), [(["alumni"],)])
+
+    def test_delete_keeps_the_data_and_order(self):
+        a = self.client(self.a, "tenant_admin")
+        second = a.post("/admin/agents", json={"name": "Second"}).json()["id"]
+        self.assertEqual(a.post("/admin/agents/order", json={"ids": [second, str(self.a_agent)]}).status_code, 200)
+        self.assertEqual([x["name"] for x in a.get("/admin/agents").json()], ["Second", f"{self.a.name} Labs"])
+        self.assertEqual(a.post("/admin/agents/order", json={"ids": [second]}).status_code, 400)  # every id once
+        self.assertEqual(a.delete(f"/admin/agents/{self.a_agent}").status_code, 200)
+        self.assertEqual([x["name"] for x in a.get("/admin/agents").json()], ["Second"])
+        self.assertEqual(self.client(self.a).post("/session", json={"user_type": "student", "agent": str(self.a_agent)}).status_code, 404)
+        self.assertEqual(self.client(self.a).post("/chat", json={"conversation_id": self.a_conversation, "query": "hi"}).status_code, 410)
+        db.set_tenant(self.conn, self.a.id)  # nothing is lost: the row, its chunks and its chats are kept
+        self.assertEqual(self.rows("SELECT deleted_at IS NOT NULL FROM agents WHERE id = %s", (self.a_agent,)), [(True,)])
+        self.assertEqual(self.rows("SELECT count(*) FROM chunks WHERE agent_id = %s", (self.a_agent,)), [(1,)])
+        self.assertEqual(self.rows("SELECT count(*) FROM conversations WHERE agent_id = %s", (self.a_agent,)), [(1,)])
 
 
 if __name__ == "__main__":

@@ -60,3 +60,40 @@ button.danger:hover:not(:disabled) { background: #fdecec; }
   .form-row, .list-header { flex-wrap: wrap; }
   .doc-table th:nth-child(3), .doc-table td:nth-child(3) { display: none; }
 }
+
+/* Tabs (Assistants, Documents, Branding, Users) */
+.admin-tabs { display: flex; gap: 4px; padding: 12px 32px 0; max-width: 1000px; width: 100%; margin: 0 auto; box-sizing: border-box; flex-wrap: wrap; }
+.admin-tabs button { background: none; color: var(--muted); border: none; border-bottom: 3px solid transparent; border-radius: 0; padding: 10px 14px; font-weight: 600; }
+.admin-tabs button:hover:not(:disabled) { background: none; color: var(--text); }
+.admin-tabs button.active { color: var(--brand-primary); border-bottom-color: var(--brand-primary); }
+
+/* Forms */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 16px; }
+.admin fieldset { border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px 4px; margin: 0 0 16px; }
+.admin legend { font-weight: 600; font-size: 14px; padding: 0 6px; }
+.admin label.check { flex-direction: row; align-items: center; gap: 8px; font-weight: 400; margin-bottom: 10px; }
+.admin label.check input { width: auto; }
+.admin details { margin: 0 0 16px; }
+.admin summary { cursor: pointer; font-weight: 600; margin-bottom: 12px; }
+.assistant-form textarea, .admin-card textarea[dir] { font-family: inherit; }
+.add-user { border-top: 1px solid var(--border); margin-top: 24px; padding-top: 8px; }
+.add-user h3 { font-size: 16px; }
+
+/* Lists */
+.tag { display: inline-block; margin-left: 8px; font-size: 12px; font-weight: 600; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; }
+.hidden-row td { opacity: 0.6; }
+.order-cell { white-space: nowrap; }
+.order-cell button { padding: 4px 9px; margin-right: 4px; }
+
+/* Branding */
+.logo-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.logo-preview { height: 56px; max-width: 200px; object-fit: contain; }
+.colour-row { display: flex; gap: 24px; flex-wrap: wrap; }
+.admin label.colour { flex-direction: row; align-items: center; gap: 8px; }
+.admin label.colour input { width: 48px; height: 36px; padding: 2px; }
+.audience-row { display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 8px; margin-bottom: 8px; }
+
+@media (max-width: 640px) {
+  .admin-tabs { padding: 8px 16px 0; }
+  .audience-row { grid-template-columns: 1fr 1fr; }
+}

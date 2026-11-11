@@ -1,44 +1,64 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import BrandLogo from "../components/BrandLogo.jsx";
-import {
-  UnauthorizedError, createDocument, deleteDocument, getDocument, listAgents, listDocuments, login, updateDocument,
-} from "./api.js";
-import DocumentForm from "./DocumentForm.jsx";
+import { tenant } from "../tenant.js";
+import { UnauthorizedError, login, logout } from "./api.js";
+import AssistantsTab from "./AssistantsTab.jsx";
+import BrandingTab from "./BrandingTab.jsx";
+import DocumentsTab from "./DocumentsTab.jsx";
+import UsersTab from "./UsersTab.jsx";
 import "./admin.css";
 
-const TOKEN_KEY = "adminToken"; // sessionStorage: kept while the tab is open
-// Login switched off for now (the backend has no /admin/login yet): the page opens the
-// documents part directly. Set to true to show the password form again.
-const LOGIN_REQUIRED = false;
-const NO_LOGIN_TOKEN = "no-login";
+const SESSION_KEY = "adminSession"; // sessionStorage: kept while the tab is open
 
-function savedToken() {
-  if (!LOGIN_REQUIRED) return NO_LOGIN_TOKEN;
+// Which tabs each role sees: a tenant_admin everything of its university, an editor the documents.
+const TABS = [
+  { key: "assistants", title: "Assistants", roles: ["tenant_admin"] },
+  { key: "documents", title: "Documents", roles: ["tenant_admin", "editor"] },
+  { key: "branding", title: "Branding", roles: ["tenant_admin"] },
+  { key: "users", title: "Users", roles: ["tenant_admin"] },
+];
+
+function savedSession() {
   try {
-    return sessionStorage.getItem(TOKEN_KEY) || "";
+    return JSON.parse(sessionStorage.getItem(SESSION_KEY)) || null;
   } catch {
-    return ""; // storage blocked: log in again on every visit
+    return null; // storage blocked: log in again on every visit
   }
 }
 
-// /admin: log in with the admin password, then list, add, edit and delete the documents
-// the agents answer from. Any 401 answer shows the login form again.
+// /admin: the university admin. Log in with email and password, then manage this university's
+// assistants, their documents, its look and its users. Any 401 answer shows the login form again.
 export default function AdminPage() {
-  const [token, setToken] = useState(savedToken);
-  const [loginError, setLoginError] = useState("");
+  const [session, setSession] = useState(savedSession); // { token, user: { email, name, role } }
+  const [notice, setNotice] = useState("");
+  const tabs = TABS.filter((tab) => session && tab.roles.includes(session.user.role));
+  const [tab, setTab] = useState(null);
+  const current = tabs.find((t) => t.key === tab) ?? tabs[0];
 
-  function saveToken(value) {
-    setToken(value);
+  function saveSession(value) {
+    setSession(value);
     try {
-      if (value) sessionStorage.setItem(TOKEN_KEY, value);
-      else sessionStorage.removeItem(TOKEN_KEY);
-    } catch { /* storage blocked: the token stays in memory only */ }
+      if (value) sessionStorage.setItem(SESSION_KEY, JSON.stringify(value));
+      else sessionStorage.removeItem(SESSION_KEY);
+    } catch { /* storage blocked: the session stays in memory only */ }
   }
 
-  function loggedOut(message = "") {
-    if (!LOGIN_REQUIRED) return; // nothing to log out of
-    saveToken("");
-    setLoginError(message);
+  // Runs a request with the login token; a 401 sends the user back to the login form.
+  async function call(request) {
+    try {
+      return await request(session.token);
+    } catch (err) {
+      if (err instanceof UnauthorizedError) {
+        saveSession(null);
+        setNotice("Your session has ended. Please log in again.");
+      }
+      throw err;
+    }
+  }
+
+  async function signOut() {
+    await logout(session.token).catch(() => {});
+    saveSession(null);
   }
 
   return (
@@ -46,22 +66,36 @@ export default function AdminPage() {
       <header className="topbar">
         <BrandLogo className="topbar-logo" />
         <div className="topbar-title">
-          <h1>Admin: documents</h1>
-          <span>Add, edit and delete the documents the assistants answer from</span>
+          <h1>{tenant().short_name} admin</h1>
+          <span>{session ? `${session.user.name || session.user.email} · ${session.user.role === "tenant_admin" ? "Admin" : "Editor"}`
+                         : "Assistants, documents, branding and users"}</span>
         </div>
-        {token && LOGIN_REQUIRED && <button className="secondary" onClick={() => loggedOut()}>Log out</button>}
+        {session && <button className="secondary" onClick={signOut}>Log out</button>}
       </header>
       <div className="flag-stripe" />
+      {session && (
+        <nav className="admin-tabs" aria-label="Admin sections">
+          {tabs.map((t) => (
+            <button key={t.key} className={t.key === current?.key ? "active" : ""} onClick={() => setTab(t.key)}>
+              {t.title}
+            </button>
+          ))}
+        </nav>
+      )}
       <main className="admin-main">
-        {token
-          ? <Documents token={token} onUnauthorized={() => loggedOut("Your session has ended. Please log in again.")} />
-          : <LoginForm onLogin={(value) => { saveToken(value); setLoginError(""); }} notice={loginError} />}
+        {!session ? (
+          <LoginForm onLogin={(value) => { saveSession(value); setNotice(""); setTab(null); }} notice={notice} />
+        ) : current?.key === "assistants" ? <AssistantsTab call={call} />
+          : current?.key === "branding" ? <BrandingTab call={call} />
+          : current?.key === "users" ? <UsersTab call={call} me={session.user} />
+          : <DocumentsTab call={call} />}
       </main>
     </div>
   );
 }
 
 function LoginForm({ onLogin, notice }) {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -71,149 +105,27 @@ function LoginForm({ onLogin, notice }) {
     setBusy(true);
     setError("");
     try {
-      const data = await login(password);
-      onLogin(data.token);
+      onLogin(await login(email, password));
     } catch (err) {
-      setError(err instanceof UnauthorizedError ? "Wrong password." : err.message);
+      setError(err.message);
       setBusy(false);
     }
   }
 
   return (
     <form className="admin-card login-form" onSubmit={handleSubmit}>
-      <h2>Admin login</h2>
+      <h2>Log in to {tenant().name}</h2>
       {notice && <p className="error">{notice}</p>}
       <label>
+        Email
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" autoFocus />
+      </label>
+      <label>
         Password
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
       </label>
       {error && <p className="error">{error}</p>}
-      <button type="submit" disabled={!password || busy}>{busy ? "Logging in…" : "Log in"}</button>
+      <button type="submit" disabled={!email || !password || busy}>{busy ? "Logging in…" : "Log in"}</button>
     </form>
-  );
-}
-
-function Documents({ token, onUnauthorized }) {
-  const [documents, setDocuments] = useState([]);
-  const [agents, setAgents] = useState([]); // this university's assistants
-  const agentLabel = (id) => agents.find((agent) => agent.id === id)?.name ?? id;
-  const [filter, setFilter] = useState(""); // "" = all agents
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState(""); // e.g. "Saved and re-indexed (12 chunks)"
-  const [form, setForm] = useState(null); // null, { mode: "add" } or { mode: "edit", doc }
-  const [busyId, setBusyId] = useState(null); // document being opened or deleted
-
-  // Runs a request; a 401 sends the admin back to the login form.
-  async function call(request) {
-    try {
-      return await request();
-    } catch (err) {
-      if (err instanceof UnauthorizedError) onUnauthorized();
-      throw err;
-    }
-  }
-
-  async function reload() {
-    setLoading(true);
-    setError("");
-    try {
-      const [docs, assistants] = await Promise.all([call(() => listDocuments(token)), call(() => listAgents(token))]);
-      setDocuments(docs);
-      setAgents(assistants);
-    } catch (err) {
-      setError(`Could not load the documents: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => { reload(); }, [token]);
-
-  async function openEditor(id) {
-    setBusyId(id);
-    setError("");
-    setNotice("");
-    try {
-      setForm({ mode: "edit", doc: await call(() => getDocument(token, id)) });
-    } catch (err) {
-      setError(`Could not open the document: ${err.message}`);
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function remove(doc) {
-    if (!window.confirm(`Delete "${doc.filename}" (${agentLabel(doc.agent)})? The assistant will no longer answer from it.`)) return;
-    setBusyId(doc.id);
-    setError("");
-    setNotice("");
-    try {
-      await call(() => deleteDocument(token, doc.id));
-      setNotice(`Deleted ${doc.filename}.`);
-      await reload();
-    } catch (err) {
-      setError(`Could not delete ${doc.filename}: ${err.message}`);
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  // Called by the form; an error is thrown back so the form shows it.
-  async function save(values) {
-    const result = await call(() => (form.mode === "edit"
-      ? updateDocument(token, form.doc.id, values)
-      : createDocument(token, values)));
-    setForm(null);
-    setNotice(`Saved and re-indexed (${result.chunks} chunks).`);
-    reload();
-  }
-
-  if (form) {
-    return <DocumentForm key={form.doc?.id ?? "new"} initial={form.doc} agents={agents} onSave={save} onCancel={() => setForm(null)} />;
-  }
-
-  const shown = filter ? documents.filter((d) => d.agent === filter) : documents;
-  return (
-    <section className="admin-card">
-      <div className="list-header">
-        <h2>Documents</h2>
-        <select value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Filter by agent">
-          <option value="">All agents</option>
-          {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-        </select>
-        <button onClick={() => { setForm({ mode: "add" }); setNotice(""); }}>+ Add document</button>
-      </div>
-
-      {notice && <p className="notice">{notice}</p>}
-      {error && <p className="error">{error}</p>}
-
-      {loading ? (
-        <p className="muted">Loading documents…</p>
-      ) : shown.length === 0 ? (
-        <p className="muted">{filter ? `No documents for ${agentLabel(filter)}.` : "No documents yet."}</p>
-      ) : (
-        <table className="doc-table">
-          <thead>
-            <tr><th>File name</th><th>Agent</th><th>Last updated</th><th /></tr>
-          </thead>
-          <tbody>
-            {shown.map((doc) => (
-              <tr key={doc.id}>
-                <td>{doc.filename}</td>
-                <td>{agentLabel(doc.agent)}</td>
-                <td>{doc.updated_at ? new Date(doc.updated_at).toLocaleString() : "-"}</td>
-                <td className="row-actions">
-                  <button className="secondary" onClick={() => openEditor(doc.id)} disabled={busyId !== null}>
-                    {busyId === doc.id ? "…" : "Edit"}
-                  </button>
-                  <button className="danger" onClick={() => remove(doc)} disabled={busyId !== null}>Delete</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </section>
   );
 }

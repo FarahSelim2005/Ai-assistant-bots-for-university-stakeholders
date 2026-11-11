@@ -16,6 +16,8 @@ def create_session(body: SessionRequest) -> SessionResponse:
     agent = find_agent(tenant_id, body.agent)
     if agent is None or not agent.live:  # also another university's assistant
         raise HTTPException(404, "This assistant does not exist.")
+    if body.user_type not in {audience["key"] for audience in tenants.current().audiences}:
+        raise HTTPException(400, "Choose who you are first.")
     if body.user_type not in agent.allowed_user_types:
         raise HTTPException(403, f"This assistant is not available for {body.user_type} users.")
     with get_connection(tenant_id) as conn:

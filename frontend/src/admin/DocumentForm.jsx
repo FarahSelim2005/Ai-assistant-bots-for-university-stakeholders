@@ -1,10 +1,11 @@
 import { useState } from "react";
 
 // Form to add a document or edit one. A picked .md/.txt file fills the text box, so it
-// can still be edited before saving. Changing the agent of an existing document moves it.
+// can still be edited before saving. Changing the assistant of an existing document moves it.
+// `initial`: the document being edited, or { agent } to add one to that assistant.
 // `onSave({ agent, filename, content })` must return a promise; errors are shown here.
 export default function DocumentForm({ initial, agents, onSave, onCancel }) {
-  const editing = Boolean(initial);
+  const editing = Boolean(initial?.id);
   const [agent, setAgent] = useState(initial?.agent ?? ""); // no default: the admin must choose
   const [filename, setFilename] = useState(initial?.filename ?? "");
   const [content, setContent] = useState(initial?.content ?? "");
@@ -46,14 +47,14 @@ export default function DocumentForm({ initial, agents, onSave, onCancel }) {
       <h2>{editing ? `Edit ${initial.filename}` : "Add document"}</h2>
 
       <label>
-        Agent
+        Assistant
         <select value={agent} onChange={(e) => setAgent(e.target.value)} required>
-          <option value="" disabled>Choose an agent…</option>
+          <option value="" disabled>Choose an assistant…</option>
           {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
       </label>
       {editing && agent !== initial.agent && (
-        <p className="muted small">Saving moves this document to the chosen agent.</p>
+        <p className="muted small">Saving moves this document to the chosen assistant.</p>
       )}
 
       <div className="form-row">
