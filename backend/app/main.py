@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import config
 from app.llm.client import warm_up_ollama
 from app.documents.storage import remove_old_files
-from app.routers import admin, chat, documents, feedback, session, speech
+from app.routers import admin, chat, documents, feedback, session, speech, tenant
 from app.speech import get_model
 from app.tenants import TenantMiddleware
 
@@ -42,7 +42,7 @@ def cors_options(app_env: str) -> dict:
             "allow_methods": ["*"], "allow_headers": ["*"]}
 
 
-app = FastAPI(title="GIU Labs & Research Assistant", lifespan=lifespan)
+app = FastAPI(title="University assistants", lifespan=lifespan)
 
 # Every request gets its tenant from the host name (tenants.py). Added first, so CORS
 # (added after it) runs outside it: preflight requests need no tenant, and a "404 unknown
@@ -50,6 +50,7 @@ app = FastAPI(title="GIU Labs & Research Assistant", lifespan=lifespan)
 app.add_middleware(TenantMiddleware)
 app.add_middleware(CORSMiddleware, **cors_options(config.APP_ENV))
 
+app.include_router(tenant.router)
 app.include_router(session.router)
 app.include_router(chat.router)
 app.include_router(feedback.router)

@@ -231,8 +231,8 @@ class TestDatabaseCase(unittest.TestCase):
                              (self.b, "Tenant B secret: the Owl Lab is in W123.")]:
             db.set_tenant(self.conn, tenant.id)  # the owner may be under FORCE row-level security too
             self.agent[tenant.slug] = self.insert(
-                "INSERT INTO agents (tenant_id, template_key, name, description) "
-                "VALUES (%s, 'labs_research', %s, 'Labs and rooms') RETURNING id", (tenant.id, f"{tenant.name} Labs"))
+                "INSERT INTO agents (tenant_id, template_key, name, description, folder) "
+                "VALUES (%s, 'labs_research', %s, 'Labs and rooms', 'labs_research') RETURNING id", (tenant.id, f"{tenant.name} Labs"))
             self.conn.execute("INSERT INTO chunks (tenant_id, agent_id, audience, source, content, embedding) "
                               "VALUES (%s, %s, '{student,staff}', 'lab.md', %s, '{1.0,0.0}')",
                               (tenant.id, self.agent[tenant.slug], text))
@@ -364,7 +364,7 @@ class RowLevelSecurity(TestDatabaseCase):
         db.set_tenant(self.conn, self.a.id)
         inserts = [("INSERT INTO chunks (tenant_id, agent_id, source, content) VALUES (%s, %s, 'x.md', 'x')", (self.b.id, self.b_agent)),
                    ("INSERT INTO conversations (tenant_id, agent_id, user_type) VALUES (%s, %s, 'student')", (self.b.id, self.b_agent)),
-                   ("INSERT INTO agents (tenant_id, name) VALUES (%s, 'Sneaky')", (self.b.id,)),
+                   ("INSERT INTO agents (tenant_id, name, folder) VALUES (%s, 'Sneaky', 'sneaky')", (self.b.id,)),
                    ("UPDATE chunks SET tenant_id = %s", (self.b.id,)),  # moving own rows to B
                    ("UPDATE agents SET tenant_id = %s", (self.b.id,))]
         for sql, params in inserts:
@@ -442,8 +442,12 @@ class AgentTables(TestDatabaseCase):
         self.assertEqual(embedding(), [(None,)])
 
     def test_tenant_settings(self):
-        self.assertEqual(self.rows("SELECT short_name, has_cv_model, campus_map FROM tenants WHERE slug = 'giu'"),
-                         [("GIU", True, True)])
+        self.assertEqual(self.rows("SELECT short_name, has_cv_model, campus_map, logo_url, brand_primary FROM tenants "
+                                   "WHERE slug = 'giu'"), [("GIU", True, True, "/giu-logo.jpg", "#c4161c")])
+        giu = self.rows("SELECT id FROM tenants WHERE slug = 'giu'")[0][0]
+        db.set_tenant(self.conn, giu)
+        self.assertEqual(self.rows("SELECT folder FROM agents WHERE tenant_id = %s ORDER BY position", (giu,)),
+                         [("graduation_advising",), ("hr_policies",), ("internship_career",), ("labs_research",)])
         self.assertEqual(self.rows("SELECT short_name, has_cv_model, campus_map FROM tenants WHERE id = %s", (self.a.id,)),
                          [("", False, False)])  # a new university: no CV model, no map; its short name is its name
         self.assertEqual(self.a.short, self.a.name)
@@ -455,11 +459,11 @@ class AgentTables(TestDatabaseCase):
         db.set_tenant(self.conn, giu)
         giu_career = self.rows("SELECT instructions FROM agents WHERE id = %s", (GIU_AGENT_IDS["internship_career"],))[0][0]
         db.set_tenant(self.conn, self.a.id)
-        old_copy = self.insert("INSERT INTO agents (tenant_id, template_key, name, instructions, skills) "
-                               "VALUES (%s, 'internship_career', 'Careers', %s, '{files,cv}') RETURNING id",
+        old_copy = self.insert("INSERT INTO agents (tenant_id, template_key, name, instructions, skills, folder) "
+                               "VALUES (%s, 'internship_career', 'Careers', %s, '{files,cv}', 'careers') RETURNING id",
                                (self.a.id, giu_career))
-        own = self.insert("INSERT INTO agents (tenant_id, template_key, name, instructions) "
-                          "VALUES (%s, 'internship_career', 'Mine', 'My own words.') RETURNING id", (self.a.id,))
+        own = self.insert("INSERT INTO agents (tenant_id, template_key, name, instructions, folder) "
+                          "VALUES (%s, 'internship_career', 'Mine', 'My own words.', 'mine') RETURNING id", (self.a.id,))
         self.conn.execute(Path("migrations/005_skills.sql").read_text(encoding="utf-8").replace("\r\n", "\n"))
         career = next(t for t in TEMPLATES if t["key"] == "internship_career")
         db.set_tenant(self.conn, self.a.id)
@@ -506,6 +510,23 @@ class AssistantsApi(TestDatabaseCase):
         self.assertEqual(a.put(f"/admin/agents/{new_id}", json={"live": False}).status_code, 200)
         self.assertEqual(start(a, "staff").status_code, 404)     # hidden
 
+    def test_folders_are_readable_and_unique(self):
+        a = self.client(self.a)
+        first = a.post("/admin/agents", json={"template_key": "hr_policies"}).json()["id"]
+        second = a.post("/admin/agents", json={"template_key": "hr_policies", "name": "HR again"}).json()["id"]
+        third = a.post("/admin/agents", json={"name": "Labs Research!"}).json()["id"]
+        folders = {x["id"]: x["folder"] for x in a.get("/admin/agents").json()}
+        self.assertEqual([folders[first], folders[second], folders[third]], ["hr_policies", "hr_policies_2", "labs_research_2"])
+
+    def test_tenant_page_data(self):
+        """GET /tenant: what the frontend shows for this university (its own look and assistants only)."""
+        db.set_tenant(self.conn, None)
+        page = self.client(self.a).get("/tenant").json()
+        self.assertEqual((page["name"], page["short_name"], page["logo_url"]), (self.a.name, self.a.name, None))
+        self.assertEqual([x["name"] for x in page["assistants"]], [f"{self.a.name} Labs"])
+        self.assertEqual([x["key"] for x in page["audiences"]], ["student", "staff"])
+        self.assertTrue(all(c.startswith("#") for c in page["colors"].values()))
+
     def test_refused_settings(self):
         a = self.client(self.a)
         for body in [{"description": "no name and no template"}, {"name": "X", "skills": ["teleport"]},
@@ -521,8 +542,8 @@ class AssistantsApi(TestDatabaseCase):
             "instructions": "You help with the library.", "audiences": ["student"]})
         self.assertEqual(made.status_code, 200, made.text)
         agent = registry.load_agent(self.a.id, made.json()["id"])
-        self.assertEqual((agent.display_name, agent.allowed_user_types, agent.settings.template_key, agent.settings.position),
-                         ("Library Helper", ("student",), None, 1))  # after A's Labs (position 0)
+        self.assertEqual((agent.display_name, agent.allowed_user_types, agent.settings.template_key, agent.settings.position,
+                          agent.settings.folder), ("Library Helper", ("student",), None, 1, "library_helper"))  # after A's Labs
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ from app.rag.retriever import cosine_similarity
 
 @dataclass
 class AgentLink:
-    agent: str  # the assistant's key in links (its id; GIU's: its template key until the frontend reads ids)
+    agent: str  # the assistant's id
     name: str   # e.g. "Labs & Research Assistant"
     url: str    # where the frontend sends the user
     available: bool = True  # False: this user may not use it (staff asking Career), so no button
@@ -36,16 +36,8 @@ def directory_agents() -> list:
     return [agent for agent in agents_of(tenants.current_id()) if agent.live]
 
 
-def link_key(agent) -> str:
-    """The key used in links and by the current frontend: GIU's template-based assistants keep
-    their old key ("labs_research"), others use their id. (Step 2c switches everything to ids.)"""
-    from app.agents import public_key
-    return public_key(agent)
-
-
 def link_to(agent, user_type: str) -> AgentLink:
-    key = link_key(agent)
-    return AgentLink(agent=key, name=agent.display_name, url=f"/?agent={key}",
+    return AgentLink(agent=agent.name, name=agent.display_name, url=f"/?agent={agent.name}",
                      available=user_type in agent.allowed_user_types)
 
 

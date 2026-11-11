@@ -1,11 +1,10 @@
 """Load a tenant's documents, split them into chunks, embed them, and store them.
 
-Each assistant has its own folder, named by its id: GIU's are data/raw/<agent id>/ (for
-example data/raw/a0000000-0000-4000-8000-000000000004/ for Labs & Research); another
-tenant's are data/tenants/<slug>/<agent id>/. Who may see the chunks (students, staff) is the
-assistant's audiences. Every chunk is stored with the tenant's and the assistant's id.
-Folders still named by an old agent key (labs_research/) are moved with
-`python -m scripts.move_agent_folders`.
+Each assistant has its own folder, named by its `folder` (readable, unique per university):
+GIU's are data/raw/labs_research/, data/raw/internship_career/ ...; another tenant's are
+data/tenants/<slug>/<folder>/. Who may see the chunks is the assistant's audiences. Every chunk
+is stored with the tenant's and the assistant's id. Folders still named by an assistant's id
+(from migration 004) are renamed with `python -m scripts.move_agent_folders`.
 
 This script connects as the owner of the tables (DB_ADMIN_USER); the admin page, which
 also uses ingest_file, connects as the app (DB_USER).
@@ -13,7 +12,7 @@ also uses ingest_file, connects as the app (DB_USER).
 Run from the backend folder:
     python -m scripts.ingest                          # every GIU assistant's folder
     python -m scripts.ingest --agent internship_career   # one assistant (id, or a GIU template key)
-    python -m scripts.ingest --tenant demo            # data/tenants/demo/<agent id>/
+    python -m scripts.ingest --tenant demo            # data/tenants/demo/<folder>/
 
 Re-running is safe: chunks of a file are deleted before that file is ingested again,
 and chunks of files that were removed from the folder are deleted too.
@@ -127,12 +126,12 @@ def main() -> None:
     tenant = tenants.for_script(args.tenant)
     root = tenants.data_dir(tenant)
     with tenants.using(tenant):
-        agents = {agent.name: agent for agent in agents_of(tenant.id)}
+        agents = {agent.settings.folder: agent for agent in agents_of(tenant.id)}
         if args.agent:
-            chosen = find_agent(tenant.id, args.agent)
+            chosen = find_agent(tenant.id, args.agent) or agents.get(args.agent)
             if chosen is None:
                 raise SystemExit(f"{tenant.slug} has no assistant '{args.agent}'.")
-            agents = {chosen.name: chosen}
+            agents = {chosen.settings.folder: chosen}
         folders = sorted(p for p in root.iterdir() if p.is_dir() and (not args.agent or p.name in agents))             if root.is_dir() else []
         if not folders:
             print(f"No assistant folders found in {root}")
@@ -141,9 +140,9 @@ def main() -> None:
         for folder in folders:
             agent = agents.get(folder.name)
             if agent is None:
-                hint = (" (an old agent key: run python -m scripts.move_agent_folders)"
+                hint = (" (an old folder name: run python -m scripts.move_agent_folders)"
                         if find_agent(tenant.id, folder.name) else "")
-                print(f"Skipping {folder.name}/: {tenant.slug} has no assistant with that id{hint}")
+                print(f"Skipping {folder.name}/: {tenant.slug} has no assistant with that folder{hint}")
                 continue
             print(f"{agent.display_name} ({folder.name}):")
             ingest_agent(agent.name, folder, list(agent.allowed_user_types), agent.display_name)

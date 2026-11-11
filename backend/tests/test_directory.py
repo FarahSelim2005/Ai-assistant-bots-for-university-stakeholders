@@ -28,14 +28,14 @@ class SuggestAgentTest(unittest.TestCase):
         # "How to prepare for an interview" asked to HR by a staff member
         with self.scores("internship_career"):
             link = suggest_agent("how to prepare for an interview", ID["hr_policies"], "staff")
-        self.assertEqual(link.agent, "internship_career")  # GIU's links keep the old key until step 2c
+        self.assertEqual((link.agent, link.url), (ID["internship_career"], f"/?agent={ID['internship_career']}"))
         self.assertEqual(link.name, "Internship & Career Assistant")
         self.assertTrue(link.available)
 
     def test_students_are_told_about_hr_without_a_button(self):
         with self.scores("hr_policies"):
             link = suggest_agent("how many days of annual leave do I get", ID["internship_career"], "student")
-        self.assertEqual(link.agent, "hr_policies")
+        self.assertEqual(link.agent, ID["hr_policies"])
         self.assertFalse(link.available)
 
     def test_no_link_to_the_current_agent(self):
@@ -52,7 +52,7 @@ class SuggestAgentTest(unittest.TestCase):
         with patch.object(directory, "directory_agents", return_value=[a for a in agents if a.live]), \
              patch.object(directory, "description_scores", return_value=np.array([0.4, 0.8, 0.4])):
             link = suggest_agent("how to prepare for an interview", ID["labs_research"], "staff")
-        self.assertEqual(link.agent, "internship_career")  # the 2nd of the 3 live ones, not HR
+        self.assertEqual(link.agent, ID["internship_career"])  # the 2nd of the 3 live ones, not HR
 
     def test_one_assistant_suggests_nothing(self):
         with patch.object(directory, "directory_agents", return_value=[giu_agents.AGENTS["labs_research"]]):

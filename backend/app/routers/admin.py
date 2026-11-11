@@ -1,20 +1,20 @@
 """Admin routes: the current university's assistants, and the documents they answer from
-(one folder per assistant id: GIU data/raw/<id>/*.md|*.txt, other tenants
-data/tenants/<slug>/<id>/).
+(one folder per assistant, its readable `folder`: GIU data/raw/<folder>/*.md|*.txt, other
+tenants data/tenants/<slug>/<folder>/).
 
 POST   /admin/login              {password} -> {token}
 GET    /admin/agents             [{id, key, name, ..., live}]
 GET    /admin/agent-templates    [{key, name, summary, ...}]   ready-made assistants to start from
 POST   /admin/agents             {template_key?, name?, ...} -> {id}   a new assistant (from a template or not)
 PUT    /admin/agents/{id}        {name?, description?, ..., live?} -> {id}
-GET    /admin/documents          [{id, agent, agent_id, agent_name, filename, updated_at}]
-GET    /admin/documents/{id}     {id, agent, agent_id, filename, content}
+GET    /admin/documents          [{id, agent, agent_name, folder, filename, updated_at}]
+GET    /admin/documents/{id}     {id, agent, filename, content}
 POST   /admin/documents          {agent, filename, content} -> {id, chunks}
 PUT    /admin/documents/{id}     {agent, filename, content} -> {id, chunks}   (changing the agent moves it)
 DELETE /admin/documents/{id}
 
-`agent` in a document request is the assistant's id, or the template key of one of GIU's
-("labs_research"), which the current admin page sends; lists name it the same way.
+`agent` in a document request is the assistant's id (or, as old pages did, the template key
+of one of GIU's: "labs_research").
 
 Every document change is re-indexed at once (chunks + embeddings, like `python -m scripts.ingest`),
 so the assistants answer from the new text right away.
@@ -39,7 +39,7 @@ from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from app import config, tenants
-from app.agents import agents_of, find_agent, load_agent, public_key
+from app.agents import agents_of, find_agent, load_agent
 from app.agents.templates import ANSWER_MODES, AUDIENCES, PROMPT_MODES, SKILLS
 from app.db import get_connection
 from scripts.ingest import ingest_file
@@ -122,18 +122,14 @@ def require_admin(authorization: str = Header(default="")) -> None:
 
 def agent_out(agent) -> dict:
     s = agent.settings
-    return {"id": agent.name, "key": public_key(agent), "template_key": s.template_key, "name": s.name,
+    return {"id": agent.name, "folder": s.folder, "template_key": s.template_key, "name": s.name,
             "summary": s.summary, "subtitle": s.subtitle, "description": s.description, "audiences": list(s.audiences),
             "answer_mode": s.answer_mode, "prompt_mode": s.prompt_mode, "instructions": s.instructions,
             "fallback_en": s.fallback_en,
             "fallback_ar": s.fallback_ar, "welcome": s.welcome, "placeholder": s.placeholder,
             "examples": list(s.examples), "skills": list(s.skills), "max_answer_tokens": s.max_answer_tokens,
             "model": s.model, "backup_models": list(s.backup_models), "similarity_threshold": s.similarity_threshold,
-            "position": s.position, "live": s.live,
-            # The skills that work here (cv needs a trained CV model, map a campus map).
-            "active_skills": [k for k, on in [("files", agent.reads_files), ("images", agent.reads_images),
-                                              ("cv", agent.rewrites_cvs), ("editor", agent.edits_documents),
-                                              ("map", agent.campus_map), ("voice", agent.has_skill("voice"))] if on]}
+            "position": s.position, "live": s.live, "active_skills": agent.active_skills()}
 
 
 def checked_settings(values: dict) -> dict:
@@ -196,6 +192,7 @@ def create_agent(body: AgentIn):
         checked_settings(settings)
         if not settings.get("name"):
             raise HTTPException(400, "Give the assistant a name (or start from a template).")
+        settings["folder"] = new_folder(settings["name"], body.template_key, conn, tenant_id)
         if "position" not in settings:
             settings["position"] = conn.execute("SELECT coalesce(max(position), 0) + 1 FROM agents WHERE tenant_id = %s",
                                                 (tenant_id,)).fetchone()[0]
@@ -205,6 +202,19 @@ def create_agent(body: AgentIn):
             (tenant_id, body.template_key, *settings.values())).fetchone()[0]
     log.info("Admin: new assistant %s (%s)", settings["name"], agent_id)
     return {"id": str(agent_id)}
+
+
+def new_folder(name: str, template_key: str | None, conn, tenant_id) -> str:
+    """A readable folder name not used by another of the university's assistants: the
+    template key, or one made from the name ("Library Helper" -> "library_helper"), with _2,
+    _3 ... added when it is taken."""
+    taken = {f for (f,) in conn.execute("SELECT folder FROM agents WHERE tenant_id = %s", (tenant_id,))}
+    base = template_key or re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")[:40] or "assistant"
+    folder, number = base, 1
+    while folder in taken:
+        number += 1
+        folder = f"{base}_{number}"
+    return folder
 
 
 @router.put("/agents/{agent_id}", dependencies=[Depends(require_admin)])
@@ -232,7 +242,7 @@ def check_agent(key: str):
     """The assistant a request names (by id, or by a GIU template key); 400 if there is none."""
     agent = find_agent(tenants.current_id(), key)
     if agent is None:
-        names = ", ".join(f"{a.display_name} ({public_key(a)})" for a in agents_of(tenants.current_id()))
+        names = ", ".join(f"{a.display_name} ({a.name})" for a in agents_of(tenants.current_id()))
         raise HTTPException(400, f"Unknown assistant '{key}'. Choose one of: {names}.")
     return agent
 
@@ -248,9 +258,9 @@ def clean_filename(filename: str) -> str:
     return name
 
 
-def path_of(agent: str, filename: str) -> Path:
-    """The file of an assistant (`agent`: its id) in the current tenant's folder."""
-    folder = (tenants.data_dir(tenants.current()) / agent).resolve()
+def path_of(folder_name: str, filename: str) -> Path:
+    """A file in one of the current tenant's assistant folders (`folder_name`: agents.folder)."""
+    folder = (tenants.data_dir(tenants.current()) / folder_name).resolve()
     path = (folder / filename).resolve()
     if path.parent != folder:
         raise HTTPException(400, "Invalid file name.")
@@ -268,7 +278,7 @@ def from_id(doc_id: str):
     agent = next((a for a in agents_of(tenants.current_id()) if a.name == agent_id), None)
     if agent is None:
         raise HTTPException(404, "Document not found.")
-    path = path_of(agent.name, filename)
+    path = path_of(agent.settings.folder, filename)
     if not path.is_file():
         raise HTTPException(404, "Document not found.")
     return agent, filename, path
@@ -283,7 +293,7 @@ def delete_chunks(agent: str, filename: str) -> None:
 
 def save_and_index(agent, filename: str, content: str) -> int:
     """Write the file and index it again (old chunks first, so an emptied file has none)."""
-    path = path_of(agent.name, filename)
+    path = path_of(agent.settings.folder, filename)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content.replace("\r\n", "\n"), encoding="utf-8")
     delete_chunks(agent.name, filename)
@@ -299,14 +309,14 @@ def save_and_index(agent, filename: str, content: str) -> int:
 def list_documents():
     documents = []
     for agent in agents_of(tenants.current_id()):
-        folder = tenants.data_dir(tenants.current()) / agent.name
+        folder = tenants.data_dir(tenants.current()) / agent.settings.folder
         if not folder.is_dir():
             continue
         for path in sorted(folder.iterdir()):
             if path.is_file() and path.suffix.lower() in DOCUMENT_TYPES:
                 updated = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc).isoformat()
-                documents.append({"id": document_id(agent.name, path.name), "agent": public_key(agent),
-                                  "agent_id": agent.name, "agent_name": agent.display_name,
+                documents.append({"id": document_id(agent.name, path.name), "agent": agent.name,
+                                  "agent_name": agent.display_name, "folder": agent.settings.folder,
                                   "filename": path.name, "updated_at": updated})
     return documents
 
@@ -314,14 +324,14 @@ def list_documents():
 @router.get("/documents/{doc_id}", dependencies=[Depends(require_admin)])
 def get_document(doc_id: str):
     agent, filename, path = from_id(doc_id)
-    return {"id": doc_id, "agent": public_key(agent), "agent_id": agent.name, "filename": filename,
+    return {"id": doc_id, "agent": agent.name, "filename": filename,
             "content": path.read_text(encoding="utf-8")}
 
 
 @router.post("/documents", dependencies=[Depends(require_admin)])
 def create_document(body: DocumentIn):
     agent, filename = check_agent(body.agent), clean_filename(body.filename)
-    if path_of(agent.name, filename).exists():
+    if path_of(agent.settings.folder, filename).exists():
         raise HTTPException(409, f"{filename} already exists for this assistant. Edit it instead, or choose another name.")
     chunks = save_and_index(agent, filename, body.content)
     log.info("Admin: added %s/%s (%d chunks)", agent.display_name, filename, chunks)
@@ -333,7 +343,7 @@ def update_document(doc_id: str, body: DocumentIn):
     old_agent, old_filename, old_path = from_id(doc_id)
     agent, filename = check_agent(body.agent), clean_filename(body.filename)
     moved = (agent.name, filename) != (old_agent.name, old_filename)
-    if moved and path_of(agent.name, filename).exists():
+    if moved and path_of(agent.settings.folder, filename).exists():
         raise HTTPException(409, f"{filename} already exists for this assistant. Choose another name.")
     chunks = save_and_index(agent, filename, body.content)
     if moved:  # the document moved to another assistant or got a new name: remove the old one

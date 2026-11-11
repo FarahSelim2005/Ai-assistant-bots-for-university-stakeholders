@@ -24,7 +24,8 @@ from app.tenants import Tenant
 # The agents table's columns, in the order AgentSettings takes them.
 COLUMNS = ("id, tenant_id, template_key, name, summary, subtitle, description, audiences, answer_mode, "
            "instructions, fallback_en, fallback_ar, welcome, placeholder, examples, skills, max_answer_tokens, "
-           "model, backup_models, similarity_threshold, position, live, description_embedding, prompt_mode, updated_at")
+           "model, backup_models, similarity_threshold, position, live, description_embedding, prompt_mode, folder, "
+           "updated_at")
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,7 @@ class AgentSettings:
     live: bool
     description_embedding: tuple[float, ...] | None
     prompt_mode: str = "composed"  # "complete": the instructions are the whole prompt (GIU's four)
+    folder: str = ""               # its document folder's name, readable and unique per university
     updated_at: datetime | None = None
 
     @classmethod
@@ -97,6 +99,12 @@ class ConfiguredAgent(BaseAgent):
 
     def has_skill(self, skill: str) -> bool:
         return skill in self.settings.skills
+
+    def active_skills(self) -> list[str]:
+        """The skills that work at this university (cv needs a trained CV model, map a campus map)."""
+        on = {"files": self.reads_files, "images": self.reads_images, "cv": self.rewrites_cvs,
+              "editor": self.edits_documents, "map": self.campus_map, "voice": self.has_skill("voice")}
+        return [skill for skill, works in on.items() if works]
 
     def check_rules(self, question: str, user_type: str, attachment=None) -> None:
         """BaseAgent's rules, plus: only the attachments its skills allow (files, images)."""

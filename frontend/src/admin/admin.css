@@ -20,7 +20,7 @@
   background: var(--surface);
   color: var(--text);
 }
-.admin input:focus, .admin select:focus, .admin textarea:focus { outline: none; border-color: var(--giu-red); }
+.admin input:focus, .admin select:focus, .admin textarea:focus { outline: none; border-color: var(--brand-primary); }
 .admin textarea { font-family: Consolas, "Courier New", monospace; font-size: 14px; resize: vertical; line-height: 1.5; }
 .admin .small { font-size: 13px; margin: -8px 0 16px; }
 .hint { font-weight: 400; font-size: 13px; color: var(--muted); }
@@ -37,7 +37,7 @@
 .doc-table td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .row-actions { text-align: right; white-space: nowrap; }
 .row-actions button { padding: 6px 14px; margin-left: 6px; }
-button.danger { background: var(--surface); color: var(--giu-red); border: 1px solid #f0c4c6; }
+button.danger { background: var(--surface); color: var(--brand-primary); border: 1px solid #f0c4c6; }
 button.danger:hover:not(:disabled) { background: #fdecec; }
 
 .form-row { display: flex; gap: 12px; align-items: flex-end; }
@@ -51,7 +51,7 @@ button.danger:hover:not(:disabled) { background: #fdecec; }
   white-space: nowrap;
 }
 .button-like.secondary { background: var(--surface); border: 1px solid var(--border); }
-.button-like.secondary:hover { border-color: var(--giu-black); }
+.button-like.secondary:hover { border-color: var(--brand-dark); }
 .form-actions { display: flex; gap: 10px; }
 
 @media (max-width: 640px) {

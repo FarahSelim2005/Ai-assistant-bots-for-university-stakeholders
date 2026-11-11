@@ -51,7 +51,7 @@ def load_agent(tenant_id: uuid.UUID, agent_id: uuid.UUID | str) -> ConfiguredAge
 
 def find_agent(tenant_id: uuid.UUID, key: str) -> ConfiguredAgent | None:
     """An assistant by id, or by the template key it was made from ("labs_research"), as the
-    current frontend, the evaluation CSV and old links still name GIU's assistants."""
+    evaluation CSV and old links name GIU's assistants."""
     agents = agents_of(tenant_id)
     return (next((a for a in agents if a.name == key.strip().lower()), None)
             or next((a for a in agents if a.settings.template_key == key), None))
@@ -62,18 +62,9 @@ def script_agent(tenant_id: uuid.UUID, key: str | None) -> ConfiguredAgent:
     tenant's first live one; stops with a message listing the assistants if there is none."""
     agent = find_agent(tenant_id, key) if key else next((a for a in agents_of(tenant_id) if a.live), None)
     if agent is None:
-        names = ", ".join(f"{a.display_name} ({public_key(a)})" for a in agents_of(tenant_id)) or "none"
+        names = ", ".join(f"{a.display_name} ({a.settings.folder})" for a in agents_of(tenant_id)) or "none"
         raise SystemExit(f"No assistant '{key}'. This university's assistants: {names}.")
     return agent
-
-
-def public_key(agent: ConfiguredAgent) -> str:
-    """How links and lists name an assistant until the frontend reads ids (step 2c): its
-    template key when it is the tenant's only assistant from that template, else its id."""
-    key = agent.settings.template_key
-    if key and sum(a.settings.template_key == key for a in agents_of(agent.settings.tenant_id)) == 1:
-        return key
-    return agent.name
 
 
 # Without the database: tests, and trying a template. GIU's tenant settings as migration 005 sets them.
@@ -90,7 +81,8 @@ def agent_from_values(values: dict, tenant: Tenant, agent_id: uuid.UUID | None =
         fallback_en=values["fallback_en"], fallback_ar=values["fallback_ar"], welcome=values["welcome"],
         placeholder=values["placeholder"], examples=tuple(values["examples"]), skills=tuple(values["skills"]),
         max_answer_tokens=values["max_answer_tokens"], model=None, backup_models=(), similarity_threshold=None,
-        position=values["position"], live=True, description_embedding=None, prompt_mode=values["prompt_mode"])
+        position=values["position"], live=True, description_embedding=None, prompt_mode=values["prompt_mode"],
+        folder=values.get("folder", values["key"]))
     return make_agent(AgentSettings(**{**settings.__dict__, **changes}), tenant)
 
 

@@ -12,7 +12,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import psycopg
@@ -37,6 +37,13 @@ class Tenant:
     short_name: str = ""         # e.g. "GIU": used in prompts and texts ("{university}")
     has_cv_model: bool = False   # a CV model trained on its CV templates: the "cv" skill works
     campus_map: bool = False     # campus buildings, rooms and map: the "map" skill works (GIU only)
+    # Its look (migration 006): logo (empty: the short name is shown), colours, start screen.
+    logo_url: str | None = None
+    brand_primary: str = "#1f4e79"
+    brand_accent: str = "#e8a317"
+    brand_dark: str = "#1a1a1a"
+    intro: str = ""
+    audiences: list = field(default_factory=list)  # [{"key", "title", "text"}]: who the assistants are for
 
     @property
     def short(self) -> str:
@@ -83,7 +90,8 @@ def data_dir(tenant: Tenant) -> Path:
 
 # ---------------------------------------------------------------- finding a tenant
 
-TENANT_COLUMNS = "t.id, t.slug, t.name, t.status, t.short_name, t.has_cv_model, t.campus_map"
+TENANT_COLUMNS = ("t.id, t.slug, t.name, t.status, t.short_name, t.has_cv_model, t.campus_map, t.logo_url, "
+                  "t.brand_primary, t.brand_accent, t.brand_dark, t.intro, t.audiences")
 SELECT_TENANT = f"SELECT {TENANT_COLUMNS} FROM tenants t "
 
 

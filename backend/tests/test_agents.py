@@ -12,7 +12,7 @@ from unittest import mock
 
 import app.agents as registry
 from app import config
-from app.agents import GIU_TENANT, agent_from_template, find_agent, giu_agent_from_code, public_key
+from app.agents import GIU_TENANT, agent_from_template, find_agent, giu_agent_from_code
 from app.agents.configured import AgentSettings, ConfiguredAgent
 from app.agents.internship_career import CvAgent
 from app.rag.prompts import ADVISING_SYSTEM_PROMPT, CAREER_SYSTEM_PROMPT, HR_SYSTEM_PROMPT, LABS_SYSTEM_PROMPT
@@ -59,7 +59,7 @@ class Settings(unittest.TestCase):
         agent_id, tenant_id = uuid.uuid4(), uuid.uuid4()
         row = (agent_id, tenant_id, None, "Library Helper", "", "", "Books", ["student"], "docs", "Help.", "Sorry.", "",
                "", "", ["Where is the library?"], ["files"], 400, None, [], None, 1, True, [0.5, 0.5],
-               "composed", datetime.now(timezone.utc))
+               "composed", "library_helper", datetime.now(timezone.utc))
         settings = AgentSettings.from_row(row)
         self.assertEqual((settings.audiences, settings.examples, settings.skills, settings.description_embedding),
                          (("student",), ("Where is the library?",), ("files",), (0.5, 0.5)))
@@ -78,19 +78,13 @@ class Registry(unittest.TestCase):
             self.assertIsNone(find_agent(tenant, "orientation"))
             self.assertIsNone(find_agent(uuid.uuid4(), "hr_policies"))  # another university has none
 
-    def test_public_key(self):
-        """GIU's links keep the old keys while the frontend needs them; a second assistant made
-        from the same template is named by its id."""
-        with giu_agents.active():
-            self.assertEqual(public_key(giu_agents.AGENTS["labs_research"]), "labs_research")
-        second = giu_agent_from_code("labs_research")
-        with mock.patch.object(registry, "agents_of", lambda t: [*giu_agents.AGENTS.values(), second]):
-            self.assertEqual(public_key(second), second.name)
-            self.assertEqual(public_key(giu_agents.AGENTS["labs_research"]), giu_agents.ID["labs_research"])
+    def test_giu_folders_are_its_old_names(self):
+        self.assertEqual({key: agent.settings.folder for key, agent in giu_agents.AGENTS.items()},
+                         {key: key for key in giu_agents.AGENTS})
 
     def test_cache_reloads_only_when_rows_change(self):
         tenant = uuid.uuid4()
-        row = (tenant, "x", "X University", "active", "X", False, False)
+        row = (tenant, "x", "X University", "active", "X", False, False, None, "#000000", "#000000", "#000000", "", [])
         stamps = [(*row, 1, "t1"), (*row, 1, "t1"), (*row, 1, "t2")]
         loads = []
 

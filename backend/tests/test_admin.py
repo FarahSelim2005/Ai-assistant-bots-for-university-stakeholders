@@ -21,14 +21,16 @@ from tests import giu_agents
 # Every request is GIU's (the TestClient's host "testserver" is in no tenant_domains table).
 GIU = giu_agents.GIU
 LABS, HR, ADVISING = giu_agents.ID["labs_research"], giu_agents.ID["hr_policies"], giu_agents.ID["graduation_advising"]
+# Their document folders (readable, since migration 006)
+LABS_DIR, HR_DIR, ADVISING_DIR = "labs_research", "hr_policies", "graduation_advising"
 
 
 class AdminRoutes(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.raw = Path(self.tmp.name) / "raw"
-        (self.raw / LABS).mkdir(parents=True)
-        (self.raw / LABS / "campus.md").write_text("## Library\nFourth floor of S.", encoding="utf-8")
+        (self.raw / LABS_DIR).mkdir(parents=True)
+        (self.raw / LABS_DIR / "campus.md").write_text("## Library\nFourth floor of S.", encoding="utf-8")
         self.indexed, self.deleted = [], []
         fake_ingest = lambda path, agent, audience: self.indexed.append((agent, path.name, audience)) or 3
         self.patches = [
@@ -69,7 +71,7 @@ class AdminRoutes(unittest.TestCase):
 
     def test_list_and_get(self):
         documents = self.client.get("/admin/documents", headers=self.auth).json()
-        self.assertEqual([(d["agent"], d["filename"]) for d in documents], [("labs_research", "campus.md")])
+        self.assertEqual([(d["agent"], d["folder"], d["filename"]) for d in documents], [(LABS, LABS_DIR, "campus.md")])
         self.assertTrue(documents[0]["updated_at"])
         document = self.client.get(f"/admin/documents/{documents[0]['id']}", headers=self.auth).json()
         self.assertEqual(document["content"], "## Library\nFourth floor of S.")
@@ -78,7 +80,7 @@ class AdminRoutes(unittest.TestCase):
         body = {"agent": "hr_policies", "filename": "leave rules", "content": "## Annual leave\n21 days."}
         answer = self.client.post("/admin/documents", headers=self.auth, json=body).json()
         self.assertEqual(answer["chunks"], 3)
-        self.assertEqual((self.raw / HR / "leave rules.md").read_text(encoding="utf-8"), body["content"])
+        self.assertEqual((self.raw / HR_DIR / "leave rules.md").read_text(encoding="utf-8"), body["content"])
         self.assertEqual(self.indexed, [(HR, "leave rules.md", ["staff"])])  # HR: staff only
         self.assertEqual(self.client.post("/admin/documents", headers=self.auth, json=body).status_code, 409)
 
@@ -86,15 +88,15 @@ class AdminRoutes(unittest.TestCase):
         doc_id = self.client.get("/admin/documents", headers=self.auth).json()[0]["id"]
         body = {"agent": "graduation_advising", "filename": "campus.md", "content": "## Library\nFifth floor of S."}
         answer = self.client.put(f"/admin/documents/{doc_id}", headers=self.auth, json=body).json()
-        self.assertFalse((self.raw / LABS / "campus.md").exists())
-        self.assertEqual((self.raw / ADVISING / "campus.md").read_text(encoding="utf-8"), body["content"])
+        self.assertFalse((self.raw / LABS_DIR / "campus.md").exists())
+        self.assertEqual((self.raw / ADVISING_DIR / "campus.md").read_text(encoding="utf-8"), body["content"])
         self.assertIn((LABS, "campus.md"), self.deleted)  # the old chunks are removed
         self.assertNotEqual(answer["id"], doc_id)
 
     def test_delete(self):
         doc_id = self.client.get("/admin/documents", headers=self.auth).json()[0]["id"]
         self.assertEqual(self.client.delete(f"/admin/documents/{doc_id}", headers=self.auth).status_code, 200)
-        self.assertFalse((self.raw / LABS / "campus.md").exists())
+        self.assertFalse((self.raw / LABS_DIR / "campus.md").exists())
         self.assertEqual(self.client.get(f"/admin/documents/{doc_id}", headers=self.auth).status_code, 404)
 
     def test_bad_input_is_refused(self):

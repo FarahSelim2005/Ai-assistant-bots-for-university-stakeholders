@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { findAgent } from "./agents.js";
+import { audienceTitle, findAssistant, hasSkill, tenant } from "./tenant.js";
 import { closeDocument, fileUrl, sendFeedback, sendMessage, startSession } from "./api.js";
+import BrandLogo from "./components/BrandLogo.jsx";
 import CallScreen, { callSupported } from "./components/CallScreen.jsx";
 import Message from "./components/Message.jsx";
 import StartScreen from "./components/StartScreen.jsx";
 
 // Must match the backend (app/attachments.py, MAX_UPLOAD_MB and DOC_EDIT_MAX_MB in config.py).
-const ACCEPTED_FILES = ".pdf,.txt,.md,.docx,.xlsx,.pptx,.png,.jpg,.jpeg,.webp";
+// Which of them an assistant accepts follows its skills ("files", "images").
+const DOCUMENT_FILES = ".pdf,.txt,.md,.docx,.xlsx,.pptx";
+const IMAGE_FILES = ".png,.jpg,.jpeg,.webp";
 const MAX_UPLOAD_MB = 10; // files to edit; questions about a file allow 5 MB (checked by the backend)
 const MAX_FILES = 5; // files sent with one message (MAX_FILES in the backend's schemas.py)
 const CV_QUESTION = "Please analyze my CV and suggest improvements.";
@@ -37,7 +40,11 @@ export default function App({ initialAgent }) {
   const cvReviewRef = useRef(false); // the next chosen file is a CV to analyse right away
   const requestRef = useRef(null); // the answer being waited for: { controller, query, files }
   const menuRef = useRef(null);
-  const agent = findAgent(agentKey) || findAgent("labs_research");
+  const agent = findAssistant(agentKey) || tenant().assistants[0];
+  // What this assistant can do here (its skills, and what the university allows)
+  const canCv = hasSkill(agent, "cv");
+  const accepted = [hasSkill(agent, "files") && DOCUMENT_FILES, hasSkill(agent, "images") && IMAGE_FILES]
+    .filter(Boolean).join(",");
 
   // After 8 seconds of waiting, explain the delay (usually the free online models are
   // busy and the backup model on this computer is answering).
@@ -250,12 +257,12 @@ export default function App({ initialAgent }) {
   return (
     <div className="chat">
       <header className="topbar">
-        <img src="/giu-logo.jpg" alt="German International University" className="topbar-logo" />
+        <BrandLogo className="topbar-logo" />
         <div className="topbar-title">
           <h1>{agent.name}</h1>
           <span>{agent.subtitle}</span>
         </div>
-        <span className="badge">{userType === "staff" ? "Staff" : "Student"}</span>
+        <span className="badge">{audienceTitle(userType)}</span>
         <button className="secondary" onClick={newChat}>New chat</button>
       </header>
       <div className="flag-stripe" />
@@ -270,7 +277,7 @@ export default function App({ initialAgent }) {
             <div className="welcome">
               <h2>How can I help you today?</h2>
               <p className="muted">{agent.welcome}</p>
-              {agent.cvReview && (
+              {canCv && (
                 <button className="cv-button" onClick={analyzeCv} disabled={loading}>
                   📄 Analyze my CV
                   <span>Upload your CV (PDF) and get concrete improvements</span>
@@ -291,7 +298,7 @@ export default function App({ initialAgent }) {
           ))}
           {loading && (
             <div className="message assistant">
-              <div className="avatar">GIU</div>
+              <div className="avatar">{tenant().short_name}</div>
               <div className="assistant-body">
                 <div className="bubble typing"><span /><span /><span /></div>
                 {withFile && (
@@ -343,24 +350,26 @@ export default function App({ initialAgent }) {
           <input
             ref={fileInputRef}
             type="file"
-            accept={ACCEPTED_FILES}
+            accept={accepted}
             onChange={handleFilesChosen}
             multiple
             hidden
           />
-          {/* "+": add files, and for Career also "Analyze my CV" */}
-          <div className="plus-menu-wrap" ref={menuRef}>
+          {/* "+": add files, and with the cv skill also "Analyze my CV" */}
+          {(accepted || canCv) && <div className="plus-menu-wrap" ref={menuRef}>
             <button type="button" className="icon-button" onClick={() => setMenuOpen((open) => !open)}
                     title="Add files and more" aria-label="Add files and more" aria-expanded={menuOpen}>
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
             </button>
             {menuOpen && (
               <div className="plus-menu" role="menu">
-                <button type="button" role="menuitem" onClick={pickFiles}>
+                {accepted && <button type="button" role="menuitem" onClick={pickFiles}>
                   <span className="plus-menu-icon">📎</span>
-                  <span>Upload files<small>PDF, Word, Excel, PowerPoint, TXT or pictures (up to {MAX_FILES})</small></span>
-                </button>
-                {agent.cvReview && (
+                  <span>Upload files<small>{hasSkill(agent, "files")
+                    ? `PDF, Word, Excel, PowerPoint, TXT${hasSkill(agent, "images") ? " or pictures" : ""}`
+                    : "Pictures"} (up to {MAX_FILES})</small></span>
+                </button>}
+                {canCv && (
                   <button type="button" role="menuitem" onClick={analyzeCv} disabled={loading}>
                     <span className="plus-menu-icon">📄</span>
                     <span>Analyze my CV<small>Upload your CV and get concrete improvements</small></span>
@@ -368,7 +377,7 @@ export default function App({ initialAgent }) {
                 )}
               </div>
             )}
-          </div>
+          </div>}
           <input
             className="composer-input"
             value={input}
@@ -380,7 +389,7 @@ export default function App({ initialAgent }) {
             dir="auto"
             autoFocus
           />
-          {callSupported && (
+          {callSupported && hasSkill(agent, "voice") && (
             <button type="button" className="icon-button" onClick={() => setCalling(true)}
                     title="Talk to the assistant by voice" aria-label="Start a voice call">
               <svg viewBox="0 0 24 24" aria-hidden="true">

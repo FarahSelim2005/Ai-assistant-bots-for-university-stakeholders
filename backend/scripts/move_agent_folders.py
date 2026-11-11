@@ -1,6 +1,7 @@
-"""Rename document folders named by an old agent key (labs_research/) to the assistant's id,
-the folder name used since migration 004. Run it once after applying 004; files are moved,
-not changed, and nothing needs indexing again (the chunks already have the agent id).
+"""Rename document folders to each assistant's readable folder name (agents.folder, since
+migration 006): folders named by its id (migration 004) or by its template key are renamed.
+Run it once after applying 006; files are moved, not changed, and nothing needs indexing
+again (the chunks already have the assistant's id).
 
 Run from the backend folder:
     python -m scripts.move_agent_folders               # every tenant
@@ -15,7 +16,7 @@ from app.db import get_admin_connection, use_admin_login
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Rename agent-key folders to agent-id folders.")
+    parser = argparse.ArgumentParser(description="Rename document folders to the assistants' folder names.")
     parser.add_argument("--tenant", help="only this tenant (slug)")
     parser.add_argument("--dry-run", action="store_true", help="show what would move, move nothing")
     args = parser.parse_args()
@@ -30,10 +31,11 @@ def main() -> None:
             continue
         agents = agents_of(tenant.id)
         for folder in sorted(p for p in root.iterdir() if p.is_dir()):
-            matches = [a for a in agents if a.settings.template_key == folder.name]
-            if len(matches) != 1:
-                continue  # already an id folder, or not clearly one assistant's
-            target = root / matches[0].name
+            matches = ([a for a in agents if a.name == folder.name]
+                       or [a for a in agents if a.settings.template_key == folder.name])
+            if len(matches) != 1 or matches[0].settings.folder == folder.name:
+                continue  # already its folder name, or not clearly one assistant's
+            target = root / matches[0].settings.folder
             if target.exists():
                 print(f"{slug}: {folder.name}/ not moved: {target.name}/ already exists")
                 continue

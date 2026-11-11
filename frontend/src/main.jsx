@@ -2,14 +2,27 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import AdminPage from "./admin/AdminPage.jsx";
-import { findAgent } from "./agents.js";
 import ComingSoon from "./components/ComingSoon.jsx";
+import { findAssistant, loadTenant } from "./tenant.js";
 import "./App.css";
 
-// "/admin" opens the admin page (documents). "/?agent=<key>" (e.g. from a redirect link)
-// opens that agent directly if it is built, otherwise its coming-soon page.
-const agent = new URLSearchParams(window.location.search).get("agent");
-let page = agent && !findAgent(agent)?.ready ? <ComingSoon agentKey={agent} /> : <App initialAgent={agent} />;
-if (window.location.pathname.replace(/\/+$/, "") === "/admin") page = <AdminPage />;
+// First the university (GET /tenant: its look and assistants), then the page:
+// "/admin" opens the admin page; "/?agent=<id>" (e.g. from a hand-over link) opens that
+// assistant directly, or a "not available" page if this university has no such assistant.
+const root = createRoot(document.getElementById("root"));
 
-createRoot(document.getElementById("root")).render(<StrictMode>{page}</StrictMode>);
+loadTenant().then(() => {
+  const agent = new URLSearchParams(window.location.search).get("agent");
+  let page = agent && !findAssistant(agent) ? <ComingSoon /> : <App initialAgent={agent} />;
+  if (window.location.pathname.replace(/\/+$/, "") === "/admin") page = <AdminPage />;
+  root.render(<StrictMode>{page}</StrictMode>);
+}).catch((error) => {
+  root.render(
+    <div className="start">
+      <section className="start-choice">
+        <h2>This page is not available</h2>
+        <p className="muted">{error.message}</p>
+      </section>
+    </div>,
+  );
+});

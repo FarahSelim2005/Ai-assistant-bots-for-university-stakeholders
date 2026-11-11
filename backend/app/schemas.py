@@ -8,8 +8,7 @@ MAX_FILES = 5  # files sent with one message (must match the frontend)
 
 class SessionRequest(BaseModel):
     user_type: Literal["student", "staff"]
-    # The assistant: its id, or the template key of one of GIU's ("labs_research"), as the
-    # current frontend sends it.
+    # The assistant: its id (old links may still name one of GIU's by its key, "labs_research").
     agent: str = Field(min_length=1, max_length=64)
 
 
@@ -54,7 +53,7 @@ class BuildingOut(BaseModel):
 
 
 class AgentLinkOut(BaseModel):
-    agent: str  # the assistant's id (GIU's: still "labs_research" etc. for the current frontend)
+    agent: str  # the assistant's id
     name: str   # e.g. "Labs & Research Assistant"
     url: str    # e.g. "/?agent=<id>"
     available: bool = True  # False: the user may not use that agent (no button)

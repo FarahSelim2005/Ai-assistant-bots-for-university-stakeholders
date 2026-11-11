@@ -80,6 +80,7 @@ only applies new files. Every file is also safe to run twice by hand.
 | `003_row_level_security.sql` | Row-level security. Creates the role `giu_app` (can log in; not a superuser, not the owner of the tables; only `SELECT/INSERT/UPDATE/DELETE` on `chunks`, `conversations`, `messages`, `feedback`, read-only `tenants` and `tenant_domains`). On the four tenant tables a policy shows and accepts only rows whose `tenant_id` is the current tenant (`app.tenant_id`, set by `get_connection(tenant_id)` for each transaction), even when a query forgets its `WHERE`; with no tenant set they look empty. The password is not in the file (see *Row-level security* below). |
 | `004_agents.sql` | Assistants in the database (see *Assistants* below): `agent_templates` (GIU's four agents as ready-made templates, copied exactly from the code) and `agents` (each university's own assistants, any number and any name, with row-level security). GIU gets its four agents with fixed ids; every other tenant gets one per agent key it already used (demo: Labs & Research). `chunks` and `conversations` get a required `agent_id` (an agent of the same tenant), filled from the agent key; the old `agent` column stays, no longer required. After applying it, run `python -m scripts.move_agent_folders` once (see *Assistants*). |
 | `005_skills.sql` | Skills and prompts from parts. `tenants` get `short_name` (for `{university}` in texts), `has_cv_model` and `campus_map` (GIU: `GIU`, true, true; others: their name, false, false). Templates and agents get `prompt_mode`: GIU's four keep their complete prompts unchanged; the templates become prompts built from parts with `{university}` instead of GIU, and other universities' assistants that still had 004's (GIU) text get the new template text. |
+| `006_branding_and_folders.sql` | Each university's look: `logo_url`, `brand_primary`, `brand_accent`, `brand_dark`, `intro` (start screen) and `audiences` (who the assistants are for, with the start screen's text); GIU keeps exactly its logo, colours and texts. `agents.folder`: each assistant's readable document folder, unique per university (GIU's: `labs_research` ... again). After applying it, run `python -m scripts.move_agent_folders` once. |
 
 To try the migrations on a copy first: in pgAdmin create a database `giu-bots-copy` with
 *Template* `giu-bots` (no other connection to `giu-bots` may be open), then run
@@ -170,9 +171,10 @@ possible, and always report which model ID you used.
 
 ## 3. Ingest documents
 
-Each assistant has its own folder, named by its id: put `.pdf`, `.txt` or `.md` files in
-`backend/data/raw/<agent id>/` (GIU's four have fixed ids, see the table below; the admin page
-and `GET /admin/agents` show every assistant's id), then:
+Each assistant has its own folder, its `folder` name (readable, unique per university): put
+`.pdf`, `.txt` or `.md` files in `backend/data/raw/<folder>/` for GIU (see the table below) or
+`backend/data/tenants/<slug>/<folder>/` for another university (`GET /admin/agents` shows every
+assistant's folder), then:
 
 ```bash
 python -m scripts.ingest                            # every assistant's folder
@@ -185,14 +187,19 @@ Markdown heading, at most 200 words), embedded, and stored with the folder's ass
 and that assistant's audiences (HR: staff only). Re-running is safe: a file's old chunks are replaced, and chunks of files you
 deleted are removed.
 
-GIU's folders (fixed ids, the same on every computer):
+The assistants and their folders:
 
-| Assistant | Folder `backend/data/raw/...` |
-|---|---|
-| Graduation & Advising (`graduation_advising`) | `a0000000-0000-4000-8000-000000000001/` |
-| HR & Policies (`hr_policies`) | `a0000000-0000-4000-8000-000000000002/` |
-| Internship & Career (`internship_career`) | `a0000000-0000-4000-8000-000000000003/` |
-| Labs & Research (`labs_research`) | `a0000000-0000-4000-8000-000000000004/` |
+| University | Assistant | Id | Folder |
+|---|---|---|---|
+| GIU | Graduation & Advising Assistant | `a0000000-0000-4000-8000-000000000001` | `backend/data/raw/graduation_advising/` |
+| GIU | HR & Policies Assistant (staff only) | `a0000000-0000-4000-8000-000000000002` | `backend/data/raw/hr_policies/` |
+| GIU | Internship & Career Assistant | `a0000000-0000-4000-8000-000000000003` | `backend/data/raw/internship_career/` |
+| GIU | Labs & Research Assistant | `a0000000-0000-4000-8000-000000000004` | `backend/data/raw/labs_research/` |
+| demo (if you made it) | Labs & Research Assistant | made by migration 004 | `backend/data/tenants/demo/labs_research/` |
+
+GIU's ids are fixed in migration 004, so they are the same on every computer. A new
+assistant gets its folder from its template key or its name (`Library Helper` ->
+`library_helper`, `library_helper_2` if taken); the folder stays when it is renamed.
 
 The documents (by assistant):
 
@@ -377,8 +384,14 @@ chats or ratings; an unknown host gets `404`, a suspended tenant `403`.
   `backend/data/tenants/<slug>/<agent id>/` (not in git). `ingest`, `try_retrieve`, `try_chat` and
   `evaluate` take `--tenant <slug>` (default `giu`).
 - An admin login works only on the host (tenant) where it was made.
-- Each tenant has its own assistants and skills (see *Assistants*). Not done yet: the frontend
-  still shows GIU's look (logo, texts, colours) for every tenant (step 2c).
+- Each tenant has its own assistants, skills and look. The frontend loads `GET /tenant` before
+  its first screen (`frontend/src/tenant.js`): name, logo (or the short name on the brand
+  colour), colours (the CSS variables `--brand-primary`, `--brand-primary-dark`,
+  `--brand-accent`, `--brand-dark`), page title, start screen text, audiences and the live
+  assistants with the skills that work there. The start screen shows one card per audience,
+  then the assistants for it (with just one, it opens directly). The CV button follows the
+  `cv` skill, the voice button `voice`, file upload `files` / `images`, and the campus map
+  only appears with `map` at a university with a campus map. Demo shows no GIU anywhere.
 
 **Trying a second university ("demo")**
 
@@ -421,6 +434,11 @@ chats or ratings; an unknown host gets `404`, a suspended tenant `403`.
    DELETE FROM tenants WHERE slug = 'demo';                                                   -- with its hosts
    ```
    and delete the folder `backend/data/tenants/demo/`.
+
+   To change demo's look (step 3 adds a Branding page for this):
+   ```sql
+   UPDATE tenants SET short_name = 'DU', brand_primary = '#0b6e4f', brand_accent = '#f2a900' WHERE slug = 'demo';
+   ```
 
 ## Admin page
 
@@ -499,19 +517,18 @@ POST /admin/agents                 {template_key?, name?, description?, ...} -> 
 PUT  /admin/agents/{id}            {name?, ..., live?}   (live: false hides it)
 ```
 
-Until the frontend reads ids (step 2c), the API also accepts and returns GIU's template keys
-(`labs_research`) wherever it names an assistant, so the current pages keep working. The
-evaluation CSV names assistants the same way.
+Assistants are named by their id everywhere (links: `/?agent=<id>`). Old links and the
+evaluation CSV may still name GIU's by template key (`labs_research`); that still works.
 
-**After applying migration 004**, move document folders still named by an agent key
-(`data/tenants/demo/labs_research/`) to the assistant's id:
+**After applying migration 006**, rename document folders still named by an assistant's id
+(from migration 004) to its readable folder name:
 
 ```bash
 python -m scripts.move_agent_folders --dry-run   # what would move
 python -m scripts.move_agent_folders
 ```
 
-GIU's folders are already renamed in git. If you change `EMBEDDING_MODEL`, ingest every
+GIU's folders are already back to their names in git. If you change `EMBEDDING_MODEL`, ingest every
 folder again and clear the stored description embeddings
 (`UPDATE agents SET description_embedding = NULL;` as the owner).
 
@@ -655,7 +672,7 @@ backend/
     db.py                PostgreSQL connection
     tenants.py           which university (tenant) a request is for
     schemas.py           request/response models
-    routers/             session.py, chat.py, feedback.py, speech.py, documents.py (document editor), admin.py (admin page)
+    routers/             tenant.py (GET /tenant), session.py, chat.py, feedback.py, speech.py, documents.py (document editor), admin.py (admin page)
     documents/           document editor: formats.py (read/edit/save each format), editor.py (model -> JSON edits), storage.py
     agents/              base.py (shared flow), configured.py (an assistant from the agents table), __init__.py (loading
                          and caching each university's assistants), templates.py, internship_career.py (CV rewrites),
@@ -684,8 +701,9 @@ backend/
 frontend/
   src/
     api.js               all backend calls (API URL)
+    tenant.js            the university of this page (GET /tenant): look, audiences, assistants
     App.jsx              chat state and flow
-    components/          StartScreen.jsx, Message.jsx, CampusMap.jsx, CallScreen.jsx, ComingSoon.jsx
+    components/          StartScreen.jsx, Message.jsx, CampusMap.jsx, CallScreen.jsx, ComingSoon.jsx, BrandLogo.jsx
     App.css              styles
 ```
 

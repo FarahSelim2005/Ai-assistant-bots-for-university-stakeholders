@@ -1,9 +1,10 @@
-/* GIU colours, taken from the logo (black, red, gold) */
+/* The university's colours: set from GET /tenant at load (tenant.js); these defaults are GIU's
+   (from its logo: black, red, gold) */
 :root {
-  --giu-black: #1a1a1a;
-  --giu-red: #c4161c;
-  --giu-red-dark: #9e1116;
-  --giu-gold: #d9a21b;
+  --brand-dark: #1a1a1a;
+  --brand-primary: #c4161c;
+  --brand-primary-dark: #9e1116;
+  --brand-accent: #d9a21b;
   --bg: #f5f5f6;
   --surface: #ffffff;
   --text: #1a1a1a;
@@ -25,13 +26,13 @@ button {
   cursor: pointer;
   border: none;
   border-radius: 10px;
-  background: var(--giu-red);
+  background: var(--brand-primary);
   color: #fff;
   padding: 10px 20px;
   font-weight: 600;
   transition: background 0.15s, border-color 0.15s, transform 0.15s;
 }
-button:hover:not(:disabled) { background: var(--giu-red-dark); }
+button:hover:not(:disabled) { background: var(--brand-primary-dark); }
 button:disabled { opacity: 0.45; cursor: default; }
 
 button.secondary {
@@ -39,17 +40,17 @@ button.secondary {
   color: var(--text);
   border: 1px solid var(--border);
 }
-button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var(--giu-black); }
+button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var(--brand-dark); }
 
 .muted { color: var(--muted); }
-.error { color: var(--giu-red); font-size: 14px; margin: 0 0 8px; }
+.error { color: var(--brand-primary); font-size: 14px; margin: 0 0 8px; }
 
-/* Black / red / gold stripe, like the line in the GIU logo */
+/* Stripe in the university's colours (GIU: black / red / gold, like the line in its logo) */
 .flag-stripe {
   height: 4px;
   flex-shrink: 0;
   background: linear-gradient(to right,
-    var(--giu-black) 0 33.33%, var(--giu-red) 33.33% 66.66%, var(--giu-gold) 66.66% 100%);
+    var(--brand-dark) 0 33.33%, var(--brand-primary) 33.33% 66.66%, var(--brand-accent) 66.66% 100%);
 }
 .flag-stripe.vertical { width: 64px; height: 5px; margin-bottom: 28px; border-radius: 3px; }
 
@@ -61,7 +62,7 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
 }
 
 .start-intro {
-  background: var(--giu-black);
+  background: var(--brand-dark);
   color: #fff;
   padding: 10vh 8vw;
   display: flex;
@@ -69,7 +70,7 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
   justify-content: center;
 }
 .eyebrow {
-  color: var(--giu-gold);
+  color: var(--brand-accent);
   text-transform: uppercase;
   letter-spacing: 0.12em;
   font-size: 13px;
@@ -101,17 +102,17 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
   background: var(--surface);
   color: var(--text);
   border: 2px solid var(--border);
-  border-left: 6px solid var(--giu-red);
+  border-left: 6px solid var(--brand-primary);
   border-radius: var(--radius);
 }
-.choice-card:nth-child(2) { border-left-color: var(--giu-gold); }
+.choice-card:nth-child(2) { border-left-color: var(--brand-accent); }
 .choice-card:hover:not(:disabled) {
   background: var(--surface);
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
-.choice-card:nth-child(3) { border-left-color: var(--giu-black); }
-.choice-card:nth-child(4) { border-left-color: var(--giu-red); }
+.choice-card:nth-child(3) { border-left-color: var(--brand-dark); }
+.choice-card:nth-child(4) { border-left-color: var(--brand-primary); }
 .choice-title { font-size: 20px; font-weight: 700; }
 .agent-card .choice-title { font-size: 18px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .soon-tag {
@@ -133,7 +134,7 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
   margin-bottom: 12px;
   font-weight: 500;
 }
-.back-link:hover:not(:disabled) { background: none; color: var(--giu-red); }
+.back-link:hover:not(:disabled) { background: none; color: var(--brand-primary); }
 .choice-text { font-size: 14px; font-weight: 400; color: var(--muted); }
 
 /* ================= Chat layout ================= */
@@ -203,7 +204,7 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
-.suggestion:hover:not(:disabled) { background: var(--surface); border-color: var(--giu-red); color: var(--giu-red); }
+.suggestion:hover:not(:disabled) { background: var(--surface); border-color: var(--brand-primary); color: var(--brand-primary); }
 
 /* ================= Messages ================= */
 .message { display: flex; gap: 12px; margin-bottom: 22px; }
@@ -214,13 +215,13 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
   width: 38px;
   height: 38px;
   border-radius: 50%;
-  background: var(--giu-black);
+  background: var(--brand-dark);
   color: #fff;
   font-size: 11px;
   font-weight: 800;
   display: grid;
   place-items: center;
-  border-bottom: 3px solid var(--giu-gold);
+  border-bottom: 3px solid var(--brand-accent);
 }
 
 .assistant-body { display: flex; flex-direction: column; align-items: flex-start; max-width: 78%; }
@@ -233,7 +234,7 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
 }
 .user-body { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 78%; }
 .user .bubble {
-  background: var(--giu-red);
+  background: var(--brand-primary);
   color: #fff;
   border-bottom-right-radius: 4px;
 }
@@ -280,12 +281,12 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
   padding: 12px 14px;
   background: #fdf3dc;
   border: 1px solid #f1dca6;
-  border-left: 4px solid var(--giu-gold);
+  border-left: 4px solid var(--brand-accent);
   border-radius: var(--radius);
   font-size: 14px;
 }
 .redirect-button {
-  background: var(--giu-black);
+  background: var(--brand-dark);
   color: #fff;
   text-decoration: none;
   font-weight: 600;
@@ -295,7 +296,7 @@ button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var
 }
 .redirect-button:hover { background: #000; }
 a.choice-card { text-decoration: none; }
-.coming-back { border-left-color: var(--giu-red); }
+.coming-back { border-left-color: var(--brand-primary); }
 
 /* ================= Campus map ================= */
 .campus-map {
@@ -303,7 +304,7 @@ a.choice-card { text-decoration: none; }
   margin-top: 10px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-top: 4px solid var(--giu-red);
+  border-top: 4px solid var(--brand-primary);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   overflow: hidden;
@@ -324,10 +325,10 @@ a.choice-card { text-decoration: none; }
 .map-court { fill: #b8473b; stroke: #8f352c; }
 .map-court.blue { fill: #4a78b5; stroke: #345a8c; }
 .map-landmark { fill: #dcd6c8; stroke: #c4bca9; }
-.map-north { fill: var(--giu-black); }
+.map-north { fill: var(--brand-dark); }
 .map-grass { fill: #9cc58a; stroke: #7aa468; }
 /* A highlighted place (gym, supermarket, courts...) */
-.map-place.active { fill: var(--giu-red); stroke: var(--giu-red-dark); }
+.map-place.active { fill: var(--brand-primary); stroke: var(--brand-primary-dark); }
 .place-icon {
   width: 34px;
   flex-shrink: 0;
@@ -336,11 +337,11 @@ a.choice-card { text-decoration: none; }
 }
 .map-label-small.light { fill: #fff; font-weight: 600; }
 .map-building { fill: #d6d7da; stroke: #b9bbbf; }
-.map-building.active { fill: var(--giu-red); stroke: var(--giu-red-dark); }
+.map-building.active { fill: var(--brand-primary); stroke: var(--brand-primary-dark); }
 .map-letter { font-size: 22px; font-weight: 800; fill: #8a8d93; }
 .map-letter.active { fill: #fff; }
 .map-label-small { font-size: 10px; fill: var(--muted); }
-.map-pin { fill: var(--giu-gold); stroke: #9c7410; stroke-width: 1; }
+.map-pin { fill: var(--brand-accent); stroke: #9c7410; stroke-width: 1; }
 
 .map-details { display: flex; flex-direction: column; gap: 12px; font-size: 14px; }
 .map-building-info { display: flex; gap: 12px; align-items: flex-start; }
@@ -360,9 +361,9 @@ a.choice-card { text-decoration: none; }
   color: var(--muted);
   border: 1px solid var(--border);
 }
-.floor.active { background: var(--giu-gold); color: #fff; border-color: #b8860b; }
+.floor.active { background: var(--brand-accent); color: #fff; border-color: #b8860b; }
 
-.maps-link { font-size: 13px; color: var(--giu-red); text-decoration: none; font-weight: 600; }
+.maps-link { font-size: 13px; color: var(--brand-primary); text-decoration: none; font-weight: 600; }
 .maps-link:hover { text-decoration: underline; }
 
 /* Star rating: buttons are in order 5..1 and shown reversed, so "hover ~ button"
@@ -377,7 +378,7 @@ a.choice-card { text-decoration: none; }
   line-height: 1;
 }
 .stars button:hover,
-.stars button:hover ~ button { background: none; color: var(--giu-gold); }
+.stars button:hover ~ button { background: none; color: var(--brand-accent); }
 
 .slow-note { font-size: 13px; color: var(--muted); margin: 6px 0 0; max-width: 420px; }
 
@@ -390,8 +391,8 @@ a.choice-card { text-decoration: none; }
   background: var(--muted);
   animation: bounce 1.2s infinite;
 }
-.typing span:nth-child(2) { animation-delay: 0.15s; background: var(--giu-red); }
-.typing span:nth-child(3) { animation-delay: 0.3s; background: var(--giu-gold); }
+.typing span:nth-child(2) { animation-delay: 0.15s; background: var(--brand-primary); }
+.typing span:nth-child(3) { animation-delay: 0.3s; background: var(--brand-accent); }
 @keyframes bounce {
   0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
   30% { transform: translateY(-6px); opacity: 1; }
@@ -456,9 +457,9 @@ a.choice-card { text-decoration: none; }
   border-radius: 50%;
   color: #fff;
 }
-.composer .send-button { background: var(--giu-red); }
-.composer .send-button:hover:not(:disabled) { background: var(--giu-red-dark); }
-.composer .stop-button { background: var(--giu-black); }
+.composer .send-button { background: var(--brand-primary); }
+.composer .send-button:hover:not(:disabled) { background: var(--brand-primary-dark); }
+.composer .stop-button { background: var(--brand-dark); }
 .composer .stop-button:hover:not(:disabled) { background: #000; }
 .composer .stop-button svg { fill: currentColor; stroke: none; width: 18px; height: 18px; }
 
@@ -507,7 +508,7 @@ a.choice-card { text-decoration: none; }
   padding: 6px 8px;
   width: fit-content;
   border: 1px solid var(--border);
-  border-left: 4px solid var(--giu-gold);
+  border-left: 4px solid var(--brand-accent);
   border-radius: 10px;
   background: var(--bg);
   font-size: 14px;
@@ -521,7 +522,7 @@ a.choice-card { text-decoration: none; }
   padding: 0 6px;
   font-size: 18px;
 }
-.pending-file button:hover:not(:disabled) { background: none; color: var(--giu-red); }
+.pending-file button:hover:not(:disabled) { background: none; color: var(--brand-primary); }
 
 /* ================= Walking directions (link to Google Maps) ================= */
 .walk-button {
@@ -531,11 +532,11 @@ a.choice-card { text-decoration: none; }
   font-size: 13px;
   font-weight: 600;
   color: #fff;
-  background: var(--giu-red);
+  background: var(--brand-primary);
   border-radius: 10px;
   text-decoration: none;
 }
-.walk-button:hover { background: var(--giu-red-dark); }
+.walk-button:hover { background: var(--brand-primary-dark); }
 
 /* ================= Voice call ================= */
 
@@ -548,7 +549,7 @@ a.choice-card { text-decoration: none; }
   justify-content: space-between;
   align-items: center;
   padding: 24px 24px 48px;
-  background: radial-gradient(circle at 50% 35%, #2b2b2b, var(--giu-black) 70%);
+  background: radial-gradient(circle at 50% 35%, #2b2b2b, var(--brand-dark) 70%);
   color: #fff;
 }
 .call-top { width: 100%; display: flex; justify-content: space-between; align-items: center; }
@@ -556,26 +557,26 @@ a.choice-card { text-decoration: none; }
 .call-time { font-variant-numeric: tabular-nums; color: #c9cacc; font-size: 15px; }
 
 /* Shows that both languages are understood (Whisper detects the language itself) */
-.call-languages-note { color: var(--giu-gold); font-size: 14px; font-weight: 600; }
+.call-languages-note { color: var(--brand-accent); font-size: 14px; font-weight: 600; }
 
 .call-center { display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 640px; }
 .call-center h2 { margin: 28px 0 4px; font-size: 22px; }
-.call-status { margin: 0; color: var(--giu-gold); font-size: 15px; min-height: 22px; }
+.call-status { margin: 0; color: var(--brand-accent); font-size: 15px; min-height: 22px; }
 
 /* The big round avatar; its glow shows what the assistant is doing */
 .call-avatar {
   width: 150px;
   height: 150px;
   border-radius: 50%;
-  background: var(--giu-red);
+  background: var(--brand-primary);
   color: #fff;
   font-size: 34px;
   font-weight: 800;
   letter-spacing: 1px;
-  border: 4px solid var(--giu-gold);
-  box-shadow: 0 0 0 0 rgba(196, 22, 28, 0.6);
+  border: 4px solid var(--brand-accent);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-primary) 60%, transparent);
 }
-.call-avatar:hover:not(:disabled) { background: var(--giu-red); }
+.call-avatar:hover:not(:disabled) { background: var(--brand-primary); }
 /* While listening, the glow follows the microphone volume (set inline in CallScreen) */
 .call-avatar.listening { animation: none; transition: box-shadow 0.08s linear; }
 .call-avatar.speaking { animation: pulse-gold 1.2s infinite; }
@@ -583,15 +584,15 @@ a.choice-card { text-decoration: none; }
 .call-avatar.understanding { animation: spin-glow 1.4s linear infinite; }
 .call-avatar.muted { background: #4a4a4a; border-color: #777; }
 @keyframes pulse-gold {
-  0% { box-shadow: 0 0 0 0 rgba(217, 162, 27, 0.6); }
-  100% { box-shadow: 0 0 0 28px rgba(217, 162, 27, 0); }
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-accent) 60%, transparent); }
+  100% { box-shadow: 0 0 0 28px color-mix(in srgb, var(--brand-accent) 0%, transparent); }
 }
 @keyframes spin-glow {
-  0% { box-shadow: -10px 0 24px rgba(217, 162, 27, 0.7); }
-  25% { box-shadow: 0 -10px 24px rgba(217, 162, 27, 0.7); }
-  50% { box-shadow: 10px 0 24px rgba(217, 162, 27, 0.7); }
-  75% { box-shadow: 0 10px 24px rgba(217, 162, 27, 0.7); }
-  100% { box-shadow: -10px 0 24px rgba(217, 162, 27, 0.7); }
+  0% { box-shadow: -10px 0 24px color-mix(in srgb, var(--brand-accent) 70%, transparent); }
+  25% { box-shadow: 0 -10px 24px color-mix(in srgb, var(--brand-accent) 70%, transparent); }
+  50% { box-shadow: 10px 0 24px color-mix(in srgb, var(--brand-accent) 70%, transparent); }
+  75% { box-shadow: 0 10px 24px color-mix(in srgb, var(--brand-accent) 70%, transparent); }
+  100% { box-shadow: -10px 0 24px color-mix(in srgb, var(--brand-accent) 70%, transparent); }
 }
 
 .call-text { margin-top: 28px; min-height: 90px; max-height: 30vh; overflow-y: auto; }
@@ -651,7 +652,7 @@ a.choice-card { text-decoration: none; }
   padding: 10px 14px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 4px solid var(--giu-gold);
+  border-left: 4px solid var(--brand-accent);
   border-radius: 12px;
   font-size: 14px;
 }
@@ -661,14 +662,14 @@ a.choice-card { text-decoration: none; }
   display: inline-block;
   padding: 6px 14px;
   border-radius: 10px;
-  background: var(--giu-red);
+  background: var(--brand-primary);
   color: #fff;
   font-weight: 600;
   font-size: 14px;
   text-decoration: none;
   white-space: nowrap;
 }
-.doc-download:hover { background: var(--giu-red-dark); }
+.doc-download:hover { background: var(--brand-primary-dark); }
 
 /* Download card and before/after list under an edit answer */
 .file-card {
@@ -709,7 +710,7 @@ a.choice-card { text-decoration: none; }
   text-decoration: none;
   white-space: nowrap;
 }
-.doc-view:hover { border-color: var(--giu-black); background: var(--bg); }
+.doc-view:hover { border-color: var(--brand-dark); background: var(--bg); }
 
 /* ================= A stopped question: Retry, Edit, Copy ================= */
 .message-actions { display: flex; align-items: center; gap: 2px; font-size: 13px; }
@@ -749,3 +750,11 @@ a.choice-card { text-decoration: none; }
 }
 .edit-message-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
 .edit-message-buttons button { padding: 7px 16px; }
+
+/* No logo: the short name on the brand colour */
+.text-logo {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--brand-primary); color: #fff; font-weight: 700; letter-spacing: 0.5px;
+  border-radius: 10px; padding: 0 10px; min-width: 44px; min-height: 44px; box-sizing: border-box;
+}
+.start-logo.text-logo { font-size: 28px; min-height: 80px; padding: 0 20px; }

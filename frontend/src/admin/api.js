@@ -40,6 +40,11 @@ export function login(password) {
   return request("/admin/login", { method: "POST", body: { password } }); // -> { token }
 }
 
+// This university's assistants: [{id, name, folder, ...}]
+export function listAgents(token) {
+  return request("/admin/agents", { token });
+}
+
 export function listDocuments(token) {
   return request("/admin/documents", { token }); // -> [{ id, agent, filename, updated_at }]
 }

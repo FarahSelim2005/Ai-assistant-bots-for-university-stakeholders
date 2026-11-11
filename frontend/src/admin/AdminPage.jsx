@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { ADMIN_AGENTS, agentLabel } from "./agents.js";
+import BrandLogo from "../components/BrandLogo.jsx";
 import {
-  UnauthorizedError, createDocument, deleteDocument, getDocument, listDocuments, login, updateDocument,
+  UnauthorizedError, createDocument, deleteDocument, getDocument, listAgents, listDocuments, login, updateDocument,
 } from "./api.js";
 import DocumentForm from "./DocumentForm.jsx";
 import "./admin.css";
@@ -44,7 +44,7 @@ export default function AdminPage() {
   return (
     <div className="admin">
       <header className="topbar">
-        <img src="/giu-logo.jpg" alt="German International University" className="topbar-logo" />
+        <BrandLogo className="topbar-logo" />
         <div className="topbar-title">
           <h1>Admin: documents</h1>
           <span>Add, edit and delete the documents the assistants answer from</span>
@@ -95,6 +95,8 @@ function LoginForm({ onLogin, notice }) {
 
 function Documents({ token, onUnauthorized }) {
   const [documents, setDocuments] = useState([]);
+  const [agents, setAgents] = useState([]); // this university's assistants
+  const agentLabel = (id) => agents.find((agent) => agent.id === id)?.name ?? id;
   const [filter, setFilter] = useState(""); // "" = all agents
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -116,7 +118,9 @@ function Documents({ token, onUnauthorized }) {
     setLoading(true);
     setError("");
     try {
-      setDocuments(await call(() => listDocuments(token)));
+      const [docs, assistants] = await Promise.all([call(() => listDocuments(token)), call(() => listAgents(token))]);
+      setDocuments(docs);
+      setAgents(assistants);
     } catch (err) {
       setError(`Could not load the documents: ${err.message}`);
     } finally {
@@ -166,7 +170,7 @@ function Documents({ token, onUnauthorized }) {
   }
 
   if (form) {
-    return <DocumentForm key={form.doc?.id ?? "new"} initial={form.doc} onSave={save} onCancel={() => setForm(null)} />;
+    return <DocumentForm key={form.doc?.id ?? "new"} initial={form.doc} agents={agents} onSave={save} onCancel={() => setForm(null)} />;
   }
 
   const shown = filter ? documents.filter((d) => d.agent === filter) : documents;
@@ -176,7 +180,7 @@ function Documents({ token, onUnauthorized }) {
         <h2>Documents</h2>
         <select value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Filter by agent">
           <option value="">All agents</option>
-          {ADMIN_AGENTS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+          {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
         <button onClick={() => { setForm({ mode: "add" }); setNotice(""); }}>+ Add document</button>
       </div>

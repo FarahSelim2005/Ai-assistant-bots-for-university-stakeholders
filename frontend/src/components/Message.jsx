@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { findAgent } from "../agents.js";
+import { audienceTitle, findAssistant, tenant } from "../tenant.js";
 import CampusMap from "./CampusMap.jsx";
 
 const ARABIC_LETTERS = /[؀-ۿ]/;
+// How the usual audiences are named in a sentence; other audiences use their title.
 const USERS = { student: { en: "students", ar: "للطلبة" }, staff: { en: "staff", ar: "للموظفين" } };
 
 // One chat message. Assistant messages also show a map (if rooms or places are mentioned),
@@ -84,13 +85,15 @@ export default function Message({ message, onRate, onResend, busy }) {
   }
 
   // Who the suggested agent is for, when this user may not use it
-  const onlyFor = message.redirect?.available === false
-    ? (findAgent(message.redirect.agent)?.userTypes.includes("staff") ? USERS.staff : USERS.student)
+  const forWhom = findAssistant(message.redirect?.agent)?.audiences ?? [];
+  const onlyFor = message.redirect?.available === false && forWhom.length
+    ? { en: forWhom.map((key) => USERS[key]?.en ?? audienceTitle(key).toLowerCase()).join(" and "),
+        ar: forWhom.map((key) => USERS[key]?.ar ?? audienceTitle(key)).join(" و") }
     : null;
 
   return (
     <div className="message assistant">
-      <div className="avatar">GIU</div>
+      <div className="avatar">{tenant().short_name}</div>
       <div className="assistant-body">
         {!message.mapOnly && <div className="bubble" dir="auto">{message.content}</div>}
 
