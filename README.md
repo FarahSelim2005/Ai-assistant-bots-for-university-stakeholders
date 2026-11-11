@@ -56,41 +56,30 @@ model set in `.env`) · React + Vite.
 
 ## 1. Database
 
-Create a database called `giu-bots` (for example in pgAdmin) and run this SQL in it.
-Skip this if your database already has these tables.
+Create a database called `giu-bots` (for example in pgAdmin). The tables are created and
+changed by the numbered SQL files in `backend/migrations/`, applied in order by
+`scripts/migrate.py` once the backend is set up (step 2):
 
-```sql
-CREATE TABLE chunks (
-    id        SERIAL PRIMARY KEY,
-    agent     TEXT NOT NULL,
-    audience  TEXT[] NOT NULL DEFAULT '{student,staff}',
-    source    TEXT,
-    content   TEXT NOT NULL,
-    embedding DOUBLE PRECISION[]
-);
-
-CREATE TABLE conversations (
-    id         SERIAL PRIMARY KEY,
-    user_type  TEXT NOT NULL CHECK (user_type IN ('student', 'staff')),
-    agent      TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-
-CREATE TABLE messages (
-    id              SERIAL PRIMARY KEY,
-    conversation_id INTEGER REFERENCES conversations(id) ON DELETE CASCADE,
-    role            TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
-    content         TEXT NOT NULL,
-    created_at      TIMESTAMPTZ DEFAULT now()
-);
-
-CREATE TABLE feedback (
-    id         SERIAL PRIMARY KEY,
-    message_id INTEGER REFERENCES messages(id) ON DELETE CASCADE,
-    rating     INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
-    created_at TIMESTAMPTZ DEFAULT now()
-);
+```bash
+cd backend
+source .venv/Scripts/activate
+python -m scripts.migrate --status   # which files are applied / pending
+python -m scripts.migrate            # apply the pending ones
 ```
+
+**Back up the database first** (pgAdmin: right-click `giu-bots` → *Backup...*, format
+*Custom*). Each file runs in its own transaction, so a failing file changes nothing, and
+applied files are recorded in the `schema_migrations` table, so running the command again
+only applies new files. Every file is also safe to run twice by hand.
+
+| File | What it does |
+|---|---|
+| `000_base.sql` | The original tables (`chunks`, `conversations`, `messages`, `feedback`). Changes nothing on an existing database. |
+| `001_tenants.sql` | Multitenancy: a `tenants` table (one row per university; `giu` is created) and `tenant_domains` (which host opens which university: `localhost`, `127.0.0.1` and `giu.localhost` open GIU). Adds `tenant_id` to `chunks`, `conversations`, `messages` and `feedback`, fills it with GIU's id for all existing rows and makes it required. Until the app sends the tenant itself, `tenant_id` defaults to GIU, so nothing changes for the app. |
+
+To try the migrations on a copy first: in pgAdmin create a database `giu-bots-copy` with
+*Template* `giu-bots` (no other connection to `giu-bots` may be open), then run
+`python -m scripts.migrate --database giu-bots-copy`.
 
 pgvector is not used: embeddings are stored as `DOUBLE PRECISION[]` and the cosine
 similarity is computed in Python (`cosine_similarity` in `backend/app/rag/retriever.py`).
@@ -489,7 +478,10 @@ backend/
   tests/
     test_documents.py    document editor tests (python -m unittest discover -s tests)
     test_admin.py        admin route tests
+    test_migrate.py      migration runner tests
+  migrations/            numbered SQL files (000_base.sql, 001_tenants.sql, ...)
   scripts/
+    migrate.py           apply the pending migrations
     ingest.py            load documents into the chunks table
     evaluate.py          accuracy and response time on test questions
     try_retrieve.py      show retrieved chunks for a question
