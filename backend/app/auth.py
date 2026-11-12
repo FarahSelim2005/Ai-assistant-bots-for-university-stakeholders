@@ -90,6 +90,10 @@ def log_in(email: str, password: str, console: bool = False) -> tuple[str, Sessi
         return None
     with (get_admin_connection() if console else get_connection(tenant_id)) as conn:
         conn.execute("UPDATE users SET last_login_at = now() WHERE id = %s", (user_id,))
+    return new_session(user_id, email, name, role, tenant_id)
+
+
+def new_session(user_id, email: str, name: str, role: str, tenant_id) -> tuple[str, Session]:
     now = time.time()
     for token, session in list(_sessions.items()):  # forget expired sessions
         if session.expiry < now:
@@ -97,6 +101,37 @@ def log_in(email: str, password: str, console: bool = False) -> tuple[str, Sessi
     token = secrets.token_urlsafe(32)
     _sessions[token] = Session(user_id, email, name, role, tenant_id, now + config.ADMIN_TOKEN_HOURS * 3600)
     return token, _sessions[token]
+
+
+# One-time login links: after the public sign-up, the new admin is logged in on the new
+# university's address (another site, so the sign-up page cannot hand over a session). A
+# ticket works once, for TICKET_SECONDS, and only on its own university's host.
+TICKET_SECONDS = 600
+_tickets: dict[str, tuple[uuid.UUID, uuid.UUID, float]] = {}  # ticket -> (user id, tenant id, expiry)
+
+
+def issue_ticket(user_id: uuid.UUID, tenant_id: uuid.UUID) -> str:
+    now = time.time()
+    for ticket, (_, _, expiry) in list(_tickets.items()):
+        if expiry < now:
+            del _tickets[ticket]
+    ticket = secrets.token_urlsafe(32)
+    _tickets[ticket] = (user_id, tenant_id, now + TICKET_SECONDS)
+    return ticket
+
+
+def redeem_ticket(ticket: str) -> tuple[str, Session] | None:
+    """A session for a valid ticket of this request's university (the ticket is used up)."""
+    found = _tickets.pop(ticket, None)
+    if found is None or found[2] < time.time() or found[1] != tenants.current_id():
+        return None
+    with get_connection(found[1]) as conn:
+        row = conn.execute(f"SELECT {USER_COLUMNS} FROM users WHERE id = %s AND tenant_id = %s",
+                           (found[0], found[1])).fetchone()
+        if row is None or not row[6]:
+            return None
+        conn.execute("UPDATE users SET last_login_at = now() WHERE id = %s", (found[0],))
+    return new_session(row[0], row[1], row[2], row[3], row[4])
 
 
 def log_out(token: str) -> None:

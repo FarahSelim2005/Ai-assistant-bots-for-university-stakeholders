@@ -117,6 +117,7 @@ def answer_question(body: ChatRequest) -> Outcome:
     usage.for_agent(agent.id)
 
     try:
+        usage.check_subscription()  # paused by billing (a trial that ran out, an unpaid month)
         usage.check_allowance()  # over the monthly cap: say so before any search or model call
         wants_edit, wants_pdf = is_edit_request(body.query), is_pdf_request(body.query)
         # "Convert it to pdf" only wants a PDF (no model); "translate it and send it as pdf" also edits.

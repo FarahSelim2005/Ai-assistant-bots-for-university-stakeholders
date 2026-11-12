@@ -104,6 +104,26 @@ def is_development() -> bool:
     return APP_ENV == "development"
 
 
+# Email (the sign-up's 6-digit code), sent with Python's smtplib. Port 465: SSL; any other
+# port: STARTTLS when the server offers it. Empty SMTP_HOST: no email is sent and the code
+# is printed in the backend's log instead (for trying it on your own computer).
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587") or "587")
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM = os.getenv("SMTP_FROM", "") or SMTP_USER
+
+# Sign-up and billing (app/billing/). Payments go through PAYMENT_PROVIDER; only "simulated"
+# exists for now (a test-mode checkout page of our own, no real payment, no keys).
+PAYMENT_PROVIDER = "simulated"
+SIGNUP_CODE_MINUTES = 10      # an email code works this long
+SIGNUP_CODE_TRIES = 5         # wrong tries per code
+SIGNUP_CODES_PER_SIGNUP = 5   # codes one sign-up may ask for
+SIGNUP_CODE_RESEND_SECONDS = 60
+SIGNUPS_PER_IP_PER_HOUR = 10  # sign-ups started from one address
+GRACE_DAYS = 7                # after a failed payment the chat keeps working this long, then pauses
+
+
 DEV_ORIGIN_REGEX = r"^http://(localhost|127\.0\.0\.1|[a-z0-9-]+\.localhost):5173$"
 
 # Tenants (universities). GIU's documents stay in data/raw/<agent>/; every other

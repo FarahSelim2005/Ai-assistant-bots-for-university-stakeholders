@@ -150,7 +150,7 @@ def use_for_script(slug: str) -> Tenant:
 
 class TenantMiddleware:
     """Finds the tenant of every HTTP request and sets it for the code that handles it.
-    Unknown host -> 404, suspended tenant -> 403. A plain ASGI middleware (not
+    Unknown host -> 404, suspended (or waiting for review) tenant -> 403. A plain ASGI middleware (not
     BaseHTTPMiddleware), so the chat's "Stop" detection keeps working."""
 
     def __init__(self, app):
@@ -170,7 +170,9 @@ class TenantMiddleware:
             await JSONResponse({"detail": "No university is set up for this address."}, 404)(scope, receive, send)
             return
         if tenant.status != "active":
-            await JSONResponse({"detail": f"The {tenant.name} assistant is not available."}, 403)(scope, receive, send)
+            detail = (f"{tenant.name} is being set up. It opens as soon as it is approved."
+                      if tenant.status == "review" else f"The {tenant.name} assistant is not available.")
+            await JSONResponse({"detail": detail}, 403)(scope, receive, send)
             return
         with using(tenant):
             await self.app(scope, receive, send)

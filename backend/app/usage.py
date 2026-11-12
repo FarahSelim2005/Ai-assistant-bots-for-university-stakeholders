@@ -1,6 +1,7 @@
 """Usage per university (migration 008): every model call is logged with its tokens, and a
 university that has used its plan's monthly token cap gets no more model calls until the next
-calendar month (AllowanceUsedUp; the routes answer 429 with a clear message).
+calendar month (AllowanceUsedUp; the routes answer 429 with a clear message). The chat also
+stops while the university's subscription is paused (check_subscription).
 
 The model client (app/llm/client.py) and the embedding client (app/rag/embeddings.py) call
 check_allowance() before and record() after each request. Calls outside a university (scripts
@@ -49,6 +50,21 @@ def check_allowance() -> None:
     if cap is not None and used >= cap:
         raise AllowanceUsedUp(f"{tenant.name} has used this month's allowance of the assistants. "
                               "Please try again next month or contact the university.")
+
+
+def check_subscription() -> None:
+    """Raise AllowanceUsedUp when the current university's subscription is paused or has
+    ended (migration 010: a trial that ran out, a failed payment after its grace days, a
+    cancellation). Universities without a subscription (added by hand) always pass."""
+    from app.billing.service import CHAT_STOPPED, EFFECTIVE_STATUS
+    tenant = tenants.current_or_none()
+    if tenant is None:
+        return
+    with get_connection(tenant.id) as conn:
+        row = conn.execute(f"SELECT {EFFECTIVE_STATUS} FROM subscriptions s WHERE s.tenant_id = %s", (tenant.id,)).fetchone()
+    if row and row[0] in CHAT_STOPPED:
+        raise AllowanceUsedUp(f"The {tenant.short} assistants are paused at the moment. "
+                              f"Please try again later or contact {tenant.short}.")
 
 
 def record(model: str, kind: str, prompt_tokens: int = 0, completion_tokens: int = 0, total_tokens: int = 0,

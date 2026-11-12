@@ -2,41 +2,43 @@
 
 POST /console/login                {email, password} -> {token, user}   (role platform_owner)
 POST /console/logout
-GET  /console/plans                [{key, name, monthly_token_cap, max_assistants}]
+GET  /console/plans                [{key, name, price_egp, trial_days, monthly_token_cap, max_assistants, public, ...}]
 GET  /console/templates            the ready-made assistants
 GET  /console/universities         [{id, slug, name, status, plan, hosts, assistants, users, questions_30d,
                                      tokens_30d, cost_30d, tokens_month, ...}]
 GET  /console/models               the platform's models (names only) and which API keys are set
 GET  /console/usage                tokens, cost and questions per university and month (last 6 months)
-POST /console/universities         the "New university" wizard: name, subdomain, look, assistants (their own,
+POST /console/universities         "Add by hand" (the wizard): name, subdomain, look, assistants (their own,
                                    or ready-made ones), first admin
-PUT  /console/universities/{id}    {status?: "active" | "suspended", plan?}
+PUT  /console/universities/{id}    {status?: "active" | "suspended", plan?}   ("active" also approves a sign-up)
+PUT  /console/plans/{key}          {name?, price_egp?, monthly_token_cap?, max_assistants?, trial_days?, public?, description?}
+GET  /console/settings             {require_review, payment_provider}
+PUT  /console/settings             {require_review}: new sign-ups wait for approval
+GET  /console/subscriptions        the signed-up universities' subscriptions and the latest billing events
+POST /console/subscriptions/{id}/simulate-month   {payment: "succeeds" | "fails"}   (test mode)
+POST /console/subscriptions/{id}/extend-trial     {days}
 
 These routes work across universities, so they use the owner's connection (DB_ADMIN_USER, a
 superuser: row-level security does not apply) and are only for platform owners, whose
 accounts are made with python -m scripts.create_user --role platform_owner.
 """
 import logging
-import re
 import time
+from typing import Literal
 
 import psycopg
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from app import auth, config, tenants
+from app import auth, config, tenants, universities
 from app.auth import Session, platform_owner
+from app.billing import service
 from app.db import get_admin_connection
-from app.routers.admin import COLOUR, LOGO, MAX_LOGO_CHARS, LoginRequest
+from app.routers.admin import MAX_LOGO_CHARS, LoginRequest
 
 router = APIRouter(prefix="/console")
 log = logging.getLogger("uvicorn.error")
-
-SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
-HOST = re.compile(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$")
-DEFAULT_AUDIENCES = '[{"key": "student", "title": "Student", "text": ""}, {"key": "staff", "title": "Staff", "text": ""}]'
-
 
 class AdminIn(BaseModel):
     email: str = Field(min_length=3, max_length=200)
@@ -72,6 +74,28 @@ class UniversityChange(BaseModel):
     plan: str | None = None
 
 
+class PlanIn(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=60)
+    price_egp: int | None = Field(default=None, ge=0, le=10_000_000)
+    monthly_token_cap: int | None = Field(default=None, gt=0)
+    max_assistants: int | None = Field(default=None, gt=0, le=1000)
+    trial_days: int | None = Field(default=None, gt=0, le=365)
+    public: bool | None = None
+    description: str | None = Field(default=None, max_length=300)
+
+
+class SettingsIn(BaseModel):
+    require_review: bool
+
+
+class SimulateIn(BaseModel):
+    payment: Literal["succeeds", "fails"]
+
+
+class ExtendIn(BaseModel):
+    days: int = Field(gt=0, le=90)
+
+
 # ---------------------------------------------------------------- login
 
 @router.post("/login")
@@ -95,9 +119,9 @@ def logout(authorization: str = Header(default="")):
 
 @router.get("/plans", dependencies=[Depends(platform_owner)])
 def list_plans():
+    """Every plan with its price (EGP a month), caps, trial days and whether the public sign-up offers it."""
     with get_admin_connection() as conn:
-        rows = conn.execute("SELECT key, name, monthly_token_cap, max_assistants FROM plans ORDER BY position").fetchall()
-    return [{"key": k, "name": n, "monthly_token_cap": cap, "max_assistants": most} for k, n, cap, most in rows]
+        return service.plans(conn)
 
 
 @router.get("/templates", dependencies=[Depends(platform_owner)])
@@ -112,6 +136,7 @@ def list_templates():
 def list_universities():
     """Every university with its plan, addresses, assistants, users, chats and token use."""
     with get_admin_connection() as conn:
+        service.settle(conn)  # subscription statuses up to date
         rows = conn.execute("""
             SELECT t.id, t.slug, t.name, t.short_name, t.status, t.plan, p.name, p.monthly_token_cap, p.max_assistants,
                    t.brand_primary, t.created_at,
@@ -128,13 +153,17 @@ def list_universities():
                    (SELECT coalesce(sum(x.total_tokens), 0) FROM usage x
                     WHERE x.tenant_id = t.id AND x.created_at >= now() - interval '30 days'),
                    (SELECT coalesce(sum(x.cost_usd), 0) FROM usage x
-                    WHERE x.tenant_id = t.id AND x.created_at >= now() - interval '30 days')
-            FROM tenants t JOIN plans p ON p.key = t.plan ORDER BY t.created_at, t.slug""").fetchall()
+                    WHERE x.tenant_id = t.id AND x.created_at >= now() - interval '30 days'),
+                   t.signed_up_at, s.status, p.price_egp
+            FROM tenants t JOIN plans p ON p.key = t.plan LEFT JOIN subscriptions s ON s.tenant_id = t.id
+            ORDER BY t.created_at, t.slug""").fetchall()
     return [{"id": str(r[0]), "slug": r[1], "name": r[2], "short_name": r[3] or r[2], "status": r[4], "plan": r[5],
              "plan_name": r[6], "monthly_token_cap": r[7], "max_assistants": r[8], "colour": r[9],
              "created_at": r[10].isoformat(), "hosts": r[11] or [], "assistants": r[12], "users": r[13],
              "conversations": r[14], "tokens_month": int(r[15]), "tokens_total": int(r[16]),
-             "questions_30d": r[17], "tokens_30d": int(r[18]), "cost_30d": float(r[19])} for r in rows]
+             "questions_30d": r[17], "tokens_30d": int(r[18]), "cost_30d": float(r[19]),
+             "signed_up_at": r[20].isoformat() if r[20] else None, "subscription": r[21], "price_egp": r[22]}
+            for r in rows]
 
 
 @router.get("/models", dependencies=[Depends(platform_owner)])
@@ -175,102 +204,30 @@ def usage_by_month():
 
 @router.post("/universities", dependencies=[Depends(platform_owner)])
 def create_university(body: UniversityIn):
-    """The "New university" wizard, in one transaction: the university (name, look, plan), its
-    address, its assistants from the chosen templates (each in its own folder, named after the
-    template) and its first admin. Nothing is made if any part is refused."""
-    slug = body.slug.strip().lower()
-    host = (body.host or f"{slug}.localhost").strip().lower()
-    email = body.admin.email.strip().lower()
-    if not SLUG.match(slug):
-        raise HTTPException(400, "The subdomain may only have lower case letters, digits and -, up to 40.")
-    if not HOST.match(host):
-        raise HTTPException(400, "That is not a host name (for example demo.localhost or chat.uni.edu).")
-    for key in ("brand_primary", "brand_accent", "brand_dark"):
-        if not COLOUR.match(getattr(body, key)):
-            raise HTTPException(400, "Colours are written like #c4161c.")
-    if body.logo_url and not LOGO.match(body.logo_url):
-        raise HTTPException(400, "The logo must be a PNG, JPEG, WebP or SVG picture.")
+    """"Add by hand" (the wizard), in one transaction: the university, its address, its
+    assistants and its first admin (app/universities.py). Nothing is made if any part is
+    refused. A university added by hand has no subscription: billing never pauses it."""
     problem = auth.password_problem(body.admin.password)
     if problem:
         raise HTTPException(400, f"Admin password: {problem}")
-    if not re.match(r"^[^@\s]+@[^@\s]+$", email):
-        raise HTTPException(400, "The admin's email is not an email address.")
-    assistants = [*body.assistants, *(AssistantIn(name=key, template_key=key) for key in dict.fromkeys(body.templates))]
-    templates = [a.template_key for a in assistants if a.template_key]
-    if any(not a.name.strip() for a in assistants):
-        raise HTTPException(400, "Every assistant needs a name.")
+    assistants = [*(a.model_dump() for a in body.assistants),
+                  *({"name": key, "template_key": key} for key in dict.fromkeys(body.templates))]
     with get_admin_connection() as conn:
-        plan = conn.execute("SELECT max_assistants FROM plans WHERE key = %s", (body.plan,)).fetchone()
-        if plan is None:
-            raise HTTPException(400, f"Unknown plan '{body.plan}'.")
-        if plan[0] is not None and len(assistants) > plan[0]:
-            raise HTTPException(400, f"The {body.plan} plan allows {plan[0]} assistants.")
-        known = {k for (k,) in conn.execute("SELECT key FROM agent_templates WHERE key = ANY(%s)", (templates,))}
-        if set(templates) - known:
-            raise HTTPException(400, f"Unknown assistants: {', '.join(sorted(set(templates) - known))}.")
-        if conn.execute("SELECT 1 FROM tenants WHERE slug = %s", (slug,)).fetchone():
-            raise HTTPException(409, f"The subdomain '{slug}' is taken.")
-        if conn.execute("SELECT 1 FROM tenant_domains WHERE host = %s", (host,)).fetchone():
-            raise HTTPException(409, f"The address {host} is taken.")
-        if conn.execute("SELECT 1 FROM users WHERE email = %s", (email,)).fetchone():
-            raise HTTPException(409, "This email address already has an account.")
-        tenant_id = conn.execute(
-            "INSERT INTO tenants (slug, name, short_name, plan, brand_primary, brand_accent, brand_dark, logo_url, audiences) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
-            (slug, body.name.strip(), body.short_name.strip(), body.plan, body.brand_primary, body.brand_accent,
-             body.brand_dark, body.logo_url or None, DEFAULT_AUDIENCES)).fetchone()[0]
-        conn.execute("INSERT INTO tenant_domains (host, tenant_id, is_primary) VALUES (%s, %s, true)", (host, tenant_id))
-        # Its assistants, in the order given: a template's settings with the name (and what it
-        # handles) chosen here, or a new one from just its name and what it handles. No CV
-        # rewrites or campus map: a new university has neither yet. Each gets its own folder.
-        folders: set[str] = set()
-        for position, assistant in enumerate(assistants, start=1):
-            folder = unique_folder(assistant.template_key or assistant.name, folders)
-            if assistant.template_key:
-                conn.execute("""
-                    INSERT INTO agents (tenant_id, template_key, name, summary, subtitle, description, audiences,
-                                        answer_mode, prompt_mode, instructions, fallback_en, fallback_ar, welcome,
-                                        placeholder, examples, skills, max_answer_tokens, position, folder)
-                    SELECT %s, key, CASE WHEN %s = key THEN name ELSE %s END,
-                           CASE WHEN %s = '' THEN summary ELSE %s END, subtitle,
-                           CASE WHEN %s = '' THEN description ELSE %s END, audiences, answer_mode, prompt_mode,
-                           instructions, fallback_en, fallback_ar, welcome, placeholder, examples,
-                           array_remove(array_remove(skills, 'cv'), 'map'), max_answer_tokens, %s, %s
-                    FROM agent_templates WHERE key = %s""",
-                             (tenant_id, assistant.name, assistant.name, assistant.description, assistant.description,
-                              assistant.description, assistant.description, position, folder, assistant.template_key))
-            else:
-                what = assistant.description.strip() or f"questions about {assistant.name}"
-                conn.execute("""
-                    INSERT INTO agents (tenant_id, name, summary, description, audiences, answer_mode, instructions,
-                                        fallback_en, welcome, skills, position, folder)
-                    VALUES (%s, %s, %s, %s, '{student,staff}', 'docs', %s, %s, %s, '{files,images,editor,voice}', %s, %s)""",
-                             (tenant_id, assistant.name.strip(), what, what,
-                              f"You help {{university}} students and staff with {what[0].lower() + what[1:]}",
-                              "Sorry, I don't have information about that. Please contact the relevant {university} office.",
-                              "How can I help you? Ask me a question.", position, folder))
-        conn.execute("INSERT INTO users (tenant_id, email, name, role, password_hash) VALUES (%s, %s, %s, 'tenant_admin', %s)",
-                     (tenant_id, email, body.admin.name, auth.hash_password(body.admin.password)))
+        tenant_id, host = universities.create(
+            conn, name=body.name, short_name=body.short_name, slug=body.slug, host=body.host, plan=body.plan,
+            assistants=assistants, admin_email=body.admin.email, admin_name=body.admin.name,
+            password_hash=auth.hash_password(body.admin.password), brand_primary=body.brand_primary,
+            brand_accent=body.brand_accent, brand_dark=body.brand_dark, logo_url=body.logo_url)
     tenants._by_host.clear()
     log.info("Console: new university %s (%s) with %d assistants", body.name, host, len(assistants))
-    return {"id": str(tenant_id), "slug": slug, "host": host, "url": f"http://{host}:5173",
+    return {"id": str(tenant_id), "slug": body.slug.strip().lower(), "host": host, "url": f"http://{host}:5173",
             "admin_url": f"http://{host}:5173/admin"}
-
-
-def unique_folder(name: str, taken: set[str]) -> str:
-    """A readable folder name for a new assistant, not yet used by this university's others."""
-    base = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")[:40] or "assistant"
-    folder, number = base, 1
-    while folder in taken:
-        number += 1
-        folder = f"{base}_{number}"
-    taken.add(folder)
-    return folder
 
 
 @router.put("/universities/{tenant_id}")
 def change_university(tenant_id: str, body: UniversityChange, session: Session = Depends(platform_owner)):
-    """Suspend or reactivate a university (a suspended one answers 403 everywhere), or change its plan."""
+    """Suspend or reactivate a university (a suspended one answers 403 everywhere), approve a sign-up
+    waiting for review ("active"), or change its plan (and its subscription's)."""
     values = body.model_dump(exclude_unset=True)
     if "status" in values and values["status"] not in ("active", "suspended"):
         raise HTTPException(400, "The status must be active or suspended.")
@@ -280,10 +237,72 @@ def change_university(tenant_id: str, body: UniversityChange, session: Session =
         with get_admin_connection() as conn:
             changed = conn.execute(f"UPDATE tenants SET {', '.join(f'{k} = %s' for k in values)} WHERE id = %s",
                                    (*values.values(), tenant_id)).rowcount
+            if "plan" in values:
+                conn.execute("UPDATE subscriptions SET plan_key = %s, updated_at = now() WHERE tenant_id = %s",
+                             (values["plan"], tenant_id))
     except (psycopg.errors.ForeignKeyViolation, psycopg.errors.InvalidTextRepresentation):
         raise HTTPException(400, "Unknown plan or university.")
     if not changed:
         raise HTTPException(404, "University not found.")
     tenants._by_host.clear()  # the next request sees the new status
     log.info("Console: %s changed university %s (%s)", session.email, tenant_id, values)
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------- plans, sign-ups and subscriptions
+
+@router.put("/plans/{key}")
+def change_plan(key: str, body: PlanIn, session: Session = Depends(platform_owner)):
+    """Change a plan's name, price (EGP a month), caps, trial days, description or whether the
+    public sign-up offers it. null caps mean "no limit". A new price applies from the next payment."""
+    values = body.model_dump(exclude_unset=True)
+    if any(key_ in values and values[key_] is None for key_ in ("name", "price_egp", "public", "description")):
+        raise HTTPException(400, "Name, price, description and public cannot be empty.")
+    if not values:
+        return {"ok": True}
+    with get_admin_connection() as conn:
+        current = service.plan(conn, key)
+        if current is None:
+            raise HTTPException(404, "Unknown plan.")
+        if {**current, **values}["trial_days"] and {**current, **values}["price_egp"] > 0:
+            raise HTTPException(400, "A trial plan must be free (price 0).")
+        conn.execute(f"UPDATE plans SET {', '.join(f'{k} = %s' for k in values)} WHERE key = %s", (*values.values(), key))
+    log.info("Console: %s changed plan %s (%s)", session.email, key, values)
+    return {"ok": True}
+
+
+@router.get("/settings", dependencies=[Depends(platform_owner)])
+def get_settings():
+    with get_admin_connection() as conn:
+        return {"require_review": service.require_review(conn), "payment_provider": config.PAYMENT_PROVIDER}
+
+
+@router.put("/settings")
+def change_settings(body: SettingsIn, session: Session = Depends(platform_owner)):
+    """"Require review before going live": new sign-ups wait (status review) until approved here."""
+    with get_admin_connection() as conn:
+        conn.execute("UPDATE platform_settings SET value = %s WHERE key = 'require_review'",
+                     ("true" if body.require_review else "false",))
+    log.info("Console: %s set require_review = %s", session.email, body.require_review)
+    return {"ok": True}
+
+
+@router.get("/subscriptions", dependencies=[Depends(platform_owner)])
+def list_subscriptions():
+    """The universities that signed up themselves: plan, status, dates, payments; the latest events."""
+    return service.all_subscriptions()
+
+
+@router.post("/subscriptions/{tenant_id}/simulate-month")
+def simulate_month(tenant_id: str, body: SimulateIn, session: Session = Depends(platform_owner)):
+    """Test mode: a month passes and the renewal payment succeeds or fails."""
+    result = service.simulate_month(tenant_id, body.payment == "succeeds")
+    log.info("Console: %s simulated a month for %s (payment %s)", session.email, tenant_id, body.payment)
+    return result
+
+
+@router.post("/subscriptions/{tenant_id}/extend-trial")
+def extend_trial(tenant_id: str, body: ExtendIn, session: Session = Depends(platform_owner)):
+    service.extend_trial(tenant_id, body.days)
+    log.info("Console: %s extended the trial of %s by %d days", session.email, tenant_id, body.days)
     return {"ok": True}

@@ -132,7 +132,8 @@ class ChatRouting(unittest.TestCase):
         if filename:
             body["attachments"] = [{"filename": filename, "data_base64": base64.b64encode(content).decode()}]
         calls = []
-        with tenants.using(agent.tenant), mock.patch.object(chat, "get_connection", lambda tenant_id: Conn()),              mock.patch.object(chat.usage, "check_allowance"), \
+        with tenants.using(agent.tenant), mock.patch.object(chat, "get_connection", lambda tenant_id: Conn()), \
+             mock.patch.object(chat.usage, "check_allowance"), mock.patch.object(chat.usage, "check_subscription"), \
              mock.patch.object(chat, "load_agent", return_value=agent), \
              mock.patch.object(chat, "restructure_cv", lambda *args: calls.append("cv rewrite") or chat.Outcome(AgentResponse("", []))), \
              mock.patch.object(chat, "edit", lambda *args, **kwargs: calls.append("editor") or chat.Outcome(AgentResponse("", []))), \

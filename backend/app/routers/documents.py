@@ -90,6 +90,7 @@ def run_edit(body: DocumentEditRequest, agent):
         except binascii.Error:
             raise HTTPException(400, "The file could not be read. Please try uploading it again.")
     try:
+        usage.check_subscription()  # paused by billing
         return edit_conversation_document(body.conversation_id, body.instruction, upload,
                                           body.document_token, agent)
     except ValueError as error:  # a bad file or an impossible request: tell the user why

@@ -5,6 +5,7 @@ needs "Authorization: Bearer <token>". Roles: tenant_admin (everything below) an
 (documents, and reading the assistants list).
 
 POST   /admin/login                 {email, password} -> {token, user}
+POST   /admin/login/ticket          {ticket} -> {token, user}   the one-time link after the public sign-up
 POST   /admin/logout
 GET    /admin/me                    {user, university}
 POST   /admin/me/password           {current_password, new_password}   (any role)
@@ -139,6 +140,20 @@ async def login(body: LoginRequest):
         raise HTTPException(401, "Wrong email or password.")
     token, session = result
     log.info("Admin: %s logged in (%s)", session.email, session.role)
+    return {"token": token, "user": {"email": session.email, "name": session.name, "role": session.role}}
+
+
+class TicketIn(BaseModel):
+    ticket: str = Field(min_length=10, max_length=100)
+
+
+@router.post("/login/ticket")
+def login_with_ticket(body: TicketIn):
+    """The one-time login link from the sign-up (auth.issue_ticket)."""
+    result = auth.redeem_ticket(body.ticket)
+    if result is None:
+        raise HTTPException(401, "This login link has expired. Please log in with your email and password.")
+    token, session = result
     return {"token": token, "user": {"email": session.email, "name": session.name, "role": session.role}}
 
 
