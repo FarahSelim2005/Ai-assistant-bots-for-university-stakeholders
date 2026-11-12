@@ -31,8 +31,10 @@ def send(to: str, subject: str, text: str) -> None:
         else:
             server = smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT, timeout=20)
         with server:
+            server.ehlo()  # the server lists what it offers (STARTTLS, AUTH) only after the greeting
             if config.SMTP_PORT != 465 and server.has_extn("starttls"):
                 server.starttls(context=ssl.create_default_context())
+                server.ehlo()
             if config.SMTP_USER:
                 server.login(config.SMTP_USER, config.SMTP_PASSWORD)
             server.send_message(message)
