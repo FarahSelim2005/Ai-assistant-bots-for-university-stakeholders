@@ -366,12 +366,14 @@ export default function App({ initialAgent }) {
               ))}
             </div>
           )}
-          <form className="tinput" onSubmit={handleSubmit}>
+          <form className="composer" onSubmit={handleSubmit}>
             <input ref={fileInputRef} type="file" accept={accepted} onChange={handleFilesChosen} multiple hidden />
             {/* "+": add files, and with the cv skill also "Analyze my CV" */}
             {(accepted || canCv) && <div className="plus-menu-wrap" ref={menuRef}>
-              <button type="button" className="tbtn ghost" onClick={() => setMenuOpen((open) => !open)}
-                      title="Add files and more" aria-label="Add files and more" aria-expanded={menuOpen}>＋</button>
+              <button type="button" className="icon-button" onClick={() => setMenuOpen((open) => !open)}
+                      title="Add files and more" aria-label="Add files and more" aria-expanded={menuOpen}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+              </button>
               {menuOpen && (
                 <div className="plus-menu" role="menu">
                   {accepted && <button type="button" role="menuitem" onClick={pickFiles}>
@@ -390,7 +392,7 @@ export default function App({ initialAgent }) {
               )}
             </div>}
             <input
-              className="box"
+              className="composer-input"
               value={input}
               onChange={(event) => setInput(event.target.value)}
               placeholder={attachments.length
@@ -402,16 +404,23 @@ export default function App({ initialAgent }) {
               autoFocus
             />
             {callSupported && hasSkill(agent, "voice") && (
-              <button type="button" className="tbtn ghost" onClick={() => setCalling(true)}
-                      title="Talk to the assistant by voice" aria-label="Start a voice call">📞</button>
+              <button type="button" className="icon-button" onClick={() => setCalling(true)}
+                      title="Talk to the assistant by voice" aria-label="Start a voice call">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
+              </button>
             )}
             {/* Different keys make these two separate buttons. With one shared button, a
                 click on Stop turned it back into Send during the click, and the browser
                 then sent the question again. */}
             {loading ? (
-              <button key="stop" type="button" className="tbtn dark" onClick={stop} title="Stop and edit your message">Stop</button>
-            ) : (
-              <button key="send" type="submit" className="tbtn" disabled={!input.trim() && attachments.length === 0}>Send</button>
+              <button key="stop" type="button" className="round-button stop-button" onClick={stop}
+                      title="Stop and edit your message" aria-label="Stop">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" /></svg>
+              </button>
+            ) : (input.trim() || attachments.length > 0) && (
+              <button key="send" type="submit" className="round-button send-button" title="Send" aria-label="Send">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" /></svg>
+              </button>
             )}
           </form>
         </footer>

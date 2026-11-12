@@ -50,8 +50,8 @@ export default function Message({ message, onRate, onResend, busy }) {
                         if (event.key === "Escape") setEditing(false);
                       }} />
             <div className="edit-message-buttons">
-              <button type="button" className="tbtn ghost" onClick={() => setEditing(false)}>Cancel</button>
-              <button type="submit" className="tbtn" disabled={busy || !draft.trim()}>Send</button>
+              <button type="button" className="secondary" onClick={() => setEditing(false)}>Cancel</button>
+              <button type="submit" disabled={busy || !draft.trim()}>Send</button>
             </div>
           </form>
         ) : (

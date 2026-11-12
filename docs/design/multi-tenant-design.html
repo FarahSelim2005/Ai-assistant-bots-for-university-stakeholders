@@ -194,6 +194,45 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; }
 .field > span:first-child { padding-top: 5px; }
 @media (max-width: 520px) { .field { grid-template-columns: 1fr; gap: 4px; } }
 
+/* public sign-up (platform tokens) */
+.signup { background: var(--bg); display: grid; align-content: start; }
+.stop { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.stop .brandp { display: flex; gap: 10px; align-items: center; font-family: var(--font-display); font-weight: 600; }
+.stop .brandp .tlogo { width: 28px; height: 28px; font-size: 10px; border-radius: 7px; background: var(--accent); color: var(--surface); }
+.sbody { padding: 22px 20px 26px; display: grid; gap: 18px; align-content: start; min-width: 0; }
+.steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.stp { font: inherit; font-size: 12px; padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); background: var(--surface); }
+.stp.done { color: var(--accent); border-color: var(--accent); cursor: pointer; }
+.stp.on { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+:root:not([data-theme="light"]) .stp.on { color: var(--bg); }
+.plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.plan { font: inherit; text-align: left; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 8px; align-content: start; cursor: pointer; }
+.plan[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.plan .pname { font-family: var(--font-display); font-weight: 600; font-size: 15px; display: flex; justify-content: space-between; gap: 6px; }
+.plan .price { font-family: var(--font-display); font-size: 24px; font-variant-numeric: tabular-nums; }
+.plan .price small { font-family: var(--font-body); font-size: 13px; color: var(--muted); }
+.plan ul { margin: 0; padding-left: 18px; font-size: 13px; color: var(--muted); display: grid; gap: 2px; }
+@media (max-width: 760px) { .plans { grid-template-columns: 1fr; } }
+.sform { max-width: 640px; display: grid; gap: 12px; }
+.sform h3 { font-size: 18px; }
+.colors { display: flex; gap: 8px; flex-wrap: wrap; }
+.colorbtn { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line); cursor: pointer; padding: 0; }
+.colorbtn[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--fg); }
+.suagent { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto; gap: 8px; align-items: center; }
+@media (max-width: 600px) { .suagent { grid-template-columns: minmax(0, 1fr) auto; } .suagent .finput:nth-child(2) { grid-column: 1 / -1; grid-row: 2; } }
+.mini { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: grid; grid-template-columns: 120px minmax(0, 1fr); min-height: 120px; background: #f6f6f7; }
+.mini .ms { padding: 10px; display: grid; gap: 6px; align-content: start; color: #fff; font-size: 11px; }
+.mini .ms i { display: block; padding: 4px 6px; border-radius: 5px; font-style: normal; background: rgba(255,255,255,.08); }
+.mini .ms i:first-of-type { background: var(--su-primary); }
+.mini .mm { padding: 10px; display: grid; gap: 6px; align-content: start; color: #1b1d21; font-size: 11.5px; }
+.mini .mm .b { justify-self: end; background: var(--su-primary); color: #fff; padding: 4px 8px; border-radius: 9px; }
+.mini .mm .a { background: #fff; border: 1px solid #e3e4e7; padding: 4px 8px; border-radius: 9px; }
+.sumtable td:first-child { color: var(--muted); }
+.err { color: var(--crit); font-size: 13px; }
+.okline { color: var(--ok); font-size: 13px; }
+.done-box { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 10px; max-width: 640px; }
+.done-box ol { margin: 0; padding-left: 20px; color: var(--muted); display: grid; gap: 4px; }
+
 /* architecture */
 .flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; align-items: stretch; overflow-x: auto; }
 .step { background: var(--surface); border: 1px solid var(--line); padding: 14px; display: grid; gap: 6px; align-content: start; position: relative; min-width: 170px; }
@@ -288,14 +327,15 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   <header>
     <p class="eyebrow">Interactive prototype</p>
     <h2>Three surfaces, one codebase</h2>
-    <p>Switch the university to see the same app with different branding, a different number of assistants and different assistant names. Switch the surface to move between what a student sees, what a university's admin sees and what you, the platform owner, see. In “University admin” you can rename, add and delete assistants, and the chat updates. GIU uses its real assistants. The other two universities are made-up examples.</p>
+    <p>There are four surfaces. Universities find the product and subscribe on the public <b>Sign up</b> page. Their staff manage it in <b>University admin</b>. Students and staff use the <b>chat</b>. Only you see the <b>Platform console</b>. Switch the university to see the same app with different branding, a different number of assistants and different assistant names. Switch the surface to move between what a student sees, what a university's admin sees and what you, the platform owner, see. In “University admin” you can rename, add and delete assistants, and the chat updates. GIU uses its real assistants. The other two universities are made-up examples.</p>
   </header>
   <div class="controls">
     <div class="ctl"><span class="lbl" id="lbl-tenant">University (tenant)</span><div class="seg" role="group" aria-labelledby="lbl-tenant" id="seg-tenant"></div></div>
     <div class="ctl"><span class="lbl" id="lbl-view">Surface</span><div class="seg" role="group" aria-labelledby="lbl-view" id="seg-view">
       <button type="button" data-view="chat" aria-pressed="true">Student / staff chat</button>
       <button type="button" data-view="admin" aria-pressed="false">University admin</button>
-      <button type="button" data-view="platform" aria-pressed="false">Platform console</button>
+      <button type="button" data-view="platform" aria-pressed="false">Platform console (you)</button>
+      <button type="button" data-view="signup" aria-pressed="false">Sign up (public)</button>
     </div></div>
     <div class="ctl" id="ctl-role"><span class="lbl" id="lbl-role">Signed in as</span><div class="seg" role="group" aria-labelledby="lbl-role" id="seg-role"></div></div>
   </div>
@@ -338,6 +378,27 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <div class="decision"><h3>Audiences instead of student/staff</h3><p class="pick">Replace the <code>CHECK (user_type IN ('student','staff'))</code> constraint with a per-tenant <code>audiences</code> table.</p><p>Universities differ: some need applicants, alumni or parents. Chunks keep their <code>audience TEXT[]</code>, filled with audience keys from that university. Each assistant lists which audiences may use it.</p></div>
     <div class="decision"><h3>Branding is data, not CSS</h3><p class="pick">Colours, logo, name and greeting come from <code>tenant_branding</code> and are set as CSS variables at load.</p><p><code>App.css</code> already uses <code>--giu-red</code>, <code>--giu-gold</code> and <code>--giu-black</code>. Renaming them to <code>--brand-primary</code>, <code>--brand-accent</code> and <code>--brand-dark</code> is mostly find-and-replace.</p></div>
     <div class="decision"><h3>Special features become skills</h3><p class="pick">The campus map, CV model, voice call and document editor are skills that can be switched on for any assistant.</p><p>The map needs each university's buildings and room numbering rules (<code>campus.py</code>, <code>campusGeo.js</code>), so it becomes a per-tenant <code>campus_config</code> JSON. Tenants without one simply don't show the map.</p></div>
+  </div>
+</section>
+
+<section class="section" id="signup">
+  <header>
+    <p class="eyebrow">Self-service sign-up</p>
+    <h2>Universities subscribe on their own</h2>
+    <p>The public page at <code>unibots.app/signup</code> lets a university create its chatbot and pay without you. The console stays yours alone, for watching, suspending, changing plans and adding a university by hand.</p>
+  </header>
+  <div class="flow">
+    <div class="step"><span class="k">1 · Plan</span><b>Choose a plan</b><p>Free trial, Standard or Campus. The plan sets the number of assistants, questions a month and features.</p></div>
+    <div class="step"><span class="k">2 · Account</span><b>University email</b><p>Personal addresses (Gmail and so on) are refused. A 6-digit code proves the person owns the address.</p></div>
+    <div class="step"><span class="k">3 · University</span><b>Name + domain</b><p>The email domain becomes the university's. A second sign-up with the same domain asks the first admin to approve it, so nobody can impersonate a university.</p></div>
+    <div class="step"><span class="k">4 · Build</span><b>Address, look, assistants</b><p>Subdomain, colour, logo and as many assistants as the plan allows, with any names.</p></div>
+    <div class="step"><span class="k">5 · Subscribe</span><b>Pay, then go live</b><p>Stripe Checkout (or Paymob for Egyptian cards). The payment webhook creates the tenant and logs the admin in.</p></div>
+  </div>
+  <div class="decisions">
+    <div class="decision"><h3>Payments: hosted checkout + webhooks</h3><p class="pick">The app never sees card numbers.</p><p>Sign-up creates a <code>pending</code> tenant and redirects to the payment page. The provider's webhook (<code>POST /billing/webhook</code>, signature checked) sets the subscription to <code>active</code>. Renewals, failed payments and cancellations arrive the same way. A failed payment gives 7 days' grace, then the chat pauses. Nothing is deleted.</p></div>
+    <div class="decision"><h3>Limits come from the plan</h3><p class="pick">Each plan has a number of assistants, questions a month and features.</p><p>The admin page greys out “New assistant” at the limit and offers an upgrade. <code>usage_events</code> counts questions. At 80% the admin gets an email; at 100% users see “This month's limit is reached”. Upgrading takes effect at once.</p></div>
+    <div class="decision"><h3>Your control in the console</h3><p class="pick">Every sign-up appears in your console right away.</p><p>You can suspend, extend a trial, change a plan or price, and turn on “Require review before going live” if you want to approve each new university by hand. Universities paying by invoice are still added by hand.</p></div>
+    <div class="decision"><h3>Anti-abuse</h3><p class="pick">One trial per email domain, rate-limited sign-up, and reserved subdomains.</p><p><code>www</code>, <code>console</code>, <code>api</code>, <code>admin</code> and the subdomains of existing universities can't be taken. A trial without documents costs almost nothing, because assistants only call the model when a document matches.</p></div>
   </div>
 </section>
 
@@ -393,6 +454,12 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
   , UNIQUE (tenant_id, email));
 <span class="k">CREATE TABLE</span> <span class="n">documents</span>       (id UUID PRIMARY KEY, tenant_id UUID, agent_id UUID REFERENCES agents, filename TEXT, storage_key TEXT
   , updated_by UUID, updated_at TIMESTAMPTZ); <span class="c">-- replaces data/raw/&lt;agent&gt;/ on disk</span>
+<span class="k">CREATE TABLE</span> <span class="n">plans</span>           (key TEXT PRIMARY KEY, name TEXT, price_cents INT, currency TEXT, max_agents INT
+  , monthly_questions INT, features TEXT[], provider_price_id TEXT, public BOOL);
+<span class="k">CREATE TABLE</span> <span class="n">subscriptions</span>   (tenant_id UUID PRIMARY KEY, plan_key TEXT REFERENCES plans, status TEXT <span class="c">-- trialing | active | past_due | paused | canceled</span>
+  , provider TEXT, provider_customer_id TEXT, provider_subscription_id TEXT, trial_ends_at TIMESTAMPTZ, current_period_end TIMESTAMPTZ);
+<span class="k">CREATE TABLE</span> <span class="n">signups</span>         (id UUID PRIMARY KEY, email TEXT, email_domain TEXT, code_hash TEXT, verified_at TIMESTAMPTZ
+  , draft JSONB <span class="c">-- university, slug, colours, assistants</span>, tenant_id UUID, created_at TIMESTAMPTZ);
 <span class="k">CREATE TABLE</span> <span class="n">usage_events</span>    (tenant_id UUID, at TIMESTAMPTZ, kind TEXT, model TEXT, tokens_in INT, tokens_out INT, cost_usd NUMERIC);
 
 <span class="c">-- existing tables: add tenant_id, backfill 'giu', then make it NOT NULL</span>
@@ -444,6 +511,7 @@ footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line)
     <div class="phase"><div class="ph"><h3>2. Assistants from the database</h3><span class="pill">2 weeks</span></div><p class="done">Done when a second test university with 6 assistants of its own works with no code changes.</p><ul><li>Add the <code>agents</code> table; turn GIU's four classes into four rows and the four templates</li><li><code>ConfiguredAgent</code> + <code>load_agent()</code>; move the CV and campus code into the <code>cv</code> and <code>map</code> skills; build the prompt from parts</li><li><code>GET /tenant</code> returns branding, assistants and audiences; the frontend reads it instead of <code>agents.js</code></li><li>Chunks, conversations and documents use <code>agent_id</code>; hand-over reads this university's descriptions</li><li>The existing GIU test questions in <code>evaluate.py</code> must score the same as before</li></ul></div>
     <div class="phase"><div class="ph"><h3>3. Real sign-in and roles</h3><span class="pill">1–2 weeks</span></div><p class="done">Done when each university's admin manages only their own content.</p><ul><li>Users, roles and email-domain audiences, with magic links first and SSO next</li><li>Scope the existing <code>/admin</code> pages to the tenant; add the Assistants builder, Branding and Users tabs</li><li>Chat history per user</li></ul></div>
     <div class="phase"><div class="ph"><h3>4. Platform console and metering</h3><span class="pill">1 week</span></div><p class="done">Done when you can onboard a university in under 10 minutes.</p><ul><li>Tenant list, usage chart, plan caps, suspend button</li><li>New-tenant wizard: name → subdomain → colours and logo → agents → first admin invite</li><li>Log <code>usage_events</code> in <code>llm/client.py</code>; enforce caps</li></ul></div>
+    <div class="phase"><div class="ph"><h3>4b. Self-service sign-up and subscriptions</h3><span class="pill">1–2 weeks</span></div><p class="done">Done when a university can sign up, pay and chat without you doing anything.</p><ul><li>Public <code>/signup</code> page with the 6 steps; email code; one trial per domain</li><li><code>plans</code>, <code>subscriptions</code> and <code>signups</code> tables; plan limits enforced in the admin and in chat</li><li>Stripe Checkout (test mode first) or Paymob, with <code>POST /billing/webhook</code>; a Billing tab in the university admin</li><li>Sign-ups listed in your console, with suspend, extend trial and “require review”</li></ul></div>
     <div class="phase"><div class="ph"><h3>5. Per-tenant features</h3><span class="pill">ongoing</span></div><p class="done">Done when the campus map works for a university other than GIU.</p><ul><li>Campus map from <code>campus_config</code> with a room-code rule builder in the admin</li><li>Glossary (<code>transliteration.py</code>) extendable per tenant</li><li>Tenant-supplied model keys and custom domains</li></ul></div>
   </div>
 </section>
@@ -517,7 +585,7 @@ try {
 } catch (e) {}
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 function save() {
-  try { localStorage.setItem("mt-proto2", JSON.stringify({ state, agents: Object.fromEntries(Object.entries(TENANTS).map(([k, t]) => [k, t.agents])) })); } catch (e) {}
+  try { localStorage.setItem("mt-proto2", JSON.stringify({ state: { ...state, tenant: BASE_TENANTS[state.tenant] ? state.tenant : "giu" }, agents: Object.fromEntries(Object.entries(TENANTS).map(([k, t]) => [k, t.agents])) })); } catch (e) {}
 }
 
 function renderSegs() {
@@ -595,25 +663,113 @@ function adminView(t) {
     </div></div>`;
 }
 
+
+const PLANS = {
+  trial: { name: "Free trial", price: "$0", per: "for 14 days", agents: 2, questions: "1,000 questions", feats: ["2 assistants", "1,000 questions", "Your own subdomain", "No card needed"] },
+  standard: { name: "Standard", price: "$149", per: "/ month", agents: 8, questions: "20,000 questions a month", feats: ["Up to 8 assistants", "20,000 questions a month", "File questions and voice", "Email sign-in"], tag: "Most chosen" },
+  campus: { name: "Campus", price: "$449", per: "/ month", agents: 99, questions: "100,000 questions a month", feats: ["Unlimited assistants", "100,000 questions a month", "Microsoft / Google sign-in", "Custom domain, campus map, CV review"] },
+};
+const SU_COLORS = ["#c2410c", "#1f4fa3", "#137a4b", "#0f766e", "#7c3aed", "#be123c", "#334155"];
+const SU_TEMPLATES = { "Graduation & Advising": "Advising, credit hours, course plans and graduation", "Internship & Career": "Internships, CVs, interviews and jobs", "Labs & Research": "Labs, equipment, rooms and offices", "HR & Policies": "Staff leave, contracts and HR rules", "Orientation": "First weeks: campus, timetable, ID and clubs" };
+const SU_STEPS = ["Plan", "Your account", "University", "Address & look", "Assistants", "Subscribe"];
+const freshSignup = () => ({ step: 0, plan: "standard", person: "Mona Hassan", email: "m.hassan@cairo-tech.edu.eg", uni: "Cairo Tech University", short: "CTU", slug: "ctu", primary: "#c2410c",
+  agents: [{ name: "Ask Admissions", desc: "Applying, documents, deadlines and fees" }, { name: "Student Help Desk", desc: "ID cards, transport, clinic and complaints" }], err: "", verified: false });
+let su = freshSignup();
+const suDomain = () => (su.email.split("@")[1] || "").toLowerCase();
+const suSlug = (v) => v.toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 30);
+
+function suValidate(step) {
+  if (step === 1) { if (!su.person.trim()) return "Enter your name."; if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(su.email)) return "Enter your university email address."; if (/@(gmail|yahoo|hotmail|outlook)\./i.test(su.email)) return "Use your university email, not a personal one. It proves you work there."; }
+  if (step === 2) { if (!su.uni.trim()) return "Enter the university's name."; if (!su.short.trim()) return "Enter a short name, for example CTU."; if (!su.verified) return "Enter the 6-digit code we emailed you."; }
+  if (step === 3) { if (su.slug.length < 2) return "Choose an address of at least 2 letters."; if (TENANTS[su.slug] || ["www", "console", "api", "admin", "app"].includes(su.slug)) return `${su.slug}.unibots.app is taken. Try another.`; }
+  if (step === 4) { const named = su.agents.filter((a) => a.name.trim()); if (!named.length) return "Add at least one assistant."; if (named.length > PLANS[su.plan].agents) return `The ${PLANS[su.plan].name} plan allows ${PLANS[su.plan].agents} assistants. Remove some or choose a bigger plan.`; }
+  return "";
+}
+
+function signupView() {
+  const pl = PLANS[su.plan];
+  const steps = SU_STEPS.map((n, i) => `<button type="button" class="stp ${i === su.step ? "on" : i < su.step ? "done" : ""}" ${i < su.step ? `data-sugo="${i}"` : "disabled"}>${i + 1}. ${n}</button>`).join("");
+  let body = "";
+  if (su.step === 0) {
+    body = `<div class="sform" style="max-width:none"><h3>Give your university its own AI assistants</h3><p class="note">Students and staff get answers from your own documents, in English and Arabic. Choose a plan. You can change it later. Prices are examples.</p></div>
+      <div class="plans">${Object.entries(PLANS).map(([k, p]) => `<button type="button" class="plan" data-plan="${k}" aria-pressed="${su.plan === k}"><span class="pname">${p.name}${p.tag ? `<span class="pill acc">${p.tag}</span>` : ""}</span><span class="price">${p.price} <small>${p.per}</small></span><ul>${p.feats.map((f) => `<li>${f}</li>`).join("")}</ul></button>`).join("")}</div>`;
+  } else if (su.step === 1) {
+    body = `<div class="sform"><h3>Create your account</h3><p class="note">You become the first admin of your university's chatbot. You can invite colleagues later.</p>
+      <label class="field" for="su-person"><span>Your name</span><input class="finput" id="su-person" data-su="person" value="${esc(su.person)}"></label>
+      <label class="field" for="su-email"><span>University email</span><input class="finput" id="su-email" type="email" data-su="email" value="${esc(su.email)}"></label>
+      <label class="field" for="su-pass"><span>Password</span><input class="finput" id="su-pass" type="password" value="example-password"></label></div>`;
+  } else if (su.step === 2) {
+    body = `<div class="sform"><h3>Your university</h3>
+      <label class="field" for="su-uni"><span>Full name</span><input class="finput" id="su-uni" data-su="uni" value="${esc(su.uni)}"></label>
+      <label class="field" for="su-short"><span>Short name</span><input class="finput" id="su-short" data-su="short" maxlength="12" value="${esc(su.short)}"></label>
+      <div class="field"><span>Email domain</span><span class="fval">${esc(suDomain() || "—")}</span></div>
+      <div class="panel"><h4>Prove you work there</h4><p class="note">So nobody can open a chatbot in another university's name, we emailed a 6-digit code to ${esc(su.email)}. Only addresses on <b>@${esc(suDomain())}</b> can sign in as this university's staff.</p>
+        <div class="crow"><input class="finput" id="su-code" style="max-width:160px" value="${su.verified ? "482913" : ""}" placeholder="6-digit code" aria-label="Verification code">${su.verified ? '<span class="okline">✓ Email confirmed</span>' : '<button class="btn ghost" type="button" data-suverify="1">Confirm code</button>'}</div></div></div>`;
+  } else if (su.step === 3) {
+    body = `<div class="sform"><h3>Address and look</h3>
+      <label class="field" for="su-slug"><span>Address</span><span style="display:flex;gap:6px;align-items:center;min-width:0"><input class="finput" id="su-slug" data-su="slug" value="${esc(su.slug)}"><span class="mono" style="white-space:nowrap">.unibots.app</span></span></label>
+      <div class="field"><span>Main colour</span><span class="colors">${SU_COLORS.map((c) => `<button type="button" class="colorbtn" data-sucolor="${c}" aria-pressed="${su.primary === c}" aria-label="Colour ${c}" style="background:${c}"></button>`).join("")}</span></div>
+      <div class="field"><span>Logo</span><span class="fval">Upload PNG or SVG · optional, the short name is used until then</span></div>
+      <div class="field"><span>Preview</span><div class="mini" style="--su-primary:${su.primary}"><div class="ms" style="background:#1d2027"><b id="su-prev-short">${esc(su.short)}</b>${su.agents.filter((a) => a.name.trim()).slice(0, 4).map((a) => `<i>${esc(a.name)}</i>`).join("")}</div><div class="mm"><span class="b">When is the deadline?</span><span class="a">Applications close on 15 August…</span></div></div></div></div>`;
+  } else if (su.step === 4) {
+    const named = su.agents.filter((a) => a.name.trim()).length;
+    body = `<div class="sform" style="max-width:760px"><h3>Your assistants</h3><p class="note">Create as many as your plan allows and name them however you like. ${named} of ${pl.agents === 99 ? "unlimited" : pl.agents} used. You add their documents after sign-up.</p>
+      ${su.agents.map((a, i) => `<div class="suagent"><input class="finput" id="su-a${i}-name" data-sua="${i}" data-suf="name" value="${esc(a.name)}" placeholder="Name, e.g. Ask Admissions" aria-label="Assistant ${i + 1} name"><input class="finput" id="su-a${i}-desc" data-sua="${i}" data-suf="desc" value="${esc(a.desc)}" placeholder="What it handles" aria-label="Assistant ${i + 1} topics"><button class="btn ghost" type="button" data-sudel="${i}" aria-label="Remove assistant ${i + 1}">✕</button></div>`).join("")}
+      <div class="crow" style="justify-content:flex-start"><button class="btn ghost" type="button" data-suadd="1">＋ Add assistant</button></div>
+      <div class="field"><span>Or start from</span><span class="opts">${Object.keys(SU_TEMPLATES).map((n) => `<button type="button" class="opt" data-sutpl="${esc(n)}">＋ ${esc(n)}</button>`).join("")}</span></div></div>`;
+  } else if (su.step === 5) {
+    const named = su.agents.filter((a) => a.name.trim());
+    body = `<div class="sform"><h3>${su.plan === "trial" ? "Start your free trial" : "Subscribe"}</h3>
+      <div class="tablewrap"><table class="sumtable"><tbody>
+        <tr><td>University</td><td>${esc(su.uni)} (${esc(su.short)})</td></tr>
+        <tr><td>Address</td><td><code>${esc(su.slug)}.unibots.app</code></td></tr>
+        <tr><td>Assistants</td><td>${named.map((a) => esc(a.name)).join(", ")}</td></tr>
+        <tr><td>Plan</td><td>${pl.name} · ${pl.price} ${pl.per}</td></tr>
+        <tr><td>Includes</td><td>${pl.questions}</td></tr>
+      </tbody></table></div>
+      <p class="note">${su.plan === "trial" ? "No card needed. After 14 days the chatbot pauses until you choose a plan. Nothing is deleted." : "You pay on the secure payment page (Stripe, or Paymob for Egyptian cards). The subscription renews monthly and you can cancel any time from the admin page."}</p></div>`;
+  } else {
+    body = `<div class="done-box"><h3>${esc(su.short)}'s chatbot is ready</h3><p>It's live at <code>${esc(su.slug)}.unibots.app</code> with ${su.agents.filter((a) => a.name.trim()).length} assistants. Next:</p>
+      <ol><li>Upload documents for each assistant on the admin page. Assistants answer only from them.</li><li>Invite colleagues as editors.</li><li>Share the link with students and staff, or add it to your university portal.</li></ol>
+      <div class="crow" style="justify-content:flex-start"><button class="btn" type="button" data-suopen="admin">Open admin</button><button class="btn ghost" type="button" data-suopen="chat">Open the chat</button><button class="btn ghost" type="button" data-sureset="1">Start another sign-up</button></div></div>`;
+  }
+  const nav = su.step <= 5 ? `<div class="crow" style="justify-content:flex-start">${su.step > 0 ? '<button class="btn ghost" type="button" data-sugo="back">← Back</button>' : ""}<button class="btn" type="button" data-sugo="next">${su.step === 5 ? (su.plan === "trial" ? "Start free trial" : "Go to payment") : su.step === 0 ? `Choose ${pl.name}` : "Next →"}</button></div>${su.err ? `<p class="err" role="alert">${esc(su.err)}</p>` : ""}` : "";
+  return `<div class="signup"><div class="stop"><span class="brandp"><span class="tlogo">UB</span>UniBots · AI assistants for universities</span><span class="note">Already a customer? <u>Sign in</u></span></div>
+    <div class="sbody">${su.step <= 5 ? `<div class="steps">${steps}</div>` : ""}${body}${nav}</div></div>`;
+}
+
+function finishSignup() {
+  const slug = su.slug;
+  const named = su.agents.filter((a) => a.name.trim());
+  TENANTS[slug] = {
+    slug, name: su.uni, short: su.short, initials: su.short.slice(0, 3).toUpperCase(),
+    primary: su.primary, ink: "#ffffff", second: "#e5e7eb", dark: "#1d2027", status: su.plan === "trial" ? "trial" : "active", plan: PLANS[su.plan].name,
+    audiences: { student: "Student", staff: "Staff" },
+    agents: named.map((a, i) => ({ id: `${slug}${i}`, name: a.name, desc: a.desc, aud: ["student", "staff"], docs: 0, on: true, mode: "docs", skills: ["files"] })),
+    chat: { agent: null, chips: [] }, usage: { users: "1", q: "0", tok: 0, cost: "$0" },
+    sso: `Email code · ${suDomain()}`, domain: `${slug}.unibots.app`, custom: "—", signedUp: true,
+  };
+}
+
 function platformView() {
   const list = Object.values(TENANTS);
   const max = Math.max(...list.map((t) => t.usage.tok));
   const rows = list.map((t) => `<tr><td><span class="sw" style="background:${t.primary}"></span>${esc(t.name)}</td><td><code>${t.domain}</code></td>
-    <td><span class="pill ${t.status === "active" ? "ok" : "warn"}">${t.status}</span></td><td>${t.plan}</td><td class="num">${t.agents.filter((a) => a.on).length}</td>
+    <td><span class="pill ${t.status === "active" ? "ok" : "warn"}">${t.status}</span>${t.signedUp ? ' <span class="pill acc">new sign-up</span>' : ""}</td><td>${t.plan}</td><td class="num">${t.agents.filter((a) => a.on).length}</td>
     <td class="num">${t.usage.users}</td><td style="min-width:120px"><div class="bar"><i style="width:${(t.usage.tok / max) * 100}%"></i></div></td><td class="num">${t.usage.tok}M</td><td class="num">${t.usage.cost}</td></tr>`).join("");
   return `<div class="console">
     <nav class="cnav"><div class="ctitle"><span class="tlogo" style="background:var(--accent);color:var(--surface)">UB</span>Platform</div>
-      <a href="#prototype" class="on">Universities <span>${list.length}</span></a><a href="#prototype">Templates <span>5</span></a><a href="#prototype">Models &amp; keys</a><a href="#prototype">Usage &amp; billing</a><a href="#prototype">Audit log</a></nav>
+      <a href="#prototype" class="on">Universities <span>${list.length}</span></a><a href="#prototype">Subscriptions</a><a href="#prototype">Plans &amp; prices <span>3</span></a><a href="#prototype">Templates <span>5</span></a><a href="#prototype">Models &amp; keys</a><a href="#prototype">Usage &amp; billing</a><a href="#prototype">Audit log</a></nav>
     <div class="cmain">
-      <div class="crow"><h3>Universities</h3><button class="btn" type="button">＋ New university</button></div>
+      <div class="crow"><h3>Universities</h3><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" type="button">Require review before going live: off</button><button class="btn" type="button">＋ Add by hand</button></span></div>
       <div class="kpis">
-        <div class="kpi"><span>Universities</span><b>${list.length}</b><small>1 on trial</small></div>
+        <div class="kpi"><span>Universities</span><b>${list.length}</b><small>${list.filter((t) => t.status === "trial").length} on trial</small></div>
         <div class="kpi"><span>Questions, 30 days</span><b>50,198</b><small>example data</small></div>
         <div class="kpi"><span>Tokens, 30 days</span><b>87M</b><small>example data</small></div>
-        <div class="kpi"><span>Model cost</span><b>$285</b><small>OpenRouter + Groq</small></div>
+        <div class="kpi"><span>Monthly revenue</span><b>$${list.reduce((n, t) => n + (t.plan === "Campus" ? 449 : t.plan === "Standard" ? 149 : 0), 0).toLocaleString()}</b><small>model cost $285 · example</small></div>
       </div>
       <div class="tablewrap"><table><thead><tr><th>University</th><th>Address</th><th>Status</th><th>Plan</th><th>Assistants</th><th>Users</th><th>Token use</th><th>Tokens</th><th>Cost</th></tr></thead><tbody>${rows}</tbody></table></div>
-      <div class="panel"><h4>New university wizard</h4><p class="note">1 Name and subdomain → 2 Logo and colours → 3 Create assistants (blank or from a template) → 4 Audiences and sign-in → 5 Invite the first admin. The university then uploads its own documents.</p></div>
+      <div class="panel"><h4>How universities arrive</h4><p class="note">Universities sign up and pay by themselves at <code>unibots.app/signup</code>, and appear here straight away. Here you can suspend one, change its plan, give a discount or extend a trial. You can also add one by hand, for example a university that pays by invoice. Try “Sign up (public)” above: the university you create shows up in this list.</p></div>
     </div></div>`;
 }
 
@@ -634,6 +790,10 @@ function render() {
     url.innerHTML = `https://<b>${t.slug}</b>.unibots.app/admin`;
     screen.innerHTML = adminView(t);
     note.textContent = "The university admin creates, renames, hides and deletes assistants. No code changes and no deploy are needed. A tenant admin sees only their own university.";
+  } else if (state.view === "signup") {
+    url.innerHTML = `https://<b>unibots.app</b>/signup`;
+    screen.innerHTML = signupView();
+    note.textContent = "Public page: any university can sign up, create its chatbot and subscribe without you. It proves it owns its email domain, so nobody can sign up as another university.";
   } else {
     url.innerHTML = `https://<b>console</b>.unibots.app/universities`;
     screen.innerHTML = platformView();
@@ -651,6 +811,23 @@ screenEl.addEventListener("click", (e) => {
   const t = TENANTS[state.tenant];
   const a = t.agents.find((x) => x.id === state.edit);
   const flip = (arr, v) => arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
+  if (state.view === "signup") {
+    if (b.dataset.plan) su.plan = b.dataset.plan;
+    else if (b.dataset.sucolor) su.primary = b.dataset.sucolor;
+    else if (b.dataset.suverify) { const c = document.getElementById("su-code"); if (c && /^\d{6}$/.test(c.value.trim())) { su.verified = true; su.err = ""; } else su.err = "Enter the 6 digits from the email (any 6 digits in this prototype)."; }
+    else if (b.dataset.suadd) su.agents.push({ name: "", desc: "" });
+    else if (b.dataset.sutpl) su.agents.push({ name: b.dataset.sutpl, desc: SU_TEMPLATES[b.dataset.sutpl] });
+    else if (b.dataset.sudel) su.agents.splice(+b.dataset.sudel, 1);
+    else if (b.dataset.sureset) su = freshSignup();
+    else if (b.dataset.suopen) { state.tenant = su.slug; state.view = b.dataset.suopen; state.role = "student"; state.edit = null; state.chatAgent = null; }
+    else if (b.dataset.sugo === "back") { su.step = Math.max(0, su.step - 1); su.err = ""; }
+    else if (b.dataset.sugo === "next") { su.err = suValidate(su.step); if (!su.err) { if (su.step === 5) finishSignup(); su.step += 1; } }
+    else if (b.dataset.sugo) { su.step = +b.dataset.sugo; su.err = ""; }
+    else return;
+    render();
+    if (b.dataset.suadd) { const f = document.getElementById(`su-a${su.agents.length - 1}-name`); if (f) f.focus(); }
+    return;
+  }
   if (b.dataset.chat) state.chatAgent = b.dataset.chat;
   else if (b.dataset.edit) state.edit = b.dataset.edit;
   else if (b.dataset.aud && a) a.aud = flip(a.aud, b.dataset.aud);
@@ -670,13 +847,22 @@ screenEl.addEventListener("click", (e) => {
   if (b.dataset.act === "new") { const f = document.getElementById("f-name"); if (f) { f.focus(); f.select(); } }
 });
 screenEl.addEventListener("input", (e) => {
-  const f = e.target.dataset && e.target.dataset.f; if (!f) return;
+  const d = e.target.dataset || {};
+  if (d.su) {
+    su[d.su] = d.su === "slug" ? suSlug(e.target.value) : e.target.value;
+    if (d.su === "slug" && e.target.value !== su.slug) e.target.value = su.slug;
+    if (d.su === "email") su.verified = false;
+    if (d.su === "short") { const pv = document.getElementById("su-prev-short"); if (pv) pv.textContent = su.short; }
+    return;
+  }
+  if (d.sua !== undefined) { su.agents[+d.sua][d.suf] = e.target.value; return; }
+  const f = d.f; if (!f) return;
   const a = TENANTS[state.tenant].agents.find((x) => x.id === state.edit); if (!a) return;
   a[f] = e.target.value;
   const pick = screenEl.querySelector(`[data-edit="${a.id}"] b`); if (pick && f === "name") pick.textContent = a.name || "Untitled assistant";
   save();
 });
-document.getElementById("reset-proto").addEventListener("click", () => { TENANTS = JSON.parse(JSON.stringify(BASE_TENANTS)); state.edit = null; state.chatAgent = null; render(); });
+document.getElementById("reset-proto").addEventListener("click", () => { TENANTS = JSON.parse(JSON.stringify(BASE_TENANTS)); su = freshSignup(); if (!TENANTS[state.tenant]) state.tenant = "giu"; state.edit = null; state.chatAgent = null; render(); });
 render();
 </script>
 

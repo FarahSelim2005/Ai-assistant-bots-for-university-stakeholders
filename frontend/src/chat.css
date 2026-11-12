@@ -70,11 +70,18 @@ button.tbtn.ghost:hover:not(:disabled) { background: #f6f6f7; filter: none; }
 /* Input bar */
 .tfoot { background: #fff; border-top: 1px solid #e3e4e7; }
 .tfoot > .error, .tfoot > .doc-bar, .tfoot > .pending-files { margin: 10px 20px 0; max-width: none; }
-.tinput { padding: 12px 20px 16px; display: flex; gap: 8px; align-items: center; }
-.tinput .box { flex: 1; min-width: 0; border: 1px solid #d5d7db; border-radius: 10px; padding: 9px 12px; font: inherit; font-size: 14px; color: #1b1d21; background: #fff; }
-.tinput .box:focus { outline: none; border-color: var(--t-primary); }
-.tinput .box::placeholder { color: #8a8f98; }
-.tinput .plus-menu-wrap { position: relative; }
+/* The GIU chatbot's rounded bar (App.css .composer): "+" | text | mic | send (only with
+   text) or stop (while answering) */
+.tfoot .composer { margin: 12px 20px 16px; max-width: none; }
+.tfoot .composer .composer-input { color: #1b1d21; font-size: 15px; }
+.tfoot .composer .composer-input::placeholder { color: #8a8f98; }
+.tfoot .composer .send-button { background: var(--t-primary); }
+.tfoot .composer .send-button:hover:not(:disabled) { background: var(--brand-primary-dark); }
+.tfoot .composer .stop-button { background: var(--t-dark); }
+
+/* A stopped question: "Stopped" with Retry, Edit and Copy, and the edit box (App.css) */
+.mrow.u .message-actions, .mrow.u .edit-message { justify-self: end; }
+.tapp .edit-message textarea { color: #1b1d21; }
 
 @media (max-width: 760px) {
   .tapp { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); height: 100dvh; }
@@ -83,6 +90,6 @@ button.tbtn.ghost:hover:not(:disabled) { background: #f6f6f7; filter: none; }
   .tuser { margin-top: 0; padding-top: 8px; }
   .msg { max-width: 92%; }
   .thead, .tbody { padding-left: 14px; padding-right: 14px; }
-  .tinput { padding: 10px 14px 12px; }
+  .tfoot .composer { margin: 10px 12px 12px; }
   .tfoot > .error, .tfoot > .doc-bar, .tfoot > .pending-files { margin: 8px 14px 0; }
 }

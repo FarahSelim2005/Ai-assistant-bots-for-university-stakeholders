@@ -297,7 +297,7 @@ browser; its `chatView()`, `adminView()` and `platformView()` draw the mock-ups)
 
 | Screen | Address | Look |
 |---|---|---|
-| Chat | http://localhost:5173 (GIU), http://demo.localhost:5173 | The university's dark sidebar (logo, name, its 3-colour stripe, "N assistants for <audience>", the assistants; the current one in its main colour), the assistant's name and description with an "EN · ع" pill, the user's questions in the main colour, answers in white with source chips and a 1–5 rating, and a + / 📞 / Send bar. Light only (the university's own surface). `frontend/src/chat.css` |
+| Chat | http://localhost:5173 (GIU), http://demo.localhost:5173 | The university's dark sidebar (logo, name, its 3-colour stripe, "N assistants for <audience>", the assistants; the current one in its main colour), the assistant's name and description with an "EN · ع" pill, the user's questions in the main colour, answers in white with source chips and a 1–5 rating, and the GIU chatbot's rounded input bar (+, text, mic, a round send arrow, a round stop square while it answers; a stopped question gets Retry, Edit and Copy). Light only (the university's own surface). `frontend/src/chat.css` |
 | University admin | `.../admin` | Platform look (teal, Sora / Inter / JetBrains Mono, light and dark): a sidebar with the university's logo, then Assistants (two columns: list with live/hidden switch, editor), Documents, Branding, Users & audiences, Analytics, Sign-in. `frontend/src/platform.css` |
 | Platform console | http://localhost:5173/console | Platform look: a sidebar (Universities, Templates, Models & keys, Usage & billing, Audit log), KPI tiles and the universities table, the "New university" wizard inside it. |
 
