@@ -122,6 +122,27 @@ def create(conn, *, name: str, short_name: str, slug: str, host: str | None, pla
     return tenant_id, host
 
 
+# Every table with a university's rows, in an order the foreign keys allow (children first).
+# The old `universities` table is not touched.
+DELETE_ORDER = ("feedback", "messages", "conversations", "chunks", "usage", "billing_events", "checkouts",
+                "signups", "subscriptions", "users", "agents", "tenant_domains")
+
+
+def delete(conn, tenant_id) -> dict:
+    """Delete a university and everything of it, for good (the console's "Delete"; a backup is
+    made before, by the caller). Returns how many rows each table lost."""
+    removed = {}
+    for table in DELETE_ORDER:
+        if table == "checkouts":  # also the payment pages of its sign-ups
+            sql = ("DELETE FROM checkouts WHERE tenant_id = %s "
+                   "OR signup_id IN (SELECT id FROM signups WHERE tenant_id = %s)")
+            removed[table] = conn.execute(sql, (tenant_id, tenant_id)).rowcount
+        else:
+            removed[table] = conn.execute(f"DELETE FROM {table} WHERE tenant_id = %s", (tenant_id,)).rowcount
+    removed["tenants"] = conn.execute("DELETE FROM tenants WHERE id = %s", (tenant_id,)).rowcount
+    return {k: v for k, v in removed.items() if v}
+
+
 def unique_folder(name: str, taken: set[str]) -> str:
     """A readable folder name for a new assistant, not yet used by this university's others."""
     base = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")[:40] or "assistant"

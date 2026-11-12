@@ -138,6 +138,8 @@ export default function ConsolePage() {
 
 function Universities({ data, call, reload, notice, setNotice, setError, onNew }) {
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState(null); // the university whose deletion is being confirmed
+  const [typed, setTyped] = useState("");
   const list = data.universities;
   const most = Math.max(1, ...list.map((u) => u.tokens_30d));
   const trials = list.filter((u) => u.subscription === "trialing").length;
@@ -166,6 +168,25 @@ function Universities({ data, call, reload, notice, setNotice, setError, onNew }
     }
   }
 
+  // Delete for good, after typing its subdomain; the backend makes a full backup first
+  async function remove(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const result = await call(`/console/universities/${deleting.id}`, { method: "DELETE", body: { confirm: typed } });
+      setNotice(`${deleting.name} is deleted with all its data. A backup was saved first: ${result.backup}`);
+      setDeleting(null);
+      setTyped("");
+      await reload();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <>
       <div className="crow"><h3>Universities</h3>
@@ -184,6 +205,21 @@ function Universities({ data, call, reload, notice, setNotice, setError, onNew }
         <div className="kpi"><span>Tokens, 30 days</span><b>{short(sum("tokens_30d"))}</b><small>chat, pictures, CVs, embeddings</small></div>
         <div className="kpi"><span>Monthly revenue</span><b>{egp(revenue)}</b><small>model cost {money(sum("cost_30d"))} · 30 days</small></div>
       </div>
+      {deleting && (
+        <form className="panel danger-zone" onSubmit={remove}>
+          <h4>Delete {deleting.name} for good?</h4>
+          <p className="note">This removes its assistants, documents, chats, ratings, users, usage, sign-up and payments. It cannot be
+            undone from here: a full database backup is saved to <code>db-backups</code> first, and nothing is deleted if the backup fails.
+            {deleting.slug === "giu" && <b> This is GIU: its chatbot stops working for everyone.</b>}</p>
+          <label className="field"><span>Type <code>{deleting.slug}</code> to confirm</span>
+            <input className="finput" value={typed} onChange={(e) => setTyped(e.target.value)} autoFocus aria-label="Type the subdomain to confirm" /></label>
+          <div className="crow" style={{ justifyContent: "flex-start" }}>
+            <button type="submit" className="danger-solid" disabled={busy || typed.trim().toLowerCase() !== deleting.slug}>
+              {busy ? "Backing up and deleting…" : "Delete for good"}</button>
+            <button type="button" className="ghost" disabled={busy} onClick={() => { setDeleting(null); setTyped(""); }}>Cancel</button>
+          </div>
+        </form>
+      )}
       <div className="tablewrap">
         <table>
           <thead>
@@ -219,6 +255,7 @@ function Universities({ data, call, reload, notice, setNotice, setError, onNew }
                     {u.status === "active" && <button type="button" className="ghost" disabled={busy} onClick={() => change(u, { status: "suspended" }, `${u.name} is suspended.`)}>Suspend</button>}
                     {u.status === "suspended" && <button type="button" className="ghost" disabled={busy} onClick={() => change(u, { status: "active" }, `${u.name} is active again.`)}>Reactivate</button>}
                     {u.status === "review" && <button type="button" disabled={busy} onClick={() => change(u, { status: "active" }, `${u.name} is approved and live.`)}>Approve</button>}
+                    {" "}<button type="button" className="danger" disabled={busy} onClick={() => { setDeleting(u); setTyped(""); setNotice(""); window.scrollTo(0, 0); }}>Delete</button>
                   </td>
                 </tr>
               );

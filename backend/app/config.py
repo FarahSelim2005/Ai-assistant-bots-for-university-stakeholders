@@ -121,6 +121,8 @@ SIGNUP_CODE_TRIES = 5         # wrong tries per code
 SIGNUP_CODES_PER_SIGNUP = 5   # codes one sign-up may ask for
 SIGNUP_CODE_RESEND_SECONDS = 60
 SIGNUPS_PER_IP_PER_HOUR = 10  # sign-ups started from one address
+# pg_dump backups before a university is deleted for good (app/backup.py)
+BACKUP_DIR = Path(os.getenv("BACKUP_DIR", "") or BACKEND_DIR.parent.parent / "db-backups")
 GRACE_DAYS = 7                # after a failed payment the chat keeps working this long, then pauses
 
 

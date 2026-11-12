@@ -261,3 +261,10 @@
   .pf .field { grid-template-columns: 1fr; gap: 4px; }
   .pf .mini { grid-template-columns: 96px minmax(0, 1fr); }
 }
+
+/* Console: deleting a university */
+.pf .danger-zone { border-color: var(--crit); background: var(--crit-soft); }
+.pf .danger-zone h4 { color: var(--crit); }
+.pf button.danger-solid { background: var(--crit); color: #fff; }
+.pf button.danger-solid:hover:not(:disabled) { background: var(--crit); filter: brightness(1.1); }
+.pf .tablewrap td:last-child { white-space: nowrap; }

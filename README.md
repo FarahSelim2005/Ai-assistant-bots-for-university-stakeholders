@@ -519,6 +519,11 @@ maximum), users, chats and tokens used this month (against the plan's cap) and i
 - **Suspend / Reactivate**: a suspended university's chat and admin pages answer
   "not available" (403) until it is reactivated; nothing is deleted.
 - **Plan**: change it in the table.
+- **Delete** (any university, also GIU): removes it for good with its assistants, documents (the files in
+  `data/tenants/<slug>/` too; GIU's `data/raw/` stays, it is in git), chats, ratings, users, usage, sign-up and
+  payments. You type its subdomain to confirm, and the backend first saves a full `pg_dump` backup to
+  `BACKUP_DIR` (default `D:/Download/db-backups/`); if the backup fails, nothing is deleted. Restore one with
+  `pg_restore`. Its address, email domain and admin email can then be used again.
 - **Require review before going live**: when on, a university that signs up waits
   ("waiting for review", its pages answer "being set up") until you press **Approve**.
 - **Subscriptions** and **Plans & prices**: see *Sign-up and subscriptions*.

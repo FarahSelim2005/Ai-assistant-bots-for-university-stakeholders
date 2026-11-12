@@ -11,6 +11,7 @@ GET  /console/usage                tokens, cost and questions per university and
 POST /console/universities         "Add by hand" (the wizard): name, subdomain, look, assistants (their own,
                                    or ready-made ones), first admin
 PUT  /console/universities/{id}    {status?: "active" | "suspended", plan?}   ("active" also approves a sign-up)
+DELETE /console/universities/{id} {confirm: "<subdomain>"}: delete it for good (a pg_dump backup first)
 PUT  /console/plans/{key}          {name?, price_egp?, monthly_token_cap?, max_assistants?, trial_days?, public?, description?}
 GET  /console/settings             {require_review, payment_provider}
 PUT  /console/settings             {require_review}: new sign-ups wait for approval
@@ -23,6 +24,7 @@ superuser: row-level security does not apply) and are only for platform owners, 
 accounts are made with python -m scripts.create_user --role platform_owner.
 """
 import logging
+import shutil
 import time
 from typing import Literal
 
@@ -31,7 +33,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from app import auth, config, tenants, universities
+from app import agents, auth, backup, config, tenants, universities
 from app.auth import Session, platform_owner
 from app.billing import service
 from app.db import get_admin_connection
@@ -90,6 +92,10 @@ class SettingsIn(BaseModel):
 
 class SimulateIn(BaseModel):
     payment: Literal["succeeds", "fails"]
+
+
+class DeleteIn(BaseModel):
+    confirm: str = Field(min_length=1, max_length=40)  # the university's subdomain, typed again
 
 
 class ExtendIn(BaseModel):
@@ -247,6 +253,37 @@ def change_university(tenant_id: str, body: UniversityChange, session: Session =
     tenants._by_host.clear()  # the next request sees the new status
     log.info("Console: %s changed university %s (%s)", session.email, tenant_id, values)
     return {"ok": True}
+
+
+@router.delete("/universities/{tenant_id}")
+def delete_university(tenant_id: str, body: DeleteIn, session: Session = Depends(platform_owner)):
+    """Delete a university for good: its assistants, documents (files too), chats, ratings,
+    users, usage, sign-ups and payments. A full pg_dump backup is made first; without it
+    nothing is deleted. The subdomain must be typed again ("confirm"). GIU's documents in
+    data/raw/ (kept in git) are left on disk."""
+    with get_admin_connection() as conn:
+        row = conn.execute("SELECT slug, name FROM tenants WHERE id = %s", (tenant_id,)).fetchone()
+    if row is None:
+        raise HTTPException(404, "University not found.")
+    slug, name = row
+    if body.confirm.strip().lower() != slug:
+        raise HTTPException(400, f"Type {slug} to confirm.")
+    try:
+        saved = backup.backup(f"deleting-{slug}")
+    except backup.BackupFailed as error:
+        raise HTTPException(500, str(error))
+    with get_admin_connection() as conn:
+        removed = universities.delete(conn, tenant_id)
+    folder = tenants.data_dir(tenants.Tenant(tenant_id, slug, name))
+    if folder.resolve().is_relative_to(config.TENANTS_DATA_DIR.resolve()) and folder.exists():
+        shutil.rmtree(folder)  # only data/tenants/<slug>/, never data/raw/
+    tenants._by_host.clear()
+    agents._cache.pop(tenant_id, None)
+    for token, other in list(auth._sessions.items()):  # its users are logged out
+        if str(other.tenant_id) == str(tenant_id):
+            auth._sessions.pop(token, None)
+    log.warning("Console: %s DELETED university %s (%s); backup %s; rows %s", session.email, name, slug, saved.name, removed)
+    return {"ok": True, "backup": str(saved), "removed": removed}
 
 
 # ---------------------------------------------------------------- plans, sign-ups and subscriptions

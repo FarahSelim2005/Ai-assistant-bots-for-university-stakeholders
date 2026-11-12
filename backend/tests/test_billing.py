@@ -8,10 +8,12 @@ Run from the backend folder:
     python -m unittest discover -s tests -v
 """
 import re
+import tempfile
 import uuid
+from pathlib import Path
 from unittest import mock
 
-from app import auth, config, usage
+from app import auth, backup, config, usage
 from app.billing import providers, service
 from app.routers import billing, console, signup
 from tests.test_tenants import SharedConnection, TestDatabaseCase, client_for
@@ -248,6 +250,40 @@ class SignupAndBilling(TestDatabaseCase):
         self.assertEqual(listed["subscriptions"][0]["university"], "Cairo Tech University")
         # Universities added by hand have no subscription and are never paused by billing
         self.assertEqual(self.web.post(f"/console/subscriptions/{self.a.id}/simulate-month", json={"payment": "fails"}).status_code, 404)
+
+
+    def test_delete_university_for_good(self):
+        self.signup_id = signup_id = self.verified("standard")
+        url = self.web.post(f"/signup/{signup_id}/subscribe", json=self.draft("standard")).json()["checkout_url"]
+        self.pay(url)
+        tenant_id = self.tenant_id()
+        self.assertEqual(self.chat_status(), "works")  # also makes a conversation
+        admin = self.admin()
+        files = Path(tempfile.mkdtemp())
+        (files / self.slug / "ask_admissions").mkdir(parents=True)
+        (files / self.slug / "ask_admissions" / "fees.md").write_text("Fees", encoding="utf-8")
+        counts = lambda: {t: self.rows(f"SELECT count(*) FROM {t} WHERE tenant_id = %s", (tenant_id,))[0][0]
+                          for t in ("agents", "users", "conversations", "subscriptions", "billing_events", "signups")}
+        self.assertTrue(all(counts().values()))
+        others = self.rows("SELECT count(*) FROM agents WHERE tenant_id <> %s", (tenant_id,))[0][0]
+        path = f"/console/universities/{tenant_id}"
+        self.assertIn("Type", self.web.request("DELETE", path, json={"confirm": "wrong"}).json()["detail"])
+        with mock.patch.object(backup, "backup", side_effect=backup.BackupFailed("The backup failed, so nothing was deleted.")):
+            self.assertEqual(self.web.request("DELETE", path, json={"confirm": self.slug}).status_code, 500)
+        self.assertTrue(all(counts().values()))  # no backup, nothing deleted
+        with mock.patch.object(backup, "backup", return_value=Path("giu-bots-before-deleting.backup")) as made,              mock.patch.object(config, "TENANTS_DATA_DIR", files):
+            deleted = self.web.request("DELETE", path, json={"confirm": self.slug.upper()})
+        self.assertEqual(deleted.status_code, 200, deleted.text)
+        made.assert_called_once()
+        self.assertEqual(set(counts().values()), {0})
+        self.assertEqual(self.rows("SELECT count(*) FROM tenants WHERE id = %s", (tenant_id,))[0][0], 0)
+        self.assertFalse((files / self.slug).exists())  # its documents too
+        self.assertEqual(self.rows("SELECT count(*) FROM agents WHERE tenant_id <> %s", (tenant_id,))[0][0], others)
+        self.assertEqual(client_for(f"{self.slug}.localhost:8000").get("/tenant").status_code, 404)
+        self.assertEqual(admin.get("/admin/billing").status_code, 404)  # its address is gone
+        # Its address, email domain and admin email are free again
+        self.assertTrue(self.web.get(f"/signup/address/{self.slug}").json()["available"])
+        self.start("free")
 
 
 if __name__ == "__main__":
