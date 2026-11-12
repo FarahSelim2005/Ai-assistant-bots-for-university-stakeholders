@@ -159,8 +159,8 @@ export default function SignupPage() {
     body = status.state === "review" ? (
       <div className="done-box">
         <h3>Thank you. {form.short || status.university} is waiting for approval</h3>
-        <p>We check every new university before it goes live. You get an email at <b>{status.email}</b> when it is approved,
-          usually within a working day. Then log in at <code>{status.admin_url}</code> with your email and password.</p>
+        <p>We check every new university before it goes live, usually within a working day. Once it is approved, log in at{" "}
+          <code>{status.admin_url}</code> with <b>{status.email}</b> and your password.</p>
       </div>
     ) : (
       <div className="done-box">
