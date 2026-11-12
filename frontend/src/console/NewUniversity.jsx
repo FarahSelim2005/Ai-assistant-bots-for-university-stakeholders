@@ -92,7 +92,7 @@ export default function NewUniversity({ call, plans, templates, onDone, onCancel
   return (
     <>
       <div className="crow">
-        <h3>New university</h3>
+        <h3>Add a university by hand</h3>
         <button type="button" className="ghost" onClick={onCancel} disabled={busy}>Cancel</button>
       </div>
       <ol className="steps">

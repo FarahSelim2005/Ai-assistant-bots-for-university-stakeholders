@@ -84,6 +84,7 @@ only applies new files. Every file is also safe to run twice by hand.
 | `007_users_and_audiences.sql` | The university admin: a `users` table (email, scrypt password hash, role `tenant_admin`, `editor` or `platform_owner`; row-level security per university; platform owners invisible to `giu_app`) replacing `ADMIN_PASSWORD`; audiences per university (the fixed student/staff checks become format checks); `agents.deleted_at` (a deleted assistant is hidden but kept with its chats and documents); `tenants` readable by all, and `giu_app` may change only its own university's name, look, intro and audiences. |
 | `008_plans_and_usage.sql` | Plans (`free`: 300,000 tokens a month and 2 assistants; `standard`: 5,000,000 and 8; `unlimited`) and `tenants.plan` (GIU: `unlimited`, so it keeps working as before); a `usage` table with one row per model call (university, assistant, model, kind, tokens), with row-level security. |
 | `009_usage_cost.sql` | `usage.cost_usd`: the cost of each model call as OpenRouter reports it (Groq's free tier and local Ollama: 0), for the console's "Model cost". |
+| `010_signup_and_billing.sql` | The public sign-up and subscriptions: plan prices in EGP, trial days and "public" on `plans` (and a Campus plan), `signups` (only a hash of the email code), `checkouts`, `subscriptions`, `billing_events`, `platform_settings` (require review), and `tenants.email_domain`, `signed_up_at` and the `review` status. Nothing is deleted. |
 
 To try the migrations on a copy first: in pgAdmin create a database `giu-bots-copy` with
 *Template* `giu-bots` (no other connection to `giu-bots` may be open), then run
@@ -407,7 +408,8 @@ chats or ratings; an unknown host gets `404`, a suspended tenant `403`.
 
 **Trying a second university ("demo")**
 
-1. Easiest: the console's **New university** wizard (see *Platform console*). Or by hand,
+1. Easiest: the public sign-up (http://localhost:5173/signup, see *Sign-up and subscriptions*)
+   or the console's **Add by hand** wizard (see *Platform console*). Or by hand,
    in pgAdmin's Query Tool on `giu-bots`:
    ```sql
    INSERT INTO tenants (slug, name) VALUES ('demo', 'Demo University');
@@ -470,7 +472,7 @@ Admins can also add users on the Users tab. Roles:
 
 | Role | Tabs |
 |---|---|
-| `tenant_admin` | **Assistants**: numbers for the last 30 days (questions, active users = chats started, unanswered %, average rating), the list (who uses each, number of documents, live/hidden switch) and the selected one's editor (name, what it handles, who can use it, answers from, skills, documents; "More settings": texts, examples, instructions, "no information" answers, model); "+ New assistant" and "Start from a template"; hide, delete. **Documents**, **Branding** (name, short name, logo, colours, start screen text), **Users & audiences** (users: add, change role, new password, deactivate; audiences), **Analytics** (per assistant, and the latest unanswered questions), **Sign-in** (how people sign in; change your password) |
+| `tenant_admin` | **Assistants**: numbers for the last 30 days (questions, active users = chats started, unanswered %, average rating), the list (who uses each, number of documents, live/hidden switch) and the selected one's editor (name, what it handles, who can use it, answers from, skills, documents; "More settings": texts, examples, instructions, "no information" answers, model); "+ New assistant" and "Start from a template"; hide, delete. **Documents**, **Branding** (name, short name, logo, colours, start screen text), **Users & audiences** (users: add, change role, new password, deactivate; audiences), **Analytics** (per assistant, and the latest unanswered questions), **Sign-in** (how people sign in; change your password), **Billing** (plan, payments, cancel; see *Sign-up and subscriptions*) |
 | `editor` | **Documents**, **Analytics**, **Sign-in** |
 
 **Documents:** per assistant (filter), **add** (pick a file or paste Markdown; start each topic
@@ -497,16 +499,17 @@ cannot point outside the assistant's folder.
 university; make the account with
 `python -m scripts.create_user --email owner@platform.example --role platform_owner --generate`).
 With `APP_ENV=development` (your own computer) it opens without a login; on a server it
-always asks for a platform owner's login. It has a sidebar (Universities, Templates, Models & keys, Usage & billing, Audit log) and, under
-Universities, four tiles for the last 30 days (universities, questions, tokens, model cost as
-OpenRouter reports it) and a table with every university's colour, address, status, plan,
+always asks for a platform owner's login. It has a sidebar (Universities, Subscriptions, Plans & prices, Templates,
+Models & keys, Usage & billing, Audit log) and, under Universities, four tiles (universities and how many are
+on trial, questions and tokens in the last 30 days, monthly revenue in EGP with the model cost) and a table with every university's colour, address, status, plan,
 assistants, users, a token-use bar, tokens and cost. Models & keys shows the platform's models
 from `.env` (never the keys, only whether they are set) and their use; Usage & billing the
 tokens per month; the Audit log is not recorded yet. It shows every university with its status, plan,
 addresses, assistants (and the plan's
 maximum), users, chats and tokens used this month (against the plan's cap) and in total, and:
 
-- **New university** (a wizard, inside the console): name and short name → subdomain
+- **Add by hand** (a wizard, inside the console; for a university that pays by invoice: it has
+  no subscription and billing never pauses it): name and short name → subdomain
   (`<slug>.localhost`, or its own address) → colours and logo → plan and assistants: any
   number with the university's own names ("+ Add assistant": a name and what it handles),
   and ready-made ones from the templates (renamed there too), each removable, up to the
@@ -516,20 +519,75 @@ maximum), users, chats and tokens used this month (against the plan's cap) and i
 - **Suspend / Reactivate**: a suspended university's chat and admin pages answer
   "not available" (403) until it is reactivated; nothing is deleted.
 - **Plan**: change it in the table.
+- **Require review before going live**: when on, a university that signs up waits
+  ("waiting for review", its pages answer "being set up") until you press **Approve**.
+- **Subscriptions** and **Plans & prices**: see *Sign-up and subscriptions*.
 
 **Usage and limits** (`app/usage.py`): every model call (chat models, pictures, CV rewrites,
 document edits, local Ollama, embeddings) is logged with its tokens for the university of the
 request. When a university reaches its plan's monthly token cap, chat questions are refused
 with a clear message (429) until the next calendar month, before any search or model call;
 documents saved on the admin page are kept but not indexed. A plan's `max_assistants` limits
-new assistants (deleted ones do not count). Plans are changed in SQL, as the owner:
-
-```sql
-UPDATE plans SET monthly_token_cap = 1000000, max_assistants = 4 WHERE key = 'free';
-```
+new assistants (deleted ones do not count). Plans (name, price, caps, trial days, offered on
+the sign-up page or not) are changed in the console under **Plans & prices**.
 
 The console's routes (`app/routers/console.py`) work across universities, so they use the
 owner's connection (`DB_ADMIN_USER`, a superuser) and only accept platform owners.
+
+## Sign-up and subscriptions
+
+**http://localhost:5173/signup** is the public page where a university creates its chatbot and
+subscribes without you (the design's "Sign up (public)"), in six steps:
+
+1. **Plan**: the public plans with their prices in EGP (`plans.price_egp`, changed in the
+   console). Free trial (14 days, 2 assistants), Standard, Campus; GIU's "Unlimited" is not offered.
+2. **Your account**: name, university email, password. Personal addresses (Gmail, Yahoo,
+   Outlook, ...) are refused. A 6-digit code is emailed; only a hash of it is stored, it works
+   for 10 minutes and allows 5 tries (a new code can be asked for after a minute, 5 per sign-up).
+3. **University**: full and short name, and the code. One university per email domain, so
+   one trial per domain; a second sign-up from the same domain is told to ask its admin.
+4. **Address & look**: `<slug>.localhost` (checked while typing; reserved and taken addresses
+   are refused), main colour, optional logo, with a preview.
+5. **Assistants**: any names, up to the plan's number, or from the templates.
+6. **Subscribe**: the free trial starts at once; a paid plan opens the payment page. When the
+   university is made, "Open admin" logs the new admin in on its own address with a one-time
+   link (`#ticket=...`, 10 minutes, once).
+
+**Payments** (`app/billing/`) go through a small provider interface
+(`create_checkout`, `verify_webhook`, `cancel` in `providers.py`), so Stripe or Paymob can be
+added later without changing the rest. For now the only provider is **simulated**: no real
+payment, no keys. Its payment page is ours (`/checkout/<id>`, with a "Test mode, no real
+payment" banner) with **Pay** and **Fail payment**; both send a signed event through the same
+webhook handling (`POST /billing/webhook/<provider>`) a real provider would call. Every event
+is stored once in `billing_events`, so a repeated call changes nothing.
+
+A subscription is `trialing`, `active`, `past_due` (a failed renewal: the chat keeps working
+for 7 days), `paused` (the trial ended or the grace days passed: the chat answers "paused") or
+`canceled` (cancelled by the university: it runs to the end of the paid month). Nothing is ever
+deleted, and paying makes it active again. Universities added by hand (GIU, demo) have no
+subscription and are never paused.
+
+- **Admin → Billing** (tenant_admin): the plan and status, **Choose** a paid plan, **Pay now**
+  after a failed renewal, **Cancel** / **Keep my subscription**, and the history.
+- **Console → Subscriptions**: every signed-up university with its status and payments,
+  **Payment succeeds** / **Payment fails** (test mode: a month passes and the renewal is paid
+  or fails), **Extend trial 7 days**, and the latest billing events.
+- **Console → Plans & prices**: name, price (EGP a month), trial days, assistants, tokens a
+  month, shown on the sign-up page or not. A new price applies from the next payment.
+
+**Email**: `app/mail.py` sends with Python's `smtplib`, set up by `SMTP_HOST`, `SMTP_PORT`
+(465 = SSL, otherwise STARTTLS), `SMTP_USER`, `SMTP_PASSWORD` and `SMTP_FROM` in `.env`. With
+`SMTP_HOST` empty (the default) nothing is sent and the code is printed in the backend's log:
+
+```
+WARNING:  Email (no SMTP_HOST set, so it is only printed here) to m.hassan@cairo-tech.edu.eg: Your sign-up code: 482913
+```
+
+**Trying it**: open http://localhost:5173/signup, use any non-personal address (for example
+`you@cairo-tech.edu.eg`), take the code from the backend's log, choose an address such as
+`ctu`, and finish. Then open http://localhost:5173/console → Subscriptions and press
+**Payment fails** twice (past due, then paused), and pay again from the university's
+**Admin → Billing**.
 
 ## Assistants
 
@@ -747,9 +805,12 @@ backend/
     db.py                PostgreSQL connection
     tenants.py           which university (tenant) a request is for
     auth.py              logins: users, passwords, sessions, roles
-    usage.py             tokens per model call, the monthly cap
+    usage.py             tokens per model call, the monthly cap, the paused-subscription check
+    universities.py      making a university (console wizard and sign-up)
+    mail.py              email with smtplib (or the backend's log without SMTP_HOST)
+    billing/             providers.py (payment provider interface, the simulated provider), service.py (subscriptions)
     schemas.py           request/response models
-    routers/             tenant.py (GET /tenant), console.py (/console), session.py, chat.py, feedback.py, speech.py, documents.py (document editor), admin.py (admin page)
+    routers/             tenant.py (GET /tenant), console.py (/console), signup.py (/signup), billing.py (/billing, /admin/billing), session.py, chat.py, feedback.py, speech.py, documents.py (document editor), admin.py (admin page)
     documents/           document editor: formats.py (read/edit/save each format), editor.py (model -> JSON edits), storage.py
     agents/              base.py (shared flow), configured.py (an assistant from the agents table), __init__.py (loading
                          and caching each university's assistants), templates.py, internship_career.py (CV rewrites),
@@ -764,6 +825,7 @@ backend/
                          branding, audiences (needs TEST_DB_NAME, else skipped)
     test_agents.py       configured assistants and their cache
     test_skills.py       skills, prompts built from parts, chat routing by skill
+    test_billing.py      sign-up, email codes, payments, renewals, grace, pause, cancel, review (needs TEST_DB_NAME)
   migrations/            numbered SQL files (000_base.sql, 001_tenants.sql, ...)
   scripts/
     migrate.py           apply the pending migrations
@@ -785,6 +847,7 @@ frontend/
     platform.css         the admin's and console's look (the design's tokens, light and dark)
     admin/               the university admin (/admin): AdminPage.jsx and its tabs
     console/             the platform console (/console): ConsolePage.jsx, NewUniversity.jsx
+    signup/              the public sign-up (/signup) and the payment page (/checkout/<id>)
     App.jsx              chat state and flow
     components/          StartScreen.jsx, Message.jsx, CampusMap.jsx, CallScreen.jsx, ComingSoon.jsx, BrandLogo.jsx
     App.css              styles

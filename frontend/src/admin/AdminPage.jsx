@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { initials, tenant } from "../tenant.js";
-import { UnauthorizedError, listAgents, login, logout } from "./api.js";
+import { UnauthorizedError, listAgents, login, logout, request } from "./api.js";
 import AnalyticsPage from "./AnalyticsPage.jsx";
 import AssistantsPage from "./AssistantsPage.jsx";
+import BillingPage from "./BillingPage.jsx";
 import BrandingTab from "./BrandingTab.jsx";
 import DocumentsTab from "./DocumentsTab.jsx";
 import SignInPage from "./SignInPage.jsx";
@@ -20,6 +21,7 @@ const PAGES = [
   { key: "branding", title: "Branding", roles: ["tenant_admin"] },
   { key: "users", title: "Users & audiences", roles: ["tenant_admin"] },
   { key: "analytics", title: "Analytics", roles: ["tenant_admin", "editor"] },
+  { key: "billing", title: "Billing", roles: ["tenant_admin"] },
   { key: "signin", title: "Sign-in", roles: ["tenant_admin", "editor"] },
 ];
 
@@ -44,13 +46,26 @@ export function UniversityMark() {
 export default function AdminPage() {
   const [session, setSession] = useState(savedSession); // { token, user: { email, name, role } }
   const [notice, setNotice] = useState("");
-  const [page, setPage] = useState(null);
+  // Back from the payment page (/admin?billing=1): open Billing
+  const returned = new URLSearchParams(window.location.search).has("billing");
+  const [page, setPage] = useState(returned ? "billing" : null);
+  const [ticket, setTicket] = useState(() => (window.location.hash.startsWith("#ticket=") ? window.location.hash.slice(8) : ""));
   const [documentsFor, setDocumentsFor] = useState(""); // open Documents filtered to one assistant
   const [counts, setCounts] = useState({ assistants: null, documents: null });
   const pages = PAGES.filter((p) => session && p.roles.includes(session.user.role));
   const current = pages.find((p) => p.key === page) ?? pages[0];
 
   useEffect(() => { document.title = `${tenant().short_name} admin`; }, []);
+
+  // The one-time login link from the sign-up (#ticket=...): log in with it, then forget it
+  useEffect(() => {
+    if (!ticket) return;
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    request("/admin/login/ticket", { method: "POST", body: { ticket } })
+      .then((value) => { saveSession(value); setNotice(""); })
+      .catch((err) => setNotice(err.message))
+      .finally(() => setTicket(""));
+  }, []);
 
   function saveSession(value) {
     setSession(value);
@@ -93,6 +108,7 @@ export default function AdminPage() {
     setDocumentsFor(agentId);
   }
 
+  if (ticket) return <div className="pf admin"><div className="signin"><p className="note">Logging you in…</p></div></div>;
   if (!session) {
     return <div className="pf admin"><LoginForm onLogin={(value) => { saveSession(value); setNotice(""); setPage(null); }} notice={notice} /></div>;
   }
@@ -122,6 +138,7 @@ export default function AdminPage() {
           {current.key === "users" && <UsersPage call={call} me={session.user} />}
           {current.key === "analytics" && <AnalyticsPage call={call} />}
           {current.key === "signin" && <SignInPage call={call} me={session.user} />}
+          {current.key === "billing" && <BillingPage call={call} returned={returned} />}
         </main>
       </div>
     </div>

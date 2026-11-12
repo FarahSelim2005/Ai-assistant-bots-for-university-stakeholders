@@ -145,7 +145,7 @@
 
 @media (max-width: 900px) { .pf .panel-grid { grid-template-columns: 1fr; } }
 @media (max-width: 760px) {
-  .pf .console { grid-template-columns: 1fr; }
+  .pf .console { grid-template-columns: 1fr; align-content: start; }
   .pf .cnav { grid-template-columns: repeat(2, minmax(0, 1fr)); border-right: 0; border-bottom: 1px solid var(--line); }
   .pf .cnav .ctitle, .pf .cnav .cuser { grid-column: 1 / -1; }
   .pf .cmain { padding: 16px; }
