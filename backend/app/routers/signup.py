@@ -68,6 +68,12 @@ class DraftIn(BaseModel):
     assistants: list[AssistantDraft] = Field(min_length=1, max_length=50)
 
 
+def code_in_log() -> bool:
+    """On your own computer without SMTP_HOST the code is printed in the backend's log, and the
+    page says so (on a server it never does)."""
+    return not config.SMTP_HOST and config.is_development()
+
+
 def code_hash(salt: str, code: str) -> str:
     return hashlib.sha256(f"{salt}:{code}".encode()).hexdigest()
 
@@ -155,7 +161,7 @@ def start(body: StartIn, request: Request):
             (email, domain, body.person.strip(), auth.hash_password(body.password), body.plan, client_ip)).fetchone()[0]
         send_code(conn, signup_id, email)
     log.info("Sign-up started for @%s", domain)
-    return {"id": str(signup_id), "email": email, "domain": domain}
+    return {"id": str(signup_id), "email": email, "domain": domain, "code_in_log": code_in_log()}
 
 
 @router.post("/{signup_id}/code")
@@ -171,7 +177,7 @@ def new_code(signup_id: str):
         if not waited:
             raise HTTPException(429, "Please wait a minute before asking for another code.")
         send_code(conn, row[0], row[1])
-    return {"ok": True}
+    return {"ok": True, "code_in_log": code_in_log()}
 
 
 @router.post("/{signup_id}/verify")

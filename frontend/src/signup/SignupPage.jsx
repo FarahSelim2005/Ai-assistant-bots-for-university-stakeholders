@@ -79,7 +79,7 @@ export default function SignupPage() {
       if (password.length < 10) return setError("Choose a password of at least 10 characters.");
       return run(async () => {
         const made = await startSignup({ plan: form.plan, person: form.person, email: form.email, password });
-        set({ id: made.id, sentTo: made.email, verified: false, step: 2 });
+        set({ id: made.id, sentTo: made.email, codeInLog: Boolean(made.code_in_log), verified: false, step: 2 });
         setCode("");
       });
     }
@@ -128,7 +128,11 @@ export default function SignupPage() {
   }
 
   function resend() {
-    return run(async () => { await sendNewCode(form.id); setNote(`A new code was sent to ${form.sentTo}.`); });
+    return run(async () => {
+      const sent = await sendNewCode(form.id);
+      setNote(sent.code_in_log ? "A new code is in the backend's log. The earlier code no longer works."
+        : `A new code was sent to ${form.sentTo}. The earlier code no longer works.`);
+    });
   }
 
   function chooseLogo(event) {
@@ -354,6 +358,9 @@ export default function SignupPage() {
         <div className="verify-box">
           <h3><IconMail /> Confirm your email</h3>
           <p>We sent a 6-digit code to <b>{form.sentTo}</b>. It proves you work at <b>@{domain}</b>, so nobody can open a chatbot in another university's name.</p>
+          {form.codeInLog && <p className="form-note" style={{ color: "var(--warn)", background: "var(--warn-soft)" }}>
+            Development: no email server is set up (SMTP_HOST in backend/.env), so the code is not emailed. It is printed in the
+            backend's terminal, in a line like "Your sign-up code: 123456".</p>}
           {form.verified ? <span className="verified"><Check /> Email confirmed</span> : (
             <div className="verify-row">
               <input className="sinput code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
