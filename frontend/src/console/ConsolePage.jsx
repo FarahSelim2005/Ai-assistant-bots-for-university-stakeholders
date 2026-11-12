@@ -20,8 +20,12 @@ const number = (n) => (n ?? 0).toLocaleString();
 
 // /console: the platform owner's view of every university: status, plan, assistants, users,
 // chats and token use; a "New university" wizard; suspend or reactivate; change the plan.
+// In development (APP_ENV=development) the backend needs no login: the console opens directly.
+const NO_LOGIN = { token: "", open: true, user: { email: "Development: no login needed" } };
+
 export default function ConsolePage() {
   const [session, setSession] = useState(savedSession);
+  const [checking, setChecking] = useState(!savedSession()); // trying without a login first
   const [universities, setUniversities] = useState([]);
   const [plans, setPlans] = useState([]);
   const [wizard, setWizard] = useState(false);
@@ -63,6 +67,12 @@ export default function ConsolePage() {
 
   useEffect(() => { if (session) reload(); }, [session]);
 
+  // No saved login: open directly if the backend allows it (development), else show the login form.
+  useEffect(() => {
+    if (!checking) return;
+    request("/console/plans").then(() => setSession(NO_LOGIN)).catch(() => {}).finally(() => setChecking(false));
+  }, []);
+
   async function change(university, values, done) {
     if (values.status === "suspended" && !window.confirm(`Suspend ${university.name}? Its chat and admin pages stop working until you reactivate it.`)) return;
     setBusy(true);
@@ -87,11 +97,11 @@ export default function ConsolePage() {
           <h1>Platform console</h1>
           <span>{session ? session.user.email : "Universities, plans and usage"}</span>
         </div>
-        {session && <button className="secondary" onClick={() => { call("/console/logout", { method: "POST" }).catch(() => {}); saveSession(null); }}>Log out</button>}
+        {session && !session.open && <button className="secondary" onClick={() => { call("/console/logout", { method: "POST" }).catch(() => {}); saveSession(null); }}>Log out</button>}
       </header>
       <div className="flag-stripe" />
       <main className="admin-main console-main">
-        {!session ? <Login onLogin={saveSession} /> : wizard ? (
+        {checking ? <p className="muted">Loading…</p> : !session ? <Login onLogin={saveSession} /> : wizard ? (
           <NewUniversity call={call} plans={plans} onDone={(message) => { setWizard(false); setNotice(message); reload(); }}
                          onCancel={() => setWizard(false)} />
         ) : (

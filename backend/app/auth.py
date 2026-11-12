@@ -126,8 +126,11 @@ def tenant_admin(session: Session = Depends(university_user)) -> Session:
 
 
 def platform_owner(authorization: str = Header(default="")) -> Session:
-    """A logged-in platform owner (the console)."""
+    """A logged-in platform owner (the console). With APP_ENV=development (your own computer)
+    no login is needed: the console opens directly. On a server it always needs one."""
     session = session_of(authorization)
-    if session is None or session.role != PLATFORM_OWNER:
-        raise HTTPException(401, "Please log in again.")
-    return session
+    if session is not None and session.role == PLATFORM_OWNER:
+        return session
+    if config.is_development():
+        return Session(uuid.UUID(int=0), "development", "Development", PLATFORM_OWNER, None, time.time() + 3600)
+    raise HTTPException(401, "Please log in again.")

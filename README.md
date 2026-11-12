@@ -486,7 +486,9 @@ cannot point outside the assistant's folder.
 **http://localhost:5173/console** is for the platform owner (role `platform_owner`, no
 university; make the account with
 `python -m scripts.create_user --email owner@platform.example --role platform_owner --generate`).
-It shows every university with its status, plan, addresses, assistants (and the plan's
+With `APP_ENV=development` (your own computer) it opens without a login; on a server it
+always asks for a platform owner's login. It shows every university with its status, plan,
+addresses, assistants (and the plan's
 maximum), users, chats and tokens used this month (against the plan's cap) and in total, and:
 
 - **New university** (a wizard): name and short name → subdomain (`<slug>.localhost`, or its

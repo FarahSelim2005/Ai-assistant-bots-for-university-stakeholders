@@ -741,7 +741,11 @@ class PlatformConsole(TestDatabaseCase):
 
     def test_login_and_universities(self):
         self.assertEqual(self.client(self.a).post("/console/login", json={"email": self.owner_email, "password": "wrong"}).status_code, 401)
-        self.assertEqual(self.client(self.a, "tenant_admin").get("/console/universities").status_code, 401)  # not an owner
+        with mock.patch.object(config, "APP_ENV", "production"):  # on a server: a platform owner's login only
+            self.assertEqual(self.client(self.a, "tenant_admin").get("/console/universities").status_code, 401)
+            self.assertEqual(self.client(self.a).get("/console/universities").status_code, 401)
+        with mock.patch.object(config, "APP_ENV", "development"):  # on your own computer: no login needed
+            self.assertEqual(self.client(self.a).get("/console/universities").status_code, 200)
         universities = {u["slug"]: u for u in self.console().get("/console/universities").json()}
         self.assertEqual((universities[self.a.slug]["assistants"], universities[self.a.slug]["conversations"],
                           universities[self.a.slug]["hosts"], universities[self.a.slug]["plan"]),
