@@ -140,6 +140,7 @@ function Universities({ data, call, reload, notice, setNotice, setError, onNew }
   const [busy, setBusy] = useState(false);
   const [deleting, setDeleting] = useState(null); // the university whose deletion is being confirmed
   const [typed, setTyped] = useState("");
+  const [deleteError, setDeleteError] = useState("");
   const list = data.universities;
   const most = Math.max(1, ...list.map((u) => u.tokens_30d));
   const trials = list.filter((u) => u.subscription === "trialing").length;
@@ -175,13 +176,15 @@ function Universities({ data, call, reload, notice, setNotice, setError, onNew }
     setError("");
     setNotice("");
     try {
+      setDeleteError("");
       const result = await call(`/console/universities/${deleting.id}`, { method: "DELETE", body: { confirm: typed } });
       setNotice(`${deleting.name} is deleted with all its data. A backup was saved first: ${result.backup}`);
       setDeleting(null);
       setTyped("");
       await reload();
     } catch (err) {
-      setError(err.message);
+      setDeleteError(err.message === "Method Not Allowed"
+        ? "The backend does not know this action yet: restart the backend, then try again." : err.message);
     } finally {
       setBusy(false);
     }
@@ -213,10 +216,11 @@ function Universities({ data, call, reload, notice, setNotice, setError, onNew }
             {deleting.slug === "giu" && <b> This is GIU: its chatbot stops working for everyone.</b>}</p>
           <label className="field"><span>Type <code>{deleting.slug}</code> to confirm</span>
             <input className="finput" value={typed} onChange={(e) => setTyped(e.target.value)} autoFocus aria-label="Type the subdomain to confirm" /></label>
+          {deleteError && <p className="error" role="alert">Not deleted: {deleteError}</p>}
           <div className="crow" style={{ justifyContent: "flex-start" }}>
             <button type="submit" className="danger-solid" disabled={busy || typed.trim().toLowerCase() !== deleting.slug}>
               {busy ? "Backing up and deleting…" : "Delete for good"}</button>
-            <button type="button" className="ghost" disabled={busy} onClick={() => { setDeleting(null); setTyped(""); }}>Cancel</button>
+            <button type="button" className="ghost" disabled={busy} onClick={() => { setDeleting(null); setTyped(""); setDeleteError(""); }}>Cancel</button>
           </div>
         </form>
       )}
@@ -255,7 +259,7 @@ function Universities({ data, call, reload, notice, setNotice, setError, onNew }
                     {u.status === "active" && <button type="button" className="ghost" disabled={busy} onClick={() => change(u, { status: "suspended" }, `${u.name} is suspended.`)}>Suspend</button>}
                     {u.status === "suspended" && <button type="button" className="ghost" disabled={busy} onClick={() => change(u, { status: "active" }, `${u.name} is active again.`)}>Reactivate</button>}
                     {u.status === "review" && <button type="button" disabled={busy} onClick={() => change(u, { status: "active" }, `${u.name} is approved and live.`)}>Approve</button>}
-                    {" "}<button type="button" className="danger" disabled={busy} onClick={() => { setDeleting(u); setTyped(""); setNotice(""); window.scrollTo(0, 0); }}>Delete</button>
+                    {" "}<button type="button" className="danger" disabled={busy} onClick={() => { setDeleting(u); setTyped(""); setDeleteError(""); setNotice(""); window.scrollTo(0, 0); }}>Delete</button>
                   </td>
                 </tr>
               );
