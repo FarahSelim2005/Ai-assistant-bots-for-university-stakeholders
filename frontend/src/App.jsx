@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { audienceTitle, findAssistant, hasSkill, tenant } from "./tenant.js";
+import { assistantsFor, audienceTitle, findAssistant, hasSkill, initials, tenant } from "./tenant.js";
 import { closeDocument, fileUrl, sendFeedback, sendMessage, startSession } from "./api.js";
-import BrandLogo from "./components/BrandLogo.jsx";
 import CallScreen, { callSupported } from "./components/CallScreen.jsx";
 import Message from "./components/Message.jsx";
 import StartScreen from "./components/StartScreen.jsx";
+import "./chat.css";
 
 // Must match the backend (app/attachments.py, MAX_UPLOAD_MB and DOC_EDIT_MAX_MB in config.py).
 // Which of them an assistant accepts follows its skills ("files", "images").
@@ -250,169 +250,172 @@ export default function App({ initialAgent }) {
     setError("");
   }
 
+  // Another assistant from the sidebar (or "New chat" with the same one): a new conversation.
+  async function switchTo(agentId) {
+    if (loading) return;
+    stopEditing(true);
+    setMessages([]);
+    setAttachments([]);
+    await choose(userType, agentId);
+  }
+
   if (!conversationId) {
     return <StartScreen onChoose={choose} loading={loading} error={error} initialAgent={initialAgent} />;
   }
 
+  const university = tenant();
+  const visible = assistantsFor(userType);
   return (
-    <div className="chat">
-      <header className="topbar">
-        <BrandLogo className="topbar-logo" />
-        <div className="topbar-title">
-          <h1>{agent.name}</h1>
-          <span>{agent.subtitle}</span>
+    <div className="tapp">
+      <aside className="tside">
+        <div className="tbrand">
+          {university.logo_url
+            ? <span className="tlogo image"><img src={university.logo_url} alt="" /></span>
+            : <span className="tlogo">{initials()}</span>}
+          <div><b>{university.name}</b><small>AI Assistants</small></div>
         </div>
-        <span className="badge">{audienceTitle(userType)}</span>
-        <button className="secondary" onClick={newChat}>New chat</button>
-      </header>
-      <div className="flag-stripe" />
-
-      {calling && (
-        <CallScreen onAsk={(question) => send(question)} onHangUp={() => setCalling(false)} agentName={agent.name} />
-      )}
-
-      <main className="messages">
-        <div className="messages-inner">
-          {messages.length === 0 && (
-            <div className="welcome">
-              <h2>How can I help you today?</h2>
-              <p className="muted">{agent.welcome}</p>
-              {canCv && (
-                <button className="cv-button" onClick={analyzeCv} disabled={loading}>
-                  📄 Analyze my CV
-                  <span>Upload your CV (PDF) and get concrete improvements</span>
-                </button>
-              )}
-              <div className="suggestions">
-                {agent.examples.map((question) => (
-                  <button key={question} className="suggestion" onClick={() => send(question)}>
-                    {question}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          {messages.map((message, index) => (
-            <Message key={index} message={message} onRate={handleRate} busy={loading}
-                     onResend={(query) => resend(index, query)} />
+        <div className="tstripe" />
+        <span className="lbl">{visible.length} assistant{visible.length === 1 ? "" : "s"} for {audienceTitle(userType)}</span>
+        <nav className="tagents" aria-label="Assistants">
+          {visible.map((a) => (
+            <button key={a.id} type="button" className="tagent" aria-current={a.id === agent.id} disabled={loading}
+                    onClick={() => a.id !== agent.id && switchTo(a.id)}>{a.name}</button>
           ))}
-          {loading && (
-            <div className="message assistant">
-              <div className="avatar">{tenant().short_name}</div>
-              <div className="assistant-body">
-                <div className="bubble typing"><span /><span /><span /></div>
-                {withFile && (
-                  <p className="slow-note">
-                    Working on your file… Editing or restructuring a document can take a minute.
-                  </p>
-                )}
-                {slow && !withFile && (
-                  <p className="slow-note">
-                    Still working… The free online models seem busy, so a backup model on this
-                    computer is answering. This can take up to a minute. You can press Stop to
-                    edit your message.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-          <div ref={bottomRef} />
+        </nav>
+        <div className="tuser">
+          <span>Using the chat as {audienceTitle(userType).toLowerCase()}</span>
+          <span><button type="button" className="tlink" onClick={newChat}>Change</button></span>
         </div>
-      </main>
+      </aside>
 
-      <footer className="composer-area">
-        {error && <p className="error">{error}</p>}
-        {activeDoc && (
-          <div className="doc-bar">
-            <span className="doc-bar-text">
-              📝 <b>{activeDoc.download_name}</b>
-              <span className="muted"> · ask for more changes, e.g. "make it shorter"</span>
-            </span>
-            <a className="doc-view" href={activeDoc.view_url} target="_blank" rel="noreferrer">View</a>
-            <a className="doc-download" href={activeDoc.url} download={activeDoc.download_name}>Download</a>
-            <button type="button" className="secondary" onClick={() => stopEditing()} disabled={loading}
-                    title="Stop working on this document">Close</button>
+      <div className="tmain">
+        <header className="thead">
+          <div><h3>{agent.name}</h3><p>{agent.subtitle || agent.summary}</p></div>
+          <div className="thead-actions">
+            <span className="lang" title="Ask in English or Arabic">EN · ع</span>
+            <button type="button" className="tbtn ghost" onClick={() => switchTo(agent.id)} disabled={loading}>New chat</button>
           </div>
+        </header>
+
+        {calling && (
+          <CallScreen onAsk={(question) => send(question)} onHangUp={() => setCalling(false)} agentName={agent.name} />
         )}
-        {attachments.length > 0 && (
-          <div className="pending-files">
-            {attachments.map((file, index) => (
-              <div className="pending-file" key={index}>
-                {file.isImage ? <img src={file.dataUrl} alt="" /> : <span className="file-icon">📄</span>}
-                <span className="pending-name">{file.filename}</span>
-                <button type="button" aria-label={`Remove ${file.filename}`}
-                        onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== index))}>×</button>
-              </div>
+
+        <main className="tbody">
+          <div className="tbody-inner">
+            {messages.length === 0 && (
+              <>
+                <div className="mrow">
+                  <div className="msg a">
+                    <span className="text">Hi! I'm the {agent.name} at {university.short_name}. {agent.welcome}</span>
+                    {canCv && (
+                      <span><button type="button" className="tbtn" onClick={analyzeCv} disabled={loading}>📄 Analyze my CV</button></span>
+                    )}
+                  </div>
+                </div>
+                <div className="chips">
+                  {agent.examples.map((question) => (
+                    <button key={question} type="button" className="chip" onClick={() => send(question)}>{question}</button>
+                  ))}
+                </div>
+              </>
+            )}
+            {messages.map((message, index) => (
+              <Message key={index} message={message} onRate={handleRate} busy={loading}
+                       onResend={(query) => resend(index, query)} />
             ))}
-          </div>
-        )}
-        <form className="composer" onSubmit={handleSubmit}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={accepted}
-            onChange={handleFilesChosen}
-            multiple
-            hidden
-          />
-          {/* "+": add files, and with the cv skill also "Analyze my CV" */}
-          {(accepted || canCv) && <div className="plus-menu-wrap" ref={menuRef}>
-            <button type="button" className="icon-button" onClick={() => setMenuOpen((open) => !open)}
-                    title="Add files and more" aria-label="Add files and more" aria-expanded={menuOpen}>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-            </button>
-            {menuOpen && (
-              <div className="plus-menu" role="menu">
-                {accepted && <button type="button" role="menuitem" onClick={pickFiles}>
-                  <span className="plus-menu-icon">📎</span>
-                  <span>Upload files<small>{hasSkill(agent, "files")
-                    ? `PDF, Word, Excel, PowerPoint, TXT${hasSkill(agent, "images") ? " or pictures" : ""}`
-                    : "Pictures"} (up to {MAX_FILES})</small></span>
-                </button>}
-                {canCv && (
-                  <button type="button" role="menuitem" onClick={analyzeCv} disabled={loading}>
-                    <span className="plus-menu-icon">📄</span>
-                    <span>Analyze my CV<small>Upload your CV and get concrete improvements</small></span>
-                  </button>
-                )}
+            {loading && (
+              <div className="mrow">
+                <div className="msg a">
+                  <div className="typing-dots"><span /><span /><span /></div>
+                  {withFile && <p className="slow-note">Working on your file… Editing or restructuring a document can take a minute.</p>}
+                  {slow && !withFile && (
+                    <p className="slow-note">Still working… The free online models seem busy, so a backup model on this computer
+                      is answering. This can take up to a minute. You can press Stop to edit your message.</p>
+                  )}
+                </div>
               </div>
             )}
-          </div>}
-          <input
-            className="composer-input"
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            placeholder={attachments.length
-              ? `Ask about your file${attachments.length > 1 ? "s" : ""}, or say what to change (e.g. "restructure my CV")...`
-              : agent.placeholder}
-            maxLength={1000}
-            dir="auto"
-            autoFocus
-          />
-          {callSupported && hasSkill(agent, "voice") && (
-            <button type="button" className="icon-button" onClick={() => setCalling(true)}
-                    title="Talk to the assistant by voice" aria-label="Start a voice call">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="9" y="3" width="6" height="11" rx="3" />
-                <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
-              </svg>
-            </button>
+            <div ref={bottomRef} />
+          </div>
+        </main>
+
+        <footer className="tfoot">
+          {error && <p className="error">{error}</p>}
+          {activeDoc && (
+            <div className="doc-bar">
+              <span className="doc-bar-text">
+                📝 <b>{activeDoc.download_name}</b>
+                <span className="muted"> · ask for more changes, e.g. "make it shorter"</span>
+              </span>
+              <a className="doc-view" href={activeDoc.view_url} target="_blank" rel="noreferrer">View</a>
+              <a className="doc-download" href={activeDoc.url} download={activeDoc.download_name}>Download</a>
+              <button type="button" className="secondary" onClick={() => stopEditing()} disabled={loading}
+                      title="Stop working on this document">Close</button>
+            </div>
           )}
-          {/* Different keys make these two separate buttons. With one shared button, a
-              click on Stop turned it back into Send during the click, and the browser
-              then sent the question again. Send only appears once there is something to send. */}
-          {loading ? (
-            <button key="stop" type="button" className="round-button stop-button" onClick={stop}
-                    title="Stop and edit your message" aria-label="Stop">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" /></svg>
-            </button>
-          ) : (input.trim() || attachments.length > 0) && (
-            <button key="send" type="submit" className="round-button send-button" title="Send" aria-label="Send">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" /></svg>
-            </button>
+          {attachments.length > 0 && (
+            <div className="pending-files">
+              {attachments.map((file, index) => (
+                <div className="pending-file" key={index}>
+                  {file.isImage ? <img src={file.dataUrl} alt="" /> : <span className="file-icon">📄</span>}
+                  <span className="pending-name">{file.filename}</span>
+                  <button type="button" aria-label={`Remove ${file.filename}`}
+                          onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== index))}>×</button>
+                </div>
+              ))}
+            </div>
           )}
-        </form>
-      </footer>
+          <form className="tinput" onSubmit={handleSubmit}>
+            <input ref={fileInputRef} type="file" accept={accepted} onChange={handleFilesChosen} multiple hidden />
+            {/* "+": add files, and with the cv skill also "Analyze my CV" */}
+            {(accepted || canCv) && <div className="plus-menu-wrap" ref={menuRef}>
+              <button type="button" className="tbtn ghost" onClick={() => setMenuOpen((open) => !open)}
+                      title="Add files and more" aria-label="Add files and more" aria-expanded={menuOpen}>＋</button>
+              {menuOpen && (
+                <div className="plus-menu" role="menu">
+                  {accepted && <button type="button" role="menuitem" onClick={pickFiles}>
+                    <span className="plus-menu-icon">📎</span>
+                    <span>Upload files<small>{hasSkill(agent, "files")
+                      ? `PDF, Word, Excel, PowerPoint, TXT${hasSkill(agent, "images") ? " or pictures" : ""}`
+                      : "Pictures"} (up to {MAX_FILES})</small></span>
+                  </button>}
+                  {canCv && (
+                    <button type="button" role="menuitem" onClick={analyzeCv} disabled={loading}>
+                      <span className="plus-menu-icon">📄</span>
+                      <span>Analyze my CV<small>Upload your CV and get concrete improvements</small></span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>}
+            <input
+              className="box"
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              placeholder={attachments.length
+                ? `Ask about your file${attachments.length > 1 ? "s" : ""}, or say what to change (e.g. "restructure my CV")...`
+                : agent.placeholder || `Ask ${agent.name} anything…`}
+              aria-label="Your message"
+              maxLength={1000}
+              dir="auto"
+              autoFocus
+            />
+            {callSupported && hasSkill(agent, "voice") && (
+              <button type="button" className="tbtn ghost" onClick={() => setCalling(true)}
+                      title="Talk to the assistant by voice" aria-label="Start a voice call">📞</button>
+            )}
+            {/* Different keys make these two separate buttons. With one shared button, a
+                click on Stop turned it back into Send during the click, and the browser
+                then sent the question again. */}
+            {loading ? (
+              <button key="stop" type="button" className="tbtn dark" onClick={stop} title="Stop and edit your message">Stop</button>
+            ) : (
+              <button key="send" type="submit" className="tbtn" disabled={!input.trim() && attachments.length === 0}>Send</button>
+            )}
+          </form>
+        </footer>
+      </div>
     </div>
   );
 }

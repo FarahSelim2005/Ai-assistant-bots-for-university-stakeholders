@@ -51,16 +51,19 @@ def check_allowance() -> None:
                               "Please try again next month or contact the university.")
 
 
-def record(model: str, kind: str, prompt_tokens: int = 0, completion_tokens: int = 0, total_tokens: int = 0) -> None:
-    """Log one model call for the current university. A failure is only logged: the answer matters more."""
+def record(model: str, kind: str, prompt_tokens: int = 0, completion_tokens: int = 0, total_tokens: int = 0,
+           cost_usd: float = 0.0) -> None:
+    """Log one model call for the current university (cost_usd: as the provider reports it, 0 if
+    it does not). A failure is only logged: the answer matters more."""
     tenant = tenants.current_or_none()
     if tenant is None:
         return
     total = total_tokens or prompt_tokens + completion_tokens
     try:
         with get_connection(tenant.id) as conn:
-            conn.execute("INSERT INTO usage (tenant_id, agent_id, model, kind, prompt_tokens, completion_tokens, total_tokens) "
-                         "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                         (tenant.id, _agent.get(), model[:200], kind, prompt_tokens, completion_tokens, total))
+            conn.execute("INSERT INTO usage (tenant_id, agent_id, model, kind, prompt_tokens, completion_tokens, "
+                         "total_tokens, cost_usd) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                         (tenant.id, _agent.get(), model[:200], kind, prompt_tokens, completion_tokens, total,
+                          max(float(cost_usd or 0), 0.0)))
     except psycopg.Error as error:
         log.warning("Usage of %s not logged: %s", model, type(error).__name__)

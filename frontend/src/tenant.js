@@ -54,3 +54,10 @@ export function hasSkill(assistant, skill) {
 export function audienceTitle(key) {
   return current?.audiences.find((audience) => audience.key === key)?.title ?? key;
 }
+
+// The short name for a small logo square: "GIU" as it is; a longer one as initials ("Demo University" -> "DU").
+export function initials(university = current) {
+  const name = university?.short_name || university?.name || "";
+  if (name.length <= 4) return name;
+  return name.split(/\s+/).filter(Boolean).map((word) => word[0].toUpperCase()).join("").slice(0, 3);
+}

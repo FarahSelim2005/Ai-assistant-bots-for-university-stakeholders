@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multi-Tenant University Assistants</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column (max 1120px) with a live, tenant-switchable prototype as the centrepiece,
+   then architecture, data model, code inventory and roadmap. Platform chrome is neutral slate;
+   only the prototype takes each university's colours. */
+:root {
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --sunken: #eceff3;
+  --fg: #141a22;
+  --muted: #5b6573;
+  --line: #dbe0e7;
+  --accent: #0e6b66;          /* platform colour (teal), never a tenant colour */
+  --accent-soft: #d8efec;
+  --ok: #18794e; --warn: #a3620a; --crit: #b42318;
+  --ok-soft: #dcf3e6; --warn-soft: #fbedd5; --crit-soft: #fbe2df;
+  --code-bg: #10161d; --code-fg: #d6dee8;
+  --font-display: "Sora", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  /* tenant tokens (set by the switcher) */
+  --t-primary: #c4161c; --t-primary-ink: #ffffff; --t-second: #d9a21b; --t-dark: #1a1a1a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1419; --surface: #171e26; --sunken: #1e2731; --fg: #e6ebf1; --muted: #98a3b1; --line: #2b3542;
+    --accent: #4fc1b8; --accent-soft: #143b39;
+    --ok: #5fd39a; --warn: #f0b45a; --crit: #ff8a7a; --ok-soft: #143426; --warn-soft: #3a2a10; --crit-soft: #3d1a17;
+    --code-bg: #0a0e12; --code-fg: #d6dee8; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1419; --surface: #171e26; --sunken: #1e2731; --fg: #e6ebf1; --muted: #98a3b1; --line: #2b3542;
+  --accent: #4fc1b8; --accent-soft: #143b39;
+  --ok: #5fd39a; --warn: #f0b45a; --crit: #ff8a7a; --ok-soft: #143426; --warn-soft: #3a2a10; --crit-soft: #3d1a17;
+  --code-bg: #0a0e12; --code-fg: #d6dee8; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.6; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 80px; display: grid; gap: 64px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: clamp(30px, 5vw, 44px); letter-spacing: -0.02em; }
+h2 { font-size: 26px; letter-spacing: -0.01em; }
+h3 { font-size: 17px; }
+p { margin: 0; }
+.lede { font-size: 17px; color: var(--muted); max-width: 68ch; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.section { display: grid; gap: 20px; }
+.section > header { display: grid; gap: 8px; }
+.section > header p { color: var(--muted); max-width: 70ch; }
+code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+:not(pre) > code { background: var(--sunken); padding: 1px 5px; border-radius: 4px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* hero */
+.hero { display: grid; gap: 18px; }
+.hero-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.fact { background: var(--surface); padding: 14px 16px; display: grid; gap: 2px; }
+.fact b { font-family: var(--font-display); font-size: 22px; font-variant-numeric: tabular-nums; }
+.fact span { color: var(--muted); font-size: 13px; }
+@media (max-width: 720px) { .hero-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* branches */
+.branches { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.branch { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 16px; display: grid; gap: 8px; align-content: start; }
+.branch.lead { border-color: var(--accent); }
+.branch .name { font-family: var(--font-mono); font-size: 14px; font-weight: 500; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.branch ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+.pill { font-family: var(--font-mono); font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--sunken); color: var(--muted); white-space: nowrap; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.crit { background: var(--crit-soft); color: var(--crit); }
+.pill.acc { background: var(--accent-soft); color: var(--accent); }
+@media (max-width: 820px) { .branches { grid-template-columns: 1fr; } }
+
+/* prototype controls */
+.controls { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: end; }
+.ctl { display: grid; gap: 6px; }
+.ctl label, .ctl .lbl { font-size: 12px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 3px; gap: 2px; flex-wrap: wrap; }
+.seg button { font: inherit; font-size: 14px; border: 0; background: transparent; color: var(--fg); padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+:root:not([data-theme="light"]) .seg button[aria-pressed="true"] { color: var(--bg); }
+.note { font-size: 13px; color: var(--muted); }
+
+/* device frame */
+.frame { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 32px rgba(15,20,25,.06); }
+.urlbar { display: flex; align-items: center; gap: 10px; padding: 9px 14px; background: var(--sunken); border-bottom: 1px solid var(--line); font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); min-width: 0; }
+.dots { display: flex; gap: 5px; flex-shrink: 0; }
+.dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); display: block; }
+.url { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.url b { color: var(--fg); font-weight: 500; }
+.screen { min-height: 520px; display: grid; }
+
+/* ---- tenant chat app (uses --t-* tokens; light-only by design: it is the university's own surface) */
+.tapp { display: grid; grid-template-columns: 250px minmax(0, 1fr); background: #f6f6f7; color: #1b1d21; }
+.tside { background: var(--t-dark); color: #f1f1f1; padding: 18px 14px; display: grid; align-content: start; gap: 14px; }
+.tbrand { display: flex; gap: 10px; align-items: center; }
+.tlogo { width: 38px; height: 38px; border-radius: 9px; background: var(--t-primary); color: var(--t-primary-ink); display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; font-size: 13px; flex-shrink: 0; }
+.tbrand b { font-family: var(--font-display); font-size: 14px; display: block; line-height: 1.25; }
+.tbrand small { color: #b9bcc2; font-size: 11.5px; }
+.tstripe { height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--t-dark) 0 33%, var(--t-primary) 33% 66%, var(--t-second) 66%); border: 1px solid rgba(255,255,255,.15); }
+.tside .lbl { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #9a9ea6; font-family: var(--font-mono); }
+.tagents { display: grid; gap: 4px; }
+.tagent { font: inherit; text-align: left; border: 0; background: transparent; color: #e7e7e9; padding: 8px 10px; border-radius: 7px; font-size: 13.5px; cursor: pointer; display: flex; justify-content: space-between; gap: 6px; align-items: center; }
+.tagent:hover { background: rgba(255,255,255,.07); }
+.tagent[aria-current="true"] { background: var(--t-primary); color: var(--t-primary-ink); }
+.tagent .soon { font-size: 10px; color: #c9ccd2; border: 1px solid rgba(255,255,255,.25); border-radius: 999px; padding: 0 6px; }
+.tuser { margin-top: 8px; border-top: 1px solid rgba(255,255,255,.12); padding-top: 12px; font-size: 12.5px; color: #c3c6cc; display: grid; gap: 2px; }
+.tmain { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; }
+.thead { padding: 14px 20px; border-bottom: 1px solid #e3e4e7; background: #fff; display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+.thead h3 { font-size: 16px; color: #1b1d21; }
+.thead p { font-size: 12.5px; color: #6a6f78; }
+.lang { font-size: 12px; border: 1px solid #dadce0; border-radius: 999px; padding: 3px 10px; color: #474b52; background: #fff; }
+.tbody { padding: 20px; display: grid; gap: 14px; align-content: start; }
+.msg { max-width: 78%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.5; }
+.msg.u { justify-self: end; background: var(--t-primary); color: var(--t-primary-ink); border-bottom-right-radius: 4px; }
+.msg.a { background: #fff; border: 1px solid #e3e4e7; border-bottom-left-radius: 4px; display: grid; gap: 8px; }
+.srcs { display: flex; flex-wrap: wrap; gap: 6px; }
+.src { font-family: var(--font-mono); font-size: 11px; background: #f1f2f4; color: #4b5059; border-radius: 5px; padding: 2px 7px; }
+.rate { display: flex; gap: 4px; font-size: 12px; color: #6a6f78; align-items: center; }
+.rate i { width: 18px; height: 18px; border-radius: 4px; border: 1px solid #d5d7db; display: grid; place-items: center; font-style: normal; font-size: 10.5px; }
+.rate i.on { background: var(--t-second); border-color: var(--t-second); color: #1b1d21; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font-size: 13px; border: 1px solid #dadce0; background: #fff; border-radius: 999px; padding: 5px 12px; color: #2d3036; }
+.tinput { padding: 12px 20px 16px; background: #fff; border-top: 1px solid #e3e4e7; display: flex; gap: 8px; align-items: center; }
+.tinput .box { flex: 1; min-width: 0; border: 1px solid #d5d7db; border-radius: 10px; padding: 9px 12px; color: #8a8f98; font-size: 14px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.tbtn { border: 0; border-radius: 9px; padding: 9px 14px; background: var(--t-primary); color: var(--t-primary-ink); font: inherit; font-weight: 600; font-size: 13px; }
+.tbtn.ghost { background: #fff; color: #2d3036; border: 1px solid #d5d7db; }
+.handover { border: 1px dashed var(--t-primary); border-radius: 10px; padding: 8px 12px; font-size: 13px; color: #2d3036; display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+@media (max-width: 760px) { .tapp { grid-template-columns: 1fr; } .tagents { grid-template-columns: repeat(2, minmax(0, 1fr)); } .msg { max-width: 92%; } }
+
+/* ---- admin consoles (platform tokens, theme-aware) */
+.console { display: grid; grid-template-columns: 210px minmax(0, 1fr); background: var(--bg); }
+.cnav { background: var(--surface); border-right: 1px solid var(--line); padding: 16px 12px; display: grid; gap: 4px; align-content: start; }
+.cnav .ctitle { font-family: var(--font-display); font-weight: 600; font-size: 14px; padding: 4px 8px 12px; display: flex; gap: 8px; align-items: center; }
+.cnav .ctitle .tlogo { width: 26px; height: 26px; font-size: 10px; border-radius: 6px; }
+.cnav a { color: var(--fg); text-decoration: none; font-size: 13.5px; padding: 7px 10px; border-radius: 7px; display: flex; justify-content: space-between; }
+.cnav a.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.cnav a span { color: var(--muted); font-size: 12px; font-family: var(--font-mono); }
+.cmain { padding: 20px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+.crow { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.btn { font: inherit; font-size: 13px; font-weight: 600; border: 0; border-radius: 8px; padding: 8px 14px; background: var(--accent); color: var(--surface); cursor: pointer; }
+:root:not([data-theme="light"]) .btn { color: var(--bg); }
+.btn.ghost { background: var(--surface); color: var(--fg); border: 1px solid var(--line); }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; display: grid; gap: 2px; }
+.kpi span { font-size: 12px; color: var(--muted); }
+.kpi b { font-family: var(--font-display); font-size: 20px; font-variant-numeric: tabular-nums; }
+.kpi small { font-size: 11.5px; color: var(--muted); }
+@media (max-width: 760px) { .console { grid-template-columns: 1fr; } .cnav { grid-template-columns: repeat(2, minmax(0, 1fr)); border-right: 0; border-bottom: 1px solid var(--line); } .cnav .ctitle { grid-column: 1 / -1; } .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 11.5px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 500; background: var(--sunken); }
+tr:last-child td { border-bottom: 0; }
+td.num { font-variant-numeric: tabular-nums; text-align: right; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: middle; margin-right: 6px; }
+.panel-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 12px; }
+@media (max-width: 900px) { .panel-grid { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.panel h4 { margin: 0; font-family: var(--font-display); font-size: 14px; }
+.field { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px; align-items: center; font-size: 13px; }
+.field > span:first-child { color: var(--muted); }
+.fval { border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; background: var(--bg); font-family: var(--font-mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toggle { width: 30px; height: 17px; border-radius: 999px; background: var(--line); position: relative; display: inline-block; vertical-align: middle; flex-shrink: 0; }
+.toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: var(--surface); }
+.toggle.on { background: var(--accent); }
+.toggle.on::after { left: 15px; }
+.agentrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.agentrow:last-child { border-bottom: 0; }
+.agentrow small { color: var(--muted); display: block; font-size: 12px; }
+.bar { height: 6px; border-radius: 3px; background: var(--sunken); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+
+.finput { font: inherit; font-size: 13px; width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; background: var(--bg); color: var(--fg); resize: vertical; }
+.opts { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.opt { font: inherit; font-size: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+.opt[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.agentpick { font: inherit; text-align: left; width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 10px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--fg); cursor: pointer; font-size: 13.5px; }
+.agentpick:hover { background: var(--sunken); }
+.agentpick[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.agentpick small { color: var(--muted); display: block; font-size: 12px; }
+.agentpick b { font-weight: 600; }
+.field { align-items: start; }
+.field > span:first-child { padding-top: 5px; }
+@media (max-width: 520px) { .field { grid-template-columns: 1fr; gap: 4px; } }
+
+/* architecture */
+.flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; align-items: stretch; overflow-x: auto; }
+.step { background: var(--surface); border: 1px solid var(--line); padding: 14px; display: grid; gap: 6px; align-content: start; position: relative; min-width: 170px; }
+.step + .step { border-left: 0; }
+.step:first-child { border-radius: 10px 0 0 10px; }
+.step:last-child { border-radius: 0 10px 10px 0; }
+.step .k { font-family: var(--font-mono); font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: .06em; }
+.step b { font-family: var(--font-display); font-size: 14.5px; }
+.step p { font-size: 13px; color: var(--muted); }
+.step + .step::before { content: "→"; position: absolute; left: -9px; top: 14px; background: var(--bg); color: var(--accent); font-size: 13px; line-height: 1; padding: 2px 1px; }
+.layers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.layer { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 16px; display: grid; gap: 8px; align-content: start; }
+.layer ul { margin: 0; padding-left: 18px; font-size: 14px; color: var(--muted); display: grid; gap: 3px; }
+.layer .who { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+@media (max-width: 820px) { .layers { grid-template-columns: 1fr; } }
+.decisions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.decision { border-top: 2px solid var(--accent); background: var(--surface); padding: 14px 16px; border-radius: 0 0 8px 8px; display: grid; gap: 6px; }
+.decision p { font-size: 14px; color: var(--muted); }
+.decision .pick { font-size: 14px; color: var(--fg); }
+@media (max-width: 720px) { .decisions { grid-template-columns: 1fr; } }
+
+pre { background: var(--code-bg); color: var(--code-fg); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; margin: 0; }
+pre .c { color: #7d8a99; }
+pre .n { color: #7ee0c3; }
+pre .k { color: #f2b872; }
+
+.roadmap { display: grid; gap: 0; border-left: 2px solid var(--line); margin-left: 8px; }
+.phase { padding: 0 0 22px 22px; position: relative; display: grid; gap: 6px; }
+.phase::before { content: ""; position: absolute; left: -7px; top: 5px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); }
+.phase .ph { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.phase ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; display: grid; gap: 3px; }
+.phase .done { color: var(--fg); font-size: 14px; }
+footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 18px; }
+@media (prefers-reduced-motion: no-preference) { .tapp, .console { animation: fade .25s ease; } @keyframes fade { from { opacity: .4; } to { opacity: 1; } } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+<section class="hero">
+  <p class="eyebrow">Design proposal · AI assistant bots for university stakeholders</p>
+  <h1>One platform, many universities</h1>
+  <p class="lede">Today the app is the GIU Chatbot: one university, four agents and one admin password. This design turns it into a multi-tenant product. Each university gets its own subdomain, branding, documents, users and model budget. Each university also creates its own assistants: as many as it wants, with the names it wants. The RAG pipeline, CV model, campus map and voice call you already built stay as they are, shared by every tenant.</p>
+  <div class="hero-grid">
+    <div class="fact"><b>3</b><span>branches; <code>career-agent</code> contains the other two</span></div>
+    <div class="fact"><b>4 + 1</b><span>agents built, Orientation still “coming soon”</span></div>
+    <div class="fact"><b>22</b><span>source files that hard-code GIU</span></div>
+    <div class="fact"><b>0</b><span>tenant columns in the database today</span></div>
+  </div>
+</section>
+
+<section class="section">
+  <header>
+    <p class="eyebrow">Where the repo is now</p>
+    <h2>The three branches</h2>
+    <p>The working branch <code>claude/hopeful-turing-qvl9vx</code> is identical to <code>main</code>. Build the multi-tenant version on top of <code>career-agent</code>, because it has the admin backend that tenancy has to wrap.</p>
+  </header>
+  <div class="branches">
+    <article class="branch">
+      <div class="name">labs-agent <span class="pill">43 commits · merged</span></div>
+      <ul>
+        <li>Labs &amp; Research agent: rules → retrieve → validate → generate</li>
+        <li>Campus map, room codes (<code>M005</code>), walk-me-to buttons</li>
+        <li>Arabic-letter English glossary (بدل = padel)</li>
+        <li>Voice call with Groq Whisper and a local fallback</li>
+      </ul>
+    </article>
+    <article class="branch">
+      <div class="name">main <span class="pill">53 commits</span></div>
+      <ul>
+        <li>Labs plus a first Internship &amp; Career agent (merged in PR #6)</li>
+        <li>Student / Staff start screen, agent picker, coming-soon pages</li>
+        <li>Agent hand-over links between assistants</li>
+        <li>Stop, edit and resend a question</li>
+      </ul>
+    </article>
+    <article class="branch lead">
+      <div class="name">career-agent <span class="pill acc">116 commits · most complete</span></div>
+      <ul>
+        <li>Graduation &amp; Advising (9 curricula) and HR &amp; Policies (staff only)</li>
+        <li>Fine-tuned CV model v6, CV analysis, PDF and Word output</li>
+        <li>Document editor for Word, Excel, PowerPoint and PDF</li>
+        <li><code>/admin</code>: one password, add, edit and delete documents, re-index</li>
+        <li>Groq and Ollama backups, a test suite in <code>backend/tests</code></li>
+      </ul>
+    </article>
+  </div>
+</section>
+
+<section class="section" id="prototype">
+  <header>
+    <p class="eyebrow">Interactive prototype</p>
+    <h2>Three surfaces, one codebase</h2>
+    <p>Switch the university to see the same app with different branding, a different number of assistants and different assistant names. Switch the surface to move between what a student sees, what a university's admin sees and what you, the platform owner, see. In “University admin” you can rename, add and delete assistants, and the chat updates. GIU uses its real assistants. The other two universities are made-up examples.</p>
+  </header>
+  <div class="controls">
+    <div class="ctl"><span class="lbl" id="lbl-tenant">University (tenant)</span><div class="seg" role="group" aria-labelledby="lbl-tenant" id="seg-tenant"></div></div>
+    <div class="ctl"><span class="lbl" id="lbl-view">Surface</span><div class="seg" role="group" aria-labelledby="lbl-view" id="seg-view">
+      <button type="button" data-view="chat" aria-pressed="true">Student / staff chat</button>
+      <button type="button" data-view="admin" aria-pressed="false">University admin</button>
+      <button type="button" data-view="platform" aria-pressed="false">Platform console</button>
+    </div></div>
+    <div class="ctl" id="ctl-role"><span class="lbl" id="lbl-role">Signed in as</span><div class="seg" role="group" aria-labelledby="lbl-role" id="seg-role"></div></div>
+  </div>
+  <div class="frame">
+    <div class="urlbar"><span class="dots"><i></i><i></i><i></i></span><span class="url" id="url"></span></div>
+    <div class="screen" id="screen"></div>
+  </div>
+  <div class="crow"><p class="note" id="proto-note"></p><button type="button" class="btn ghost" id="reset-proto">Reset example data</button></div>
+</section>
+
+<section class="section">
+  <header>
+    <p class="eyebrow">How a request finds its university</p>
+    <h2>Request flow</h2>
+    <p>Each request is tied to one tenant before it reaches an agent. Every step after that reads and writes only that tenant's rows.</p>
+  </header>
+  <div class="flow">
+    <div class="step"><span class="k">1 · Resolve</span><b>Host → tenant</b><p><code>giu.unibots.app</code> or a custom domain is looked up in <code>tenant_domains</code>. Unknown hosts get a 404, never a default tenant.</p></div>
+    <div class="step"><span class="k">2 · Identify</span><b>User + role</b><p>SSO (Microsoft Entra or Google) or a magic link. The role (student, staff or a custom one) comes from the email domain or the IdP group.</p></div>
+    <div class="step"><span class="k">3 · Scope</span><b>DB session</b><p><code>SET app.tenant_id</code> on the connection. Postgres row-level security filters every table.</p></div>
+    <div class="step"><span class="k">4 · Agent</span><b>Same pipeline</b><p>Rules → retrieve → validate → generate, with this tenant's prompts, thresholds and model list.</p></div>
+    <div class="step"><span class="k">5 · Meter</span><b>Usage + quota</b><p>Tokens, files and voice minutes are logged per tenant. The platform blocks a tenant at its monthly cap.</p></div>
+  </div>
+  <div class="layers">
+    <div class="layer"><h3>Platform</h3><span class="who">you · platform_owner</span><ul><li>Create and suspend tenants, choose plans</li><li>Assistant templates and the skills catalogue</li><li>Default models, global API keys, base prompts</li><li>Usage, cost and errors across all tenants</li></ul></div>
+    <div class="layer"><h3>Tenant</h3><span class="who">each university · tenant_admin, editor</span><ul><li>Branding: name, logo, colours, languages</li><li>Create any number of assistants, name them and choose who can use them</li><li>Documents per agent, with re-indexing</li><li>SSO, audiences, own model keys (optional)</li><li>Analytics, ratings and unanswered questions</li></ul></div>
+    <div class="layer"><h3>End user</h3><span class="who">students, staff, custom audiences</span><ul><li>Sees only the agents allowed for their audience</li><li>Chat, files, CV review, voice call, campus map</li><li>Hand-over links between the tenant's own agents only</li><li>Their own chat history, kept per tenant</li></ul></div>
+  </div>
+</section>
+
+<section class="section">
+  <header>
+    <p class="eyebrow">Key decisions</p>
+    <h2>What I recommend, and why</h2>
+  </header>
+  <div class="decisions">
+    <div class="decision"><h3>Isolation: shared database, <code>tenant_id</code> + RLS</h3><p class="pick">Add a <code>tenant_id</code> column to every table and enforce it with Postgres row-level security.</p><p>Fits a handful to a few hundred universities on the PostgreSQL 18 you already run. You don't need a database per tenant until a university demands it by contract. If one does, the same schema moves over unchanged.</p></div>
+    <div class="decision"><h3>Routing: subdomain per university</h3><p class="pick"><code>{slug}.unibots.app</code>, with optional custom domains such as <code>chat.giu-uni.de</code>.</p><p>Cookies and sessions stay separate per university, and the link can go straight into a university portal. Path routing (<code>/t/giu</code>) would mix sessions and makes CORS rules harder.</p></div>
+    <div class="decision"><h3>Assistants are created by each university</h3><p class="pick">Any number, any name. One generic agent runs every assistant from its database row.</p><p>The four GIU agents become optional templates a university can start from. The duplicated lists in <code>frontend/src/agents.js</code> and <code>backend/app/agents/directory.py</code> are replaced by the <code>agents</code> table, which the frontend loads from <code>GET /tenant</code>.</p></div>
+    <div class="decision"><h3>Audiences instead of student/staff</h3><p class="pick">Replace the <code>CHECK (user_type IN ('student','staff'))</code> constraint with a per-tenant <code>audiences</code> table.</p><p>Universities differ: some need applicants, alumni or parents. Chunks keep their <code>audience TEXT[]</code>, filled with audience keys from that university. Each assistant lists which audiences may use it.</p></div>
+    <div class="decision"><h3>Branding is data, not CSS</h3><p class="pick">Colours, logo, name and greeting come from <code>tenant_branding</code> and are set as CSS variables at load.</p><p><code>App.css</code> already uses <code>--giu-red</code>, <code>--giu-gold</code> and <code>--giu-black</code>. Renaming them to <code>--brand-primary</code>, <code>--brand-accent</code> and <code>--brand-dark</code> is mostly find-and-replace.</p></div>
+    <div class="decision"><h3>Special features become skills</h3><p class="pick">The campus map, CV model, voice call and document editor are skills that can be switched on for any assistant.</p><p>The map needs each university's buildings and room numbering rules (<code>campus.py</code>, <code>campusGeo.js</code>), so it becomes a per-tenant <code>campus_config</code> JSON. Tenants without one simply don't show the map.</p></div>
+  </div>
+</section>
+
+<section class="section" id="builder">
+  <header>
+    <p class="eyebrow">Assistant builder</p>
+    <h2>What a university fills in for each assistant</h2>
+    <p>The assistant's settings replace the per-agent Python classes. Everything that differs between today's four agents is already one of these fields.</p>
+  </header>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Field</th><th>Example</th><th>Replaces today</th></tr></thead>
+    <tbody>
+      <tr><td>Name</td><td>Ask Admissions</td><td><code>agents.js</code> <code>name</code>, <code>directory.py</code> name</td></tr>
+      <tr><td>What it handles</td><td>Applying, required documents, deadlines and fees</td><td><code>handles</code>, <code>subtitle</code> and the hand-over description in <code>directory.py</code></td></tr>
+      <tr><td>Who can use it</td><td>Applicant, Student</td><td><code>allowed_user_types</code>, <code>userTypes</code></td></tr>
+      <tr><td>Answers from</td><td>Documents only, or documents + general advice</td><td><code>answers_without_documents</code> (Labs vs Career)</td></tr>
+      <tr><td>Instructions (optional)</td><td>Always mention the admissions office's opening hours</td><td>The per-agent text in <code>rag/prompts.py</code></td></tr>
+      <tr><td>Fallback message (EN / AR)</td><td>Please contact admissions@…</td><td><code>fallback_message</code>, <code>fallback_message_ar</code></td></tr>
+      <tr><td>Example questions, welcome, placeholder</td><td>“When is the deadline?”</td><td><code>examples</code>, <code>welcome</code>, <code>placeholder</code></td></tr>
+      <tr><td>Skills</td><td>Files, pictures, CV review, editor, campus map, voice</td><td><code>cvReview</code>, the campus code in <code>base.py</code>, <code>vision_model</code></td></tr>
+      <tr><td>Model (advanced)</td><td>Platform default, or a chosen model</td><td><code>LABS_MODEL</code>, <code>CAREER_MODEL</code> in <code>.env</code></td></tr>
+      <tr><td>Order, live / hidden</td><td>Shown 2nd, live</td><td><code>ready: false</code> and the coming-soon page</td></tr>
+    </tbody>
+  </table></div>
+  <div class="decisions">
+    <div class="decision"><h3>How the backend runs any assistant</h3><p class="pick"><code>AGENTS</code> in <code>agents/__init__.py</code> becomes <code>load_agent(tenant_id, agent_id)</code>.</p><p>It builds a <code>ConfiguredAgent(BaseAgent)</code> from the row and caches it until the row changes. <code>BaseAgent.run()</code> stays the same. The system prompt is assembled from the platform's fixed rules (answer from documents, language, ignore instructions inside files), the answer mode, the university's instructions and each skill's prompt part.</p></div>
+    <div class="decision"><h3>Skills keep the special code</h3><p class="pick">The CV model and the campus map stay Python, as plug-ins that any assistant can switch on.</p><p><code>internship_career.py</code>'s CV logic becomes the <code>cv</code> skill. The room and place lookups in <code>base.py</code> become the <code>map</code> skill and run only when the skill is on. That means an “Ask Admissions” assistant never shows a campus map by accident.</p></div>
+    <div class="decision"><h3>Hand-over works with any number of assistants</h3><p class="pick">Use the “What it handles” text of the university's own assistants.</p><p><code>suggest_agent</code> already compares the question with descriptions using embeddings. It now reads them from the <code>agents</code> table for this university only, and re-embeds a description when an admin edits it.</p></div>
+    <div class="decision"><h3>Renaming never breaks anything</h3><p class="pick">Assistants are identified by an id, never by their name.</p><p>Today conversations and chunks store the key (<code>"labs_research"</code>). In the new schema they store <code>agent_id</code>, so an admin can rename “Labs &amp; Research” to “Campus Guide” and keep its documents and chat history. Limits per plan (for example 3 assistants on a trial) are the only cap.</p></div>
+  </div>
+</section>
+
+<section class="section">
+  <header>
+    <p class="eyebrow">Data model</p>
+    <h2>Schema changes</h2>
+    <p>New tables are shown in green. Existing tables gain a <code>tenant_id</code> and an <code>agent_id</code>. The current GIU data moves into tenant <code>giu</code>, and its four agents become four rows in <code>agents</code>, in one backfill.</p>
+  </header>
+<pre><span class="c">-- platform-level</span>
+<span class="k">CREATE TABLE</span> <span class="n">tenants</span> (id UUID PRIMARY KEY, slug TEXT UNIQUE, name TEXT, status TEXT <span class="c">-- active | suspended | trial</span>
+  , plan TEXT, monthly_token_cap BIGINT, default_language TEXT, created_at TIMESTAMPTZ DEFAULT now());
+<span class="k">CREATE TABLE</span> <span class="n">tenant_domains</span>  (host TEXT PRIMARY KEY, tenant_id UUID REFERENCES tenants, is_primary BOOL);
+<span class="k">CREATE TABLE</span> <span class="n">tenant_branding</span> (tenant_id UUID PRIMARY KEY, logo_url TEXT, primary_hex TEXT, accent_hex TEXT, dark_hex TEXT
+  , short_name TEXT, welcome TEXT, languages TEXT[] <span class="c">-- {en,ar}</span>);
+<span class="k">CREATE TABLE</span> <span class="n">agent_templates</span> (key TEXT PRIMARY KEY, name TEXT, description TEXT, instructions TEXT, skills TEXT[]); <span class="c">-- optional starting points</span>
+<span class="k">CREATE TABLE</span> <span class="n">agents</span>          (id UUID PRIMARY KEY, tenant_id UUID REFERENCES tenants, name TEXT NOT NULL <span class="c">-- any name, any number</span>
+  , description TEXT, audiences TEXT[], answer_mode TEXT <span class="c">-- docs | advice</span>, instructions TEXT
+  , fallback_en TEXT, fallback_ar TEXT, welcome TEXT, placeholder TEXT, examples TEXT[]
+  , skills TEXT[] <span class="c">-- files, images, cv, editor, map, voice</span>, model TEXT, backup_models TEXT[]
+  , similarity_threshold REAL, position INT, live BOOL DEFAULT false, template_key TEXT, description_embedding DOUBLE PRECISION[]);
+<span class="k">CREATE TABLE</span> <span class="n">audiences</span>       (tenant_id UUID, key TEXT, label TEXT, email_domains TEXT[], PRIMARY KEY (tenant_id, key));
+<span class="k">CREATE TABLE</span> <span class="n">users</span>           (id UUID PRIMARY KEY, tenant_id UUID, email TEXT, audience TEXT, role TEXT <span class="c">-- member | editor | tenant_admin</span>
+  , UNIQUE (tenant_id, email));
+<span class="k">CREATE TABLE</span> <span class="n">documents</span>       (id UUID PRIMARY KEY, tenant_id UUID, agent_id UUID REFERENCES agents, filename TEXT, storage_key TEXT
+  , updated_by UUID, updated_at TIMESTAMPTZ); <span class="c">-- replaces data/raw/&lt;agent&gt;/ on disk</span>
+<span class="k">CREATE TABLE</span> <span class="n">usage_events</span>    (tenant_id UUID, at TIMESTAMPTZ, kind TEXT, model TEXT, tokens_in INT, tokens_out INT, cost_usd NUMERIC);
+
+<span class="c">-- existing tables: add tenant_id, backfill 'giu', then make it NOT NULL</span>
+<span class="k">ALTER TABLE</span> chunks        ADD tenant_id UUID, ADD agent_id UUID, ADD document_id UUID;  <span class="c">-- agent TEXT kept until backfilled</span>
+<span class="k">ALTER TABLE</span> conversations ADD tenant_id UUID, ADD agent_id UUID, ADD user_id UUID, DROP CONSTRAINT conversations_user_type_check;
+<span class="k">ALTER TABLE</span> messages      ADD tenant_id UUID;
+<span class="k">ALTER TABLE</span> feedback      ADD tenant_id UUID;
+
+<span class="c">-- isolation, repeated for every tenant-owned table</span>
+<span class="k">ALTER TABLE</span> chunks <span class="k">ENABLE ROW LEVEL SECURITY</span>;
+<span class="k">CREATE POLICY</span> tenant_only <span class="k">ON</span> chunks <span class="k">USING</span> (tenant_id = current_setting('app.tenant_id')::uuid);</pre>
+  <p class="note">The retriever loads every chunk and compares it in numpy, which is fine for one university. Across tenants, filter by <code>tenant_id</code> in SQL first. Move to pgvector once a single tenant passes about 50,000 chunks.</p>
+</section>
+
+<section class="section">
+  <header>
+    <p class="eyebrow">Code inventory</p>
+    <h2>What is hard-coded today, and where it goes</h2>
+    <p>These are the GIU-specific places in <code>career-agent</code> and the tenant setting each one turns into.</p>
+  </header>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Today</th><th>File</th><th>Becomes</th><th>Effort</th></tr></thead>
+    <tbody>
+      <tr><td>Agent list, examples, placeholders</td><td><code>frontend/src/agents.js</code></td><td><code>agents</code> rows via <code>GET /tenant</code></td><td><span class="pill warn">medium</span></td></tr>
+      <tr><td>Agent descriptions for hand-over</td><td><code>backend/app/agents/directory.py</code></td><td><code>agents.description</code> + stored embedding</td><td><span class="pill warn">medium</span></td></tr>
+      <tr><td>One Python class per agent, fixed registry</td><td><code>agents/__init__.py</code>, <code>labs_research.py</code>, <code>hr_policies.py</code>, …</td><td><code>ConfiguredAgent</code> built from the row; CV and map logic become skills</td><td><span class="pill crit">large</span></td></tr>
+      <tr><td>“GIU” in 23 prompt lines</td><td><code>backend/app/rag/prompts.py</code></td><td><code>{university}</code> placeholder + <code>prompt_extra</code></td><td><span class="pill ok">small</span></td></tr>
+      <tr><td>GIU facts in the career agent and CV checks</td><td><code>agents/internship_career.py</code>, <code>documents/cv_*.py</code></td><td>Tenant documents; the “your university” check reads the tenant name</td><td><span class="pill warn">medium</span></td></tr>
+      <tr><td>Colours <code>--giu-red</code>, logo, title</td><td><code>App.css</code>, <code>StartScreen.jsx</code>, <code>index.html</code></td><td><code>tenant_branding</code> → CSS variables</td><td><span class="pill ok">small</span></td></tr>
+      <tr><td>Buildings A/M/S, room rules, GPS</td><td><code>campus.py</code>, <code>CampusMap.jsx</code>, <code>campusGeo.js</code></td><td><code>campus_config</code> JSON, feature flag</td><td><span class="pill crit">large</span></td></tr>
+      <tr><td>Documents in <code>data/raw/&lt;agent&gt;/</code></td><td><code>scripts/ingest.py</code>, <code>routers/admin.py</code></td><td><code>documents</code> table + storage under <code>&lt;tenant&gt;/&lt;agent_id&gt;/</code></td><td><span class="pill warn">medium</span></td></tr>
+      <tr><td>One <code>ADMIN_PASSWORD</code>, tokens in memory</td><td><code>routers/admin.py</code>, <code>AdminPage.jsx</code></td><td>Users + roles, SSO per tenant, tokens stored in the database</td><td><span class="pill crit">large</span></td></tr>
+      <tr><td>Student / Staff only</td><td><code>schemas.py</code>, <code>StartScreen.jsx</code>, SQL check</td><td><code>audiences</code> per tenant</td><td><span class="pill warn">medium</span></td></tr>
+      <tr><td>Models and keys in <code>.env</code></td><td><code>config.py</code>, <code>llm/client.py</code></td><td>Platform defaults, per-agent override, tenant's own keys</td><td><span class="pill ok">small</span></td></tr>
+      <tr><td>CORS fixed to <code>localhost:5173</code></td><td><code>config.py</code>, <code>main.py</code></td><td>Allowed origins from <code>tenant_domains</code></td><td><span class="pill ok">small</span></td></tr>
+      <tr><td>Edited files in <code>data/edits/&lt;conversation&gt;</code></td><td><code>documents/storage.py</code></td><td><code>edits/&lt;tenant&gt;/&lt;conversation&gt;</code></td><td><span class="pill ok">small</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="section">
+  <header>
+    <p class="eyebrow">Roadmap</p>
+    <h2>Getting there in five steps</h2>
+    <p>Each step leaves GIU working, so the current demo never breaks.</p>
+  </header>
+  <div class="roadmap">
+    <div class="phase"><div class="ph"><h3>1. Tenant foundation</h3><span class="pill">about 1 week</span></div><p class="done">Done when GIU runs as tenant <code>giu</code> and nothing looks different.</p><ul><li>Add the <code>tenants</code> and <code>tenant_domains</code> tables, add <code>tenant_id</code> to the four existing tables and backfill <code>giu</code></li><li>Tenant-resolving middleware in <code>main.py</code>, plus a <code>get_connection(tenant)</code> that sets <code>app.tenant_id</code></li><li>Turn on RLS, and add a test showing tenant B cannot read tenant A's chunks</li></ul></div>
+    <div class="phase"><div class="ph"><h3>2. Assistants from the database</h3><span class="pill">2 weeks</span></div><p class="done">Done when a second test university with 6 assistants of its own works with no code changes.</p><ul><li>Add the <code>agents</code> table; turn GIU's four classes into four rows and the four templates</li><li><code>ConfiguredAgent</code> + <code>load_agent()</code>; move the CV and campus code into the <code>cv</code> and <code>map</code> skills; build the prompt from parts</li><li><code>GET /tenant</code> returns branding, assistants and audiences; the frontend reads it instead of <code>agents.js</code></li><li>Chunks, conversations and documents use <code>agent_id</code>; hand-over reads this university's descriptions</li><li>The existing GIU test questions in <code>evaluate.py</code> must score the same as before</li></ul></div>
+    <div class="phase"><div class="ph"><h3>3. Real sign-in and roles</h3><span class="pill">1–2 weeks</span></div><p class="done">Done when each university's admin manages only their own content.</p><ul><li>Users, roles and email-domain audiences, with magic links first and SSO next</li><li>Scope the existing <code>/admin</code> pages to the tenant; add the Assistants builder, Branding and Users tabs</li><li>Chat history per user</li></ul></div>
+    <div class="phase"><div class="ph"><h3>4. Platform console and metering</h3><span class="pill">1 week</span></div><p class="done">Done when you can onboard a university in under 10 minutes.</p><ul><li>Tenant list, usage chart, plan caps, suspend button</li><li>New-tenant wizard: name → subdomain → colours and logo → agents → first admin invite</li><li>Log <code>usage_events</code> in <code>llm/client.py</code>; enforce caps</li></ul></div>
+    <div class="phase"><div class="ph"><h3>5. Per-tenant features</h3><span class="pill">ongoing</span></div><p class="done">Done when the campus map works for a university other than GIU.</p><ul><li>Campus map from <code>campus_config</code> with a room-code rule builder in the admin</li><li>Glossary (<code>transliteration.py</code>) extendable per tenant</li><li>Tenant-supplied model keys and custom domains</li></ul></div>
+  </div>
+</section>
+
+<footer>Based on branches <code>main</code>, <code>labs-agent</code> and <code>career-agent</code> of FarahSelim2005/Ai-assistant-bots-for-university-stakeholders. Nile Valley University, Delta Institute of Technology and every usage figure are example data for illustration. The domain <code>unibots.app</code> is a placeholder.</footer>
+</div>
+
+<script>
+const SKILLS = {
+  files: "Questions about uploaded files",
+  images: "Questions about pictures",
+  cv: "CV review and rewrite (CV model)",
+  editor: "Edit Word, Excel and PDF files",
+  map: "Campus map and room codes",
+  voice: "Voice call",
+};
+const MODES = { docs: "Documents only", advice: "Documents + general advice" };
+const BASE_TENANTS = {
+  giu: {
+    slug: "giu", name: "German International University", short: "GIU", initials: "GIU",
+    primary: "#c4161c", ink: "#ffffff", second: "#d9a21b", dark: "#1a1a1a", status: "active", plan: "Campus",
+    audiences: { student: "Student", staff: "Staff" },
+    agents: [
+      { id: "g1", name: "Graduation & Advising", desc: "Advising, probation, course plans and ECTS, B.Sc. and internship eligibility", aud: ["student", "staff"], docs: 10, on: true, mode: "docs", skills: ["files", "voice"] },
+      { id: "g2", name: "HR & Policies", desc: "Leave, public holidays, contracts, resignation and labour law", aud: ["staff"], docs: 1, on: true, mode: "docs", skills: ["files", "voice"] },
+      { id: "g3", name: "Internship & Career", desc: "Internships, the career fair, CV review, interviews and career paths", aud: ["student", "staff"], docs: 1, on: true, mode: "advice", skills: ["files", "images", "cv", "editor", "voice"] },
+      { id: "g4", name: "Labs & Research", desc: "Labs, equipment, research resources, campus buildings and offices", aud: ["student", "staff"], docs: 1, on: true, mode: "docs", skills: ["files", "images", "map", "voice"] },
+    ],
+    chat: { agent: "g4", q: "Where is the AI lab?", a: "The AI Lab is in Building M, room M005, on the ground floor. Enter Building M from the car park side and it is the fifth room on your left.", src: ["campus_buildings.md"], extra: "map",
+      chips: ["Where is the Admission Office?", "Where is the gym?", "فين بدل؟"] },
+    usage: { users: "4,210", q: "38,920", tok: 61, cost: "$212" },
+    sso: "Microsoft Entra · giu-uni.de", domain: "giu.unibots.app", custom: "chat.giu-uni.de",
+  },
+  nvu: {
+    slug: "nvu", name: "Nile Valley University", short: "NVU", initials: "NVU",
+    primary: "#1f4fa3", ink: "#ffffff", second: "#f2a33a", dark: "#0f1d33", status: "active", plan: "Campus",
+    audiences: { student: "Student", staff: "Staff", applicant: "Applicant" },
+    agents: [
+      { id: "n1", name: "Ask Admissions", desc: "Applying, required documents, deadlines, placement tests and fees", aud: ["applicant", "student"], docs: 4, on: true, mode: "docs", skills: ["files", "voice"] },
+      { id: "n2", name: "Academic Advising", desc: "Course registration, credit hours, GPA and graduation requirements", aud: ["student"], docs: 6, on: true, mode: "docs", skills: ["files"] },
+      { id: "n3", name: "Student Services", desc: "ID cards, transport, clinic, student activities and complaints", aud: ["student"], docs: 3, on: true, mode: "docs", skills: ["voice"] },
+      { id: "n4", name: "Dorms & Housing", desc: "Dorm rooms, prices, rules and how to apply for housing", aud: ["student", "applicant"], docs: 2, on: true, mode: "docs", skills: [] },
+      { id: "n5", name: "Library Helper", desc: "Opening hours, borrowing books, e-journals and study rooms", aud: ["student", "staff"], docs: 1, on: true, mode: "advice", skills: ["files"] },
+      { id: "n6", name: "HR Desk", desc: "Staff leave, payroll, contracts and Egyptian labour law", aud: ["staff"], docs: 3, on: true, mode: "docs", skills: ["files"] },
+    ],
+    chat: { agent: "n1", q: "What documents do I need to apply for Pharmacy?", a: "For Pharmacy you need your secondary school certificate, a copy of your national ID, four photos and the placement test result. Upload them on the admissions portal before 15 August.", src: ["admissions_2027.pdf", "pharmacy_requirements.md"], extra: "handover", handTo: "n4",
+      chips: ["When does the semester start?", "Is there a dorm?", "How much are the fees?"] },
+    usage: { users: "1,180", q: "9,402", tok: 22, cost: "$64" },
+    sso: "Google Workspace · nvu.edu.eg", domain: "nvu.unibots.app", custom: "—",
+  },
+  dit: {
+    slug: "dit", name: "Delta Institute of Technology", short: "DIT", initials: "DIT",
+    primary: "#137a4b", ink: "#ffffff", second: "#c7d93c", dark: "#0d2a1e", status: "trial", plan: "Trial",
+    audiences: { student: "Student", staff: "Staff", alumni: "Alumni" },
+    agents: [
+      { id: "d1", name: "DIT Buddy", desc: "Everything about studying at DIT: courses, workshops, campus and student life", aud: ["student", "staff"], docs: 7, on: true, mode: "docs", skills: ["files", "images", "voice"] },
+      { id: "d2", name: "Careers & Alumni", desc: "Internships, CVs, interviews, jobs and the alumni network", aud: ["student", "alumni"], docs: 3, on: true, mode: "advice", skills: ["files", "cv", "editor"] },
+    ],
+    chat: { agent: "d2", q: "Can you check my CV?", a: "Your CV is two pages, but with one internship it should be one. Strengths: a clear Projects section and links to your GitHub. Suggestions: add months to the Siemens internship and move Skills above Education.", src: ["cv_guidelines.md", "📄 Omar_CV.pdf"], extra: "cv",
+      chips: ["Which companies hire mechatronics graduates?", "How do I prepare for a technical interview?"] },
+    usage: { users: "310", q: "1,876", tok: 4, cost: "$9" },
+    sso: "Magic link · dit.edu.eg", domain: "dit.unibots.app", custom: "—",
+  },
+};
+let TENANTS = JSON.parse(JSON.stringify(BASE_TENANTS));
+let state = { tenant: "giu", view: "chat", role: "student", edit: null };
+try {
+  const s = JSON.parse(localStorage.getItem("mt-proto2") || "null");
+  if (s && s.state && TENANTS[s.state.tenant]) { state = { ...state, ...s.state }; }
+  if (s && s.agents) for (const k in s.agents) if (TENANTS[k]) TENANTS[k].agents = s.agents[k];
+} catch (e) {}
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function save() {
+  try { localStorage.setItem("mt-proto2", JSON.stringify({ state, agents: Object.fromEntries(Object.entries(TENANTS).map(([k, t]) => [k, t.agents])) })); } catch (e) {}
+}
+
+function renderSegs() {
+  const t = TENANTS[state.tenant];
+  document.getElementById("seg-tenant").innerHTML = Object.values(TENANTS).map((x) =>
+    `<button type="button" data-tenant="${x.slug}" aria-pressed="${x.slug === state.tenant}"><span class="sw" style="background:${x.primary}"></span>${x.short} · ${x.agents.length}</button>`).join("");
+  if (!t.audiences[state.role]) state.role = "student";
+  document.getElementById("seg-role").innerHTML = Object.entries(t.audiences).map(([k, v]) =>
+    `<button type="button" data-role="${k}" aria-pressed="${k === state.role}">${v}</button>`).join("");
+  document.getElementById("ctl-role").hidden = state.view !== "chat";
+  document.querySelectorAll("#seg-view button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.view === state.view));
+}
+
+function chatView(t) {
+  const visible = t.agents.filter((a) => a.on && a.aud.includes(state.role));
+  const current = visible.find((a) => a.id === (state.chatAgent && visible.some((v) => v.id === state.chatAgent) ? state.chatAgent : t.chat.agent)) || visible[0];
+  const isDemo = current && current.id === t.chat.agent;
+  const agentList = visible.map((a) => `<button type="button" class="tagent" data-chat="${a.id}" aria-current="${current && a.id === current.id}">${esc(a.name || "Untitled assistant")}</button>`).join("");
+  let body;
+  if (!current) {
+    body = `<div class="msg a">${esc(t.short)} has no assistants for ${esc(t.audiences[state.role])} yet.</div>`;
+  } else if (isDemo) {
+    let extra = "";
+    if (t.chat.extra === "map") extra = `<div class="handover" style="border-style:solid;border-color:#e3e4e7"><span>🗺 Building M · Ground floor · room M005</span><span class="tbtn ghost">🚶 Walk me to Building M</span></div>`;
+    if (t.chat.extra === "handover") { const h = t.agents.find((a) => a.id === t.chat.handTo); if (h) extra = `<div class="handover"><span>Asking about a place to live? ${esc(h.name)} can help.</span><span class="tbtn">Open ${esc(h.name)} →</span></div>`; }
+    if (t.chat.extra === "cv") extra = `<div class="handover" style="border-style:solid;border-color:#e3e4e7"><span>📄 Restructured CV ready</span><span style="display:flex;gap:6px"><span class="tbtn ghost">View PDF</span><span class="tbtn ghost">Word</span></span></div>`;
+    body = `<div class="msg u">${esc(t.chat.q)}</div>
+      <div class="msg a"><span>${esc(t.chat.a)}</span>${extra}
+        <div class="srcs">${t.chat.src.map((s) => `<span class="src">${esc(s)}</span>`).join("")}</div>
+        <div class="rate">Rate <i>1</i><i>2</i><i>3</i><i class="on">4</i><i>5</i></div></div>
+      <div class="chips">${t.chat.chips.map((c) => `<span class="chip">${esc(c)}</span>`).join("")}</div>`;
+  } else {
+    body = `<div class="msg a">Hi! I'm ${esc(current.name || "your assistant")} at ${esc(t.short)}. I can help with: ${esc(current.desc || "questions about the university")}.${current.mode === "docs" ? ` I answer only from ${esc(t.short)}'s official documents.` : ""}</div>
+      <div class="chips"><span class="chip">What can you help me with?</span></div>`;
+  }
+  const sk = current ? current.skills : [];
+  return `<div class="tapp">
+    <aside class="tside">
+      <div class="tbrand"><div class="tlogo">${t.initials}</div><div><b>${esc(t.name)}</b><small>AI Assistants</small></div></div>
+      <div class="tstripe"></div>
+      <span class="lbl">${visible.length} assistant${visible.length === 1 ? "" : "s"} for ${esc(t.audiences[state.role])}</span>
+      <div class="tagents">${agentList}</div>
+      <div class="tuser"><span>Signed in with ${esc(t.sso.split(" · ")[0])}</span><span style="color:#8d9199">${esc(state.role)}@${esc(t.sso.split(" · ")[1])}</span></div>
+    </aside>
+    <div class="tmain">
+      <div class="thead"><div><h3>${current ? esc(current.name || "Untitled assistant") : "No assistant"}</h3><p>${current ? esc(current.desc) : ""}</p></div><span class="lang">EN · ع</span></div>
+      <div class="tbody">${body}</div>
+      <div class="tinput">${sk.includes("files") || sk.includes("cv") ? '<span class="tbtn ghost">＋</span>' : ""}<span class="box">Ask ${esc(current ? current.name : t.short)} anything…</span>${sk.includes("voice") ? '<span class="tbtn ghost">📞</span>' : ""}<span class="tbtn">Send</span></div>
+    </div></div>`;
+}
+
+function adminView(t) {
+  if (!t.agents.some((a) => a.id === state.edit)) state.edit = t.agents[0] ? t.agents[0].id : null;
+  const a = t.agents.find((x) => x.id === state.edit);
+  const rows = t.agents.map((x) => `<button type="button" class="agentpick" data-edit="${x.id}" aria-pressed="${x.id === state.edit}">
+      <span><b>${esc(x.name || "Untitled assistant")}</b><small>${x.aud.map((k) => t.audiences[k]).join(", ") || "nobody yet"} · ${x.docs} doc${x.docs === 1 ? "" : "s"}</small></span>
+      <span class="toggle ${x.on ? "on" : ""}" role="img" aria-label="${x.on ? "live" : "hidden"}"></span></button>`).join("");
+  const form = !a ? `<div class="panel"><h4>No assistants yet</h4><p class="note">Create the first one with “New assistant”.</p></div>` : `
+    <div class="panel">
+      <div class="crow"><h4>Edit assistant</h4><span style="display:flex;gap:8px"><button class="btn ghost" type="button" data-act="toggle">${a.on ? "Hide from users" : "Make live"}</button><button class="btn ghost" type="button" data-act="delete">Delete</button></span></div>
+      <label class="field" for="f-name"><span>Name</span><input class="finput" id="f-name" data-f="name" value="${esc(a.name)}" maxlength="40" placeholder="e.g. Ask Admissions"></label>
+      <label class="field" for="f-desc"><span>What it handles</span><textarea class="finput" id="f-desc" data-f="desc" rows="2" maxlength="200" placeholder="Used to greet users and to send questions to the right assistant">${esc(a.desc)}</textarea></label>
+      <div class="field"><span>Who can use it</span><span class="opts">${Object.entries(t.audiences).map(([k, v]) => `<button type="button" class="opt" data-aud="${k}" aria-pressed="${a.aud.includes(k)}">${v}</button>`).join("")}</span></div>
+      <div class="field"><span>Answers from</span><span class="opts">${Object.entries(MODES).map(([k, v]) => `<button type="button" class="opt" data-mode="${k}" aria-pressed="${a.mode === k}">${v}</button>`).join("")}</span></div>
+      <div class="field"><span>Skills</span><span class="opts">${Object.entries(SKILLS).map(([k, v]) => `<button type="button" class="opt" data-skill="${k}" aria-pressed="${a.skills.includes(k)}">${v}</button>`).join("")}</span></div>
+      <div class="field"><span>Documents</span><span class="fval">${a.docs} file${a.docs === 1 ? "" : "s"} · upload in the Documents tab</span></div>
+    </div>`;
+  return `<div class="console">
+    <nav class="cnav"><div class="ctitle"><span class="tlogo" style="background:${t.primary}">${t.initials}</span>${esc(t.short)} admin</div>
+      <a href="#prototype" class="on">Assistants <span>${t.agents.length}</span></a><a href="#prototype">Documents <span>${t.agents.reduce((n, x) => n + x.docs, 0)}</span></a><a href="#prototype">Branding</a><a href="#prototype">Users &amp; audiences</a><a href="#prototype">Analytics</a><a href="#prototype">Sign-in (SSO)</a></nav>
+    <div class="cmain">
+      <div class="crow"><h3>Assistants</h3><span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" type="button" data-act="template">Start from a template</button><button class="btn" type="button" data-act="new">＋ New assistant</button></span></div>
+      <div class="panel-grid"><div class="panel"><h4>${t.agents.length} assistant${t.agents.length === 1 ? "" : "s"}${t.plan === "Trial" ? " · trial allows 3" : ""}</h4>${rows}</div>${form}</div>
+      <p class="note">Try it: rename an assistant or add a new one, then open “Student / staff chat”. Your changes stay in this browser only.</p>
+    </div></div>`;
+}
+
+function platformView() {
+  const list = Object.values(TENANTS);
+  const max = Math.max(...list.map((t) => t.usage.tok));
+  const rows = list.map((t) => `<tr><td><span class="sw" style="background:${t.primary}"></span>${esc(t.name)}</td><td><code>${t.domain}</code></td>
+    <td><span class="pill ${t.status === "active" ? "ok" : "warn"}">${t.status}</span></td><td>${t.plan}</td><td class="num">${t.agents.filter((a) => a.on).length}</td>
+    <td class="num">${t.usage.users}</td><td style="min-width:120px"><div class="bar"><i style="width:${(t.usage.tok / max) * 100}%"></i></div></td><td class="num">${t.usage.tok}M</td><td class="num">${t.usage.cost}</td></tr>`).join("");
+  return `<div class="console">
+    <nav class="cnav"><div class="ctitle"><span class="tlogo" style="background:var(--accent);color:var(--surface)">UB</span>Platform</div>
+      <a href="#prototype" class="on">Universities <span>${list.length}</span></a><a href="#prototype">Templates <span>5</span></a><a href="#prototype">Models &amp; keys</a><a href="#prototype">Usage &amp; billing</a><a href="#prototype">Audit log</a></nav>
+    <div class="cmain">
+      <div class="crow"><h3>Universities</h3><button class="btn" type="button">＋ New university</button></div>
+      <div class="kpis">
+        <div class="kpi"><span>Universities</span><b>${list.length}</b><small>1 on trial</small></div>
+        <div class="kpi"><span>Questions, 30 days</span><b>50,198</b><small>example data</small></div>
+        <div class="kpi"><span>Tokens, 30 days</span><b>87M</b><small>example data</small></div>
+        <div class="kpi"><span>Model cost</span><b>$285</b><small>OpenRouter + Groq</small></div>
+      </div>
+      <div class="tablewrap"><table><thead><tr><th>University</th><th>Address</th><th>Status</th><th>Plan</th><th>Assistants</th><th>Users</th><th>Token use</th><th>Tokens</th><th>Cost</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="panel"><h4>New university wizard</h4><p class="note">1 Name and subdomain → 2 Logo and colours → 3 Create assistants (blank or from a template) → 4 Audiences and sign-in → 5 Invite the first admin. The university then uploads its own documents.</p></div>
+    </div></div>`;
+}
+
+function render() {
+  const t = TENANTS[state.tenant];
+  const root = document.documentElement.style;
+  root.setProperty("--t-primary", t.primary); root.setProperty("--t-primary-ink", t.ink);
+  root.setProperty("--t-second", t.second); root.setProperty("--t-dark", t.dark);
+  renderSegs();
+  const url = document.getElementById("url");
+  const screen = document.getElementById("screen");
+  const note = document.getElementById("proto-note");
+  if (state.view === "chat") {
+    url.innerHTML = `https://<b>${t.slug}</b>.unibots.app/`;
+    screen.innerHTML = chatView(t);
+    note.textContent = "Each university decides how many assistants it has and what they are called: GIU has 4, Nile Valley 6, Delta 2. Change who is signed in to see assistants filtered by audience.";
+  } else if (state.view === "admin") {
+    url.innerHTML = `https://<b>${t.slug}</b>.unibots.app/admin`;
+    screen.innerHTML = adminView(t);
+    note.textContent = "The university admin creates, renames, hides and deletes assistants. No code changes and no deploy are needed. A tenant admin sees only their own university.";
+  } else {
+    url.innerHTML = `https://<b>console</b>.unibots.app/universities`;
+    screen.innerHTML = platformView();
+    note.textContent = "Only the platform owner sees this console. It uses the platform's own neutral colours, never a tenant's.";
+  }
+  save();
+}
+
+document.getElementById("seg-tenant").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { state.tenant = b.dataset.tenant; render(); } });
+document.getElementById("seg-view").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { state.view = b.dataset.view; render(); } });
+document.getElementById("seg-role").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { state.role = b.dataset.role; state.chatAgent = null; render(); } });
+const screenEl = document.getElementById("screen");
+screenEl.addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  const t = TENANTS[state.tenant];
+  const a = t.agents.find((x) => x.id === state.edit);
+  const flip = (arr, v) => arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
+  if (b.dataset.chat) state.chatAgent = b.dataset.chat;
+  else if (b.dataset.edit) state.edit = b.dataset.edit;
+  else if (b.dataset.aud && a) a.aud = flip(a.aud, b.dataset.aud);
+  else if (b.dataset.mode && a) a.mode = b.dataset.mode;
+  else if (b.dataset.skill && a) a.skills = flip(a.skills, b.dataset.skill);
+  else if (b.dataset.act === "toggle" && a) a.on = !a.on;
+  else if (b.dataset.act === "delete" && a) { t.agents = t.agents.filter((x) => x !== a); state.edit = null; }
+  else if (b.dataset.act === "new" || b.dataset.act === "template") {
+    const id = "x" + Date.now().toString(36);
+    const tpl = b.dataset.act === "template";
+    t.agents.push(tpl
+      ? { id, name: "Orientation", desc: "First weeks at university: campus tour, timetable, student ID and clubs", aud: ["student"], docs: 0, on: false, mode: "docs", skills: ["voice"] }
+      : { id, name: "New assistant", desc: "", aud: Object.keys(t.audiences).slice(0, 1), docs: 0, on: false, mode: "docs", skills: ["files"] });
+    state.edit = id;
+  } else return;
+  render();
+  if (b.dataset.act === "new") { const f = document.getElementById("f-name"); if (f) { f.focus(); f.select(); } }
+});
+screenEl.addEventListener("input", (e) => {
+  const f = e.target.dataset && e.target.dataset.f; if (!f) return;
+  const a = TENANTS[state.tenant].agents.find((x) => x.id === state.edit); if (!a) return;
+  a[f] = e.target.value;
+  const pick = screenEl.querySelector(`[data-edit="${a.id}"] b`); if (pick && f === "name") pick.textContent = a.name || "Untitled assistant";
+  save();
+});
+document.getElementById("reset-proto").addEventListener("click", () => { TENANTS = JSON.parse(JSON.stringify(BASE_TENANTS)); state.edit = null; state.chatAgent = null; render(); });
+render();
+</script>
+
+</body>
+</html>

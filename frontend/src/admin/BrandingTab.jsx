@@ -3,8 +3,8 @@ import { getBranding, updateBranding } from "./api.js";
 
 const MAX_LOGO_KB = 300;
 
-// The university's look: name, short name, logo, colours, start screen text, and who the
-// assistants are for (audiences). Saved changes show for users when they open the page again.
+// The university's look: name, short name, logo, colours and start screen text (audiences are
+// on the Users & audiences page). Saved changes show for users when they open the page again.
 export default function BrandingTab({ call }) {
   const [values, setValues] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -18,9 +18,6 @@ export default function BrandingTab({ call }) {
   if (!values) return <section className="admin-card">{error ? <p className="error">{error}</p> : <p className="muted">Loading…</p>}</section>;
 
   const set = (key) => (event) => setValues((v) => ({ ...v, [key]: event.target.value }));
-  const setAudience = (index, key, value) => setValues((v) => ({
-    ...v, audiences: v.audiences.map((a, i) => (i === index ? { ...a, [key]: value } : a)),
-  }));
 
   function pickLogo(event) {
     const file = event.target.files[0];
@@ -39,8 +36,8 @@ export default function BrandingTab({ call }) {
     setError("");
     setNotice("");
     try {
-      const audiences = values.audiences.map((a) => ({ key: a.key.trim(), title: a.title.trim(), text: (a.text || "").trim() }));
-      await call((token) => updateBranding(token, { ...values, audiences }));
+      const { audiences, ...look } = values; // audiences are saved on the Users & audiences page
+      await call((token) => updateBranding(token, look));
       setNotice("Saved. Users see the new look when they open the page again.");
     } catch (err) {
       setError(err.message);
@@ -52,6 +49,7 @@ export default function BrandingTab({ call }) {
   return (
     <form className="admin-card" onSubmit={save}>
       <h2>Branding</h2>
+      <p className="hint">How the chat looks for {values.name}'s students and staff. The admin pages keep the platform's colours.</p>
       <div className="form-grid">
         <label>Name<input value={values.name} onChange={set("name")} required maxLength={120} /></label>
         <label>Short name (in texts, e.g. "GIU")<input value={values.short_name} onChange={set("short_name")} maxLength={30} /></label>
@@ -91,28 +89,6 @@ export default function BrandingTab({ call }) {
         <textarea rows={3} value={values.intro} onChange={set("intro")} maxLength={600} dir="auto" />
       </label>
 
-      <fieldset>
-        <legend>Who the assistants are for</legend>
-        <p className="hint">The first question on the start screen ("Who are you?"). The key is used inside the system: keep it once assistants use it.</p>
-        {values.audiences.map((audience, index) => (
-          <div key={index} className="audience-row">
-            <input aria-label="Key" value={audience.key} onChange={(e) => setAudience(index, "key", e.target.value.toLowerCase())}
-                   placeholder="key, e.g. student" maxLength={30} />
-            <input aria-label="Title" value={audience.title} onChange={(e) => setAudience(index, "title", e.target.value)}
-                   placeholder="Title, e.g. Student" maxLength={40} />
-            <input aria-label="Text" value={audience.text || ""} onChange={(e) => setAudience(index, "text", e.target.value)}
-                   placeholder="Text under the title (optional)" maxLength={160} />
-            <button type="button" className="secondary" disabled={values.audiences.length === 1}
-                    onClick={() => setValues((v) => ({ ...v, audiences: v.audiences.filter((_, i) => i !== index) }))}>Remove</button>
-          </div>
-        ))}
-        {values.audiences.length < 6 && (
-          <button type="button" className="secondary"
-                  onClick={() => setValues((v) => ({ ...v, audiences: [...v.audiences, { key: "", title: "", text: "" }] }))}>
-            + Add audience
-          </button>
-        )}
-      </fieldset>
 
       {notice && <p className="notice">{notice}</p>}
       {error && <p className="error">{error}</p>}

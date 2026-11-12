@@ -1,0 +1,194 @@
+/* The platform's own look, for the console (/console) and the university admin (/admin): the
+   tokens and console styles of docs/design/multi-tenant-design.html. Scoped to .pf, so they
+   never mix with a university's chat colours (--brand-*). Light and dark, like the design. */
+.pf {
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --sunken: #eceff3;
+  --fg: #141a22;
+  --muted: #5b6573;
+  --line: #dbe0e7;
+  --accent: #0e6b66;          /* platform colour (teal), never a university's */
+  --accent-soft: #d8efec;
+  --accent-ink: #ffffff;
+  --ok: #18794e; --warn: #a3620a; --crit: #b42318;
+  --ok-soft: #dcf3e6; --warn-soft: #fbedd5; --crit-soft: #fbe2df;
+  --font-display: "Sora", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  /* The older admin forms (admin.css) and buttons (App.css) read these: point them at the platform's */
+  --text: var(--fg); --border: var(--line); --brand-primary: var(--accent); --brand-primary-dark: var(--accent);
+  --brand-accent: var(--accent); --brand-dark: var(--fg); --radius: 9px; --shadow: none;
+  color-scheme: light;
+  min-height: 100vh; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .pf {
+    --bg: #0f1419; --surface: #171e26; --sunken: #1e2731; --fg: #e6ebf1; --muted: #98a3b1; --line: #2b3542;
+    --accent: #4fc1b8; --accent-soft: #143b39; --accent-ink: #0f1419;
+    --ok: #5fd39a; --warn: #f0b45a; --crit: #ff8a7a; --ok-soft: #143426; --warn-soft: #3a2a10; --crit-soft: #3d1a17;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] .pf {
+  --bg: #0f1419; --surface: #171e26; --sunken: #1e2731; --fg: #e6ebf1; --muted: #98a3b1; --line: #2b3542;
+  --accent: #4fc1b8; --accent-soft: #143b39; --accent-ink: #0f1419;
+  --ok: #5fd39a; --warn: #f0b45a; --crit: #ff8a7a; --ok-soft: #143426; --warn-soft: #3a2a10; --crit-soft: #3d1a17;
+  color-scheme: dark;
+}
+.pf *, .pf *::before, .pf *::after { box-sizing: border-box; }
+.pf h1, .pf h2, .pf h3, .pf h4 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.2; }
+.pf h2 { font-size: 22px; letter-spacing: -0.01em; }
+.pf h3 { font-size: 17px; }
+.pf p { margin: 0; }
+.pf code, .pf .mono { font-family: var(--font-mono); font-size: 0.88em; }
+.pf :not(pre) > code { background: var(--sunken); padding: 1px 5px; border-radius: 4px; }
+.pf :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pf a { color: var(--accent); }
+.pf .note { font-size: 13px; color: var(--muted); }
+.pf .muted { color: var(--muted); }
+.pf .error { color: var(--crit); font-size: 14px; }
+.pf .notice { color: var(--ok); background: var(--ok-soft); border: 0; border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+
+/* Buttons (design: .btn, .btn.ghost) */
+.pf button { font: inherit; font-size: 13px; font-weight: 600; border: 0; border-radius: 8px; padding: 8px 14px;
+  background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+.pf button:hover:not(:disabled) { background: var(--accent); filter: brightness(1.08); }
+.pf button:disabled { opacity: 0.45; cursor: default; }
+.pf button.ghost, .pf button.secondary { background: var(--surface); color: var(--fg); border: 1px solid var(--line); }
+.pf button.ghost:hover:not(:disabled), .pf button.secondary:hover:not(:disabled) { background: var(--sunken); filter: none; }
+.pf button.danger { background: var(--surface); color: var(--crit); border: 1px solid var(--line); }
+.pf button.danger:hover:not(:disabled) { background: var(--crit-soft); filter: none; }
+.pf button.link { background: none; color: var(--accent); padding: 0; border: 0; font-weight: 500; }
+
+/* Pills */
+.pf .pill { font-family: var(--font-mono); font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--sunken); color: var(--muted); white-space: nowrap; }
+.pf .pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pf .pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pf .pill.crit { background: var(--crit-soft); color: var(--crit); }
+.pf .pill.acc { background: var(--accent-soft); color: var(--accent); }
+
+/* Console layout: sidebar + main, full width */
+.pf .console { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 100vh; background: var(--bg); }
+.pf .cnav { background: var(--surface); border-right: 1px solid var(--line); padding: 16px 12px; display: grid; gap: 4px; align-content: start; }
+.pf .cnav .ctitle { font-family: var(--font-display); font-weight: 600; font-size: 14px; padding: 4px 8px 12px; display: flex; gap: 8px; align-items: center; min-width: 0; }
+.pf .cnav .ctitle span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf .clogo { width: 26px; height: 26px; border-radius: 6px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center;
+  font-family: var(--font-display); font-weight: 700; font-size: 10px; flex-shrink: 0; overflow: hidden; }
+.pf .clogo img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.pf .cnav button.navlink { background: transparent; color: var(--fg); font-size: 13.5px; font-weight: 400; padding: 7px 10px; border-radius: 7px;
+  display: flex; justify-content: space-between; text-align: left; width: 100%; }
+.pf .cnav button.navlink:hover:not(:disabled) { background: var(--sunken); filter: none; }
+.pf .cnav button.navlink.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.pf .cnav button.navlink span { color: var(--muted); font-size: 12px; font-family: var(--font-mono); }
+.pf .cnav .cuser { margin-top: 12px; border-top: 1px solid var(--line); padding: 12px 8px 0; font-size: 12.5px; color: var(--muted); display: grid; gap: 6px; }
+.pf .cmain { padding: 24px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+.pf .crow { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pf .crow .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* KPI tiles */
+.pf .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.pf .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; display: grid; gap: 2px; min-width: 0; }
+.pf .kpi span { font-size: 12px; color: var(--muted); }
+.pf .kpi b { font-family: var(--font-display); font-size: 20px; font-variant-numeric: tabular-nums; }
+.pf .kpi small { font-size: 11.5px; color: var(--muted); }
+
+/* Tables */
+.pf .tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; }
+.pf .tablewrap table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+.pf .tablewrap th, .pf .tablewrap td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; vertical-align: middle; }
+.pf .tablewrap th { font-size: 11.5px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 500; background: var(--sunken); }
+.pf .tablewrap tr:last-child td { border-bottom: 0; }
+.pf .tablewrap td.num, .pf .tablewrap th.num { font-variant-numeric: tabular-nums; text-align: right; }
+.pf .tablewrap td.wrap { white-space: normal; min-width: 200px; }
+.pf .tablewrap select { font: inherit; font-size: 13px; border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; background: var(--bg); color: var(--fg); }
+.pf .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: middle; margin-right: 6px; }
+.pf .bar { height: 6px; border-radius: 3px; background: var(--sunken); overflow: hidden; min-width: 100px; }
+.pf .bar i { display: block; height: 100%; background: var(--accent); }
+.pf .bar i.full { background: var(--crit); }
+
+/* Panels, fields, pills to pick from */
+.pf .panel-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 12px; align-items: start; }
+.pf .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.pf .panel h4 { font-size: 14px; }
+.pf .field { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 13px; }
+.pf .field > span:first-child { color: var(--muted); padding-top: 5px; }
+.pf .fval { border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; background: var(--bg); font-family: var(--font-mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf .finput { font: inherit; font-size: 13px; width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; background: var(--bg); color: var(--fg); resize: vertical; }
+.pf .finput:focus { outline: none; border-color: var(--accent); }
+.pf .opts { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.pf button.opt { font-size: 12px; font-weight: 400; border: 1px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 999px; padding: 3px 10px; }
+.pf button.opt:hover:not(:disabled) { filter: none; border-color: var(--accent); }
+.pf button.opt[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.pf button.agentpick { text-align: left; width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 10px;
+  border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--fg); font-size: 13.5px; font-weight: 400; }
+.pf button.agentpick:hover:not(:disabled) { background: var(--sunken); filter: none; }
+.pf button.agentpick[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.pf .agentpick small { color: var(--muted); display: block; font-size: 12px; }
+.pf .agentpick b { font-weight: 600; }
+.pf .toggle { width: 30px; height: 17px; border-radius: 999px; background: var(--line); position: relative; display: inline-block; vertical-align: middle; flex-shrink: 0; }
+.pf .toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: var(--surface); }
+.pf .toggle.on { background: var(--accent); }
+.pf .toggle.on::after { left: 15px; }
+.pf details > summary { cursor: pointer; font-size: 13px; color: var(--muted); font-weight: 600; }
+.pf details[open] > summary { margin-bottom: 10px; }
+
+/* Sign-in card, wizard */
+.pf .signin { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+.pf .signin form { width: min(380px, 100%); }
+.pf .steps { display: flex; gap: 6px; list-style: none; padding: 0; margin: 0; flex-wrap: wrap; }
+.pf .steps li { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+.pf .steps li.on { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+.pf .steps li.done { color: var(--accent); border-color: var(--accent); }
+.pf .wizrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto; gap: 8px; align-items: center; }
+.pf .wizrow small { color: var(--muted); font-size: 11.5px; font-family: var(--font-mono); }
+
+@media (max-width: 900px) { .pf .panel-grid { grid-template-columns: 1fr; } }
+@media (max-width: 760px) {
+  .pf .console { grid-template-columns: 1fr; }
+  .pf .cnav { grid-template-columns: repeat(2, minmax(0, 1fr)); border-right: 0; border-bottom: 1px solid var(--line); }
+  .pf .cnav .ctitle, .pf .cnav .cuser { grid-column: 1 / -1; }
+  .pf .cmain { padding: 16px; }
+  .pf .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pf .wizrow { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) { .pf .field { grid-template-columns: 1fr; gap: 4px; } .pf .field > span:first-child { padding-top: 0; } }
+@media (prefers-reduced-motion: no-preference) { .pf .console { animation: pf-fade .25s ease; } @keyframes pf-fade { from { opacity: .4; } to { opacity: 1; } } }
+.pf .tablewrap td button { padding: 4px 10px; font-size: 12px; }
+.pf .tablewrap td:last-child { padding-left: 4px; }
+
+/* Admin: assistant rows with a live/hidden switch, the template menu, more settings */
+.pf .pickrow { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--line); padding: 2px 0; }
+.pf .pickrow:last-of-type { border-bottom: 0; }
+.pf .pickrow .agentpick { flex: 1; min-width: 0; }
+.pf button.toggle-button { background: transparent; border: 0; padding: 8px; line-height: 0; }
+.pf button.toggle-button:hover:not(:disabled) { background: var(--sunken); filter: none; }
+.pf .menu-wrap { position: relative; }
+.pf .menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 10; background: var(--surface); border: 1px solid var(--line); border-radius: 9px;
+  box-shadow: 0 12px 32px rgba(15, 20, 25, .12); padding: 6px; width: min(340px, 86vw); display: grid; gap: 2px; }
+.pf .menu button { background: transparent; color: var(--fg); text-align: left; font-weight: 400; display: grid; gap: 2px; padding: 8px 10px; }
+.pf .menu button:hover:not(:disabled) { background: var(--sunken); filter: none; }
+.pf .menu small { color: var(--muted); font-size: 12px; }
+.pf .moregrid { display: grid; gap: 10px; }
+.pf .tablewrap th, .pf .tablewrap td { padding: 10px; }
+
+/* The older admin pieces (Documents, Branding, Users forms) in the platform look */
+.pf .admin-card { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; box-shadow: none; padding: 16px; }
+.pf .admin-card h2 { font-size: 17px; margin: 0 0 12px; }
+.pf .doc-table th { font-size: 11.5px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 500;
+  background: var(--sunken); border-bottom: 1px solid var(--line); }
+.pf .doc-table td { border-bottom: 1px solid var(--line); }
+.pf .admin input, .pf .admin select, .pf .admin textarea, .pf.admin input, .pf.admin select, .pf.admin textarea { background: var(--bg); color: var(--fg); border-color: var(--line); }
+.pf .hint { color: var(--muted); }
+.pf .tag { border-color: var(--line); color: var(--muted); }
+.pf .text-logo { background: var(--accent); }
+/* The design's fields over the older admin rules (.admin label stacks and bolds) */
+.pf label.field { display: grid; font-weight: 400; font-size: 13px; margin: 0; flex-direction: unset; }
+.pf .finput, .pf.admin .finput { font-weight: 400; font-size: 13px; padding: 6px 9px; border-radius: 6px; }
+.pf .clogo:has(img) { width: auto; max-width: 96px; background: transparent; border-radius: 4px; }
+.pf .clogo img { width: auto; height: 26px; max-width: 96px; background: transparent; }
+.pf .agentrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.pf .agentrow:last-child { border-bottom: 0; }
+.pf .agentrow small { color: var(--muted); display: block; font-size: 12px; }
+.pf .cnav .ctitle span:last-child { white-space: normal; overflow: visible; line-height: 1.25; }
+.pf label.opts { display: flex; flex-direction: row; align-items: center; font-weight: 400; margin: 0; }

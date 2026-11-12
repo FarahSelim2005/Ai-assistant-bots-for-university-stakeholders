@@ -83,6 +83,7 @@ only applies new files. Every file is also safe to run twice by hand.
 | `006_branding_and_folders.sql` | Each university's look: `logo_url`, `brand_primary`, `brand_accent`, `brand_dark`, `intro` (start screen) and `audiences` (who the assistants are for, with the start screen's text); GIU keeps exactly its logo, colours and texts. `agents.folder`: each assistant's readable document folder, unique per university (GIU's: `labs_research` ... again). After applying it, run `python -m scripts.move_agent_folders` once. |
 | `007_users_and_audiences.sql` | The university admin: a `users` table (email, scrypt password hash, role `tenant_admin`, `editor` or `platform_owner`; row-level security per university; platform owners invisible to `giu_app`) replacing `ADMIN_PASSWORD`; audiences per university (the fixed student/staff checks become format checks); `agents.deleted_at` (a deleted assistant is hidden but kept with its chats and documents); `tenants` readable by all, and `giu_app` may change only its own university's name, look, intro and audiences. |
 | `008_plans_and_usage.sql` | Plans (`free`: 300,000 tokens a month and 2 assistants; `standard`: 5,000,000 and 8; `unlimited`) and `tenants.plan` (GIU: `unlimited`, so it keeps working as before); a `usage` table with one row per model call (university, assistant, model, kind, tokens), with row-level security. |
+| `009_usage_cost.sql` | `usage.cost_usd`: the cost of each model call as OpenRouter reports it (Groq's free tier and local Ollama: 0), for the console's "Model cost". |
 
 To try the migrations on a copy first: in pgAdmin create a database `giu-bots-copy` with
 *Template* `giu-bots` (no other connection to `giu-bots` may be open), then run
@@ -289,8 +290,17 @@ npm run dev
 ```
 
 Open http://localhost:5173, choose **Student** or **Staff**, then choose an assistant:
-students see 3 (Graduation & Advising, Internship & Career, Labs & Research), staff see all 4. The list is in
-`frontend/src/agents.js`; all four assistants are built.
+students see 3 (Graduation & Advising, Internship & Career, Labs & Research), staff see all 4.
+
+The three screens follow the design in `docs/design/multi-tenant-design.html` (open it in a
+browser; its `chatView()`, `adminView()` and `platformView()` draw the mock-ups):
+
+| Screen | Address | Look |
+|---|---|---|
+| Chat | http://localhost:5173 (GIU), http://demo.localhost:5173 | The university's dark sidebar (logo, name, its 3-colour stripe, "N assistants for <audience>", the assistants; the current one in its main colour), the assistant's name and description with an "EN · ع" pill, the user's questions in the main colour, answers in white with source chips and a 1–5 rating, and a + / 📞 / Send bar. Light only (the university's own surface). `frontend/src/chat.css` |
+| University admin | `.../admin` | Platform look (teal, Sora / Inter / JetBrains Mono, light and dark): a sidebar with the university's logo, then Assistants (two columns: list with live/hidden switch, editor), Documents, Branding, Users & audiences, Analytics, Sign-in. `frontend/src/platform.css` |
+| Platform console | http://localhost:5173/console | Platform look: a sidebar (Universities, Templates, Models & keys, Usage & billing, Audit log), KPI tiles and the universities table, the "New university" wizard inside it. |
+
 Each answer shows its source files and a 1–5 rating.
 
 **Campus map:** when an answer mentions a room such as `M005` or `A312`, a map card
@@ -447,7 +457,7 @@ chats or ratings; an unknown host gets `404`, a suspended tenant `403`.
 ## Admin page
 
 **http://localhost:5173/admin** (or `http://<university>.localhost:5173/admin`) is the admin of
-the university of that address. Log in with **email and password**; accounts are made with:
+the university of that address, in the platform's look (light or dark, as the computer is set). Log in with **email and password**; accounts are made with:
 
 ```bash
 python -m scripts.create_user --tenant giu --email admin@giu.example --role tenant_admin --generate
@@ -460,8 +470,8 @@ Admins can also add users on the Users tab. Roles:
 
 | Role | Tabs |
 |---|---|
-| `tenant_admin` | **Assistants** (add from a ready-made template or new; edit every setting: name, texts, audiences, answer mode, prompt, instructions, "no information" answers, examples, skills, model; reorder; hide/show; delete), **Documents**, **Branding** (name, short name, logo, colours, start screen text, audiences), **Users** (add, change role, new password, deactivate) |
-| `editor` | **Documents** only |
+| `tenant_admin` | **Assistants**: numbers for the last 30 days (questions, active users = chats started, unanswered %, average rating), the list (who uses each, number of documents, live/hidden switch) and the selected one's editor (name, what it handles, who can use it, answers from, skills, documents; "More settings": texts, examples, instructions, "no information" answers, model); "+ New assistant" and "Start from a template"; hide, delete. **Documents**, **Branding** (name, short name, logo, colours, start screen text), **Users & audiences** (users: add, change role, new password, deactivate; audiences), **Analytics** (per assistant, and the latest unanswered questions), **Sign-in** (how people sign in; change your password) |
+| `editor` | **Documents**, **Analytics**, **Sign-in** |
 
 **Documents:** per assistant (filter), **add** (pick a file or paste Markdown; start each topic
 with a `## Heading`), **edit**, **move** to another assistant, **delete**. Every change is
@@ -487,13 +497,20 @@ cannot point outside the assistant's folder.
 university; make the account with
 `python -m scripts.create_user --email owner@platform.example --role platform_owner --generate`).
 With `APP_ENV=development` (your own computer) it opens without a login; on a server it
-always asks for a platform owner's login. It shows every university with its status, plan,
+always asks for a platform owner's login. It has a sidebar (Universities, Templates, Models & keys, Usage & billing, Audit log) and, under
+Universities, four tiles for the last 30 days (universities, questions, tokens, model cost as
+OpenRouter reports it) and a table with every university's colour, address, status, plan,
+assistants, users, a token-use bar, tokens and cost. Models & keys shows the platform's models
+from `.env` (never the keys, only whether they are set) and their use; Usage & billing the
+tokens per month; the Audit log is not recorded yet. It shows every university with its status, plan,
 addresses, assistants (and the plan's
 maximum), users, chats and tokens used this month (against the plan's cap) and in total, and:
 
-- **New university** (a wizard): name and short name → subdomain (`<slug>.localhost`, or its
-  own address) → colours and logo → plan and ready-made assistants → first admin (email,
-  name, password). Everything is made at once: the university, its address, its assistants
+- **New university** (a wizard, inside the console): name and short name → subdomain
+  (`<slug>.localhost`, or its own address) → colours and logo → plan and assistants: any
+  number with the university's own names ("+ Add assistant": a name and what it handles),
+  and ready-made ones from the templates (renamed there too), each removable, up to the
+  plan's limit → first admin (email, name, password). Everything is made at once: the university, its address, its assistants
   (each in its own folder, without CV rewrites or campus map) and its admin. Its chat is then
   at `http://<slug>.localhost:5173` and its admin page at `.../admin`.
 - **Suspend / Reactivate**: a suspended university's chat and admin pages answer
@@ -764,6 +781,8 @@ frontend/
   src/
     api.js               all backend calls (API URL)
     tenant.js            the university of this page (GET /tenant): look, audiences, assistants
+    chat.css             the chat's layout (the design's chatView())
+    platform.css         the admin's and console's look (the design's tokens, light and dark)
     admin/               the university admin (/admin): AdminPage.jsx and its tabs
     console/             the platform console (/console): ConsolePage.jsx, NewUniversity.jsx
     App.jsx              chat state and flow

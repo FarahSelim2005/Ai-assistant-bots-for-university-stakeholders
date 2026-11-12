@@ -60,7 +60,7 @@ class MigrationFiles(unittest.TestCase):
 
     def test_project_migrations_are_well_named(self):
         names = [p.name for p in migrate.migration_files()]
-        self.assertEqual(names[:9], ["000_base.sql", "001_tenants.sql", "002_tenant_required.sql", "003_row_level_security.sql", "004_agents.sql", "005_skills.sql", "006_branding_and_folders.sql", "007_users_and_audiences.sql", "008_plans_and_usage.sql"])
+        self.assertEqual(names[:10], ["000_base.sql", "001_tenants.sql", "002_tenant_required.sql", "003_row_level_security.sql", "004_agents.sql", "005_skills.sql", "006_branding_and_folders.sql", "007_users_and_audiences.sql", "008_plans_and_usage.sql", "009_usage_cost.sql"])
 
 
 class Applying(unittest.TestCase):

@@ -4,10 +4,10 @@ import DocumentForm from "./DocumentForm.jsx";
 
 // The documents each assistant answers from: list (per assistant), add, edit, move, delete.
 // Every change is re-indexed by the backend at once.
-export default function DocumentsTab({ call }) {
+export default function DocumentsTab({ call, initialFilter = "", onChanged }) {
   const [documents, setDocuments] = useState([]);
   const [agents, setAgents] = useState([]); // this university's assistants
-  const [filter, setFilter] = useState(""); // "" = all assistants
+  const [filter, setFilter] = useState(initialFilter); // "" = all assistants
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState(""); // e.g. "Saved and re-indexed (12 chunks)"
@@ -22,6 +22,7 @@ export default function DocumentsTab({ call }) {
       const [docs, assistants] = await Promise.all([call(listDocuments), call(listAgents)]);
       setDocuments(docs);
       setAgents(assistants);
+      onChanged?.();
     } catch (err) {
       setError(`Could not load the documents: ${err.message}`);
     } finally {

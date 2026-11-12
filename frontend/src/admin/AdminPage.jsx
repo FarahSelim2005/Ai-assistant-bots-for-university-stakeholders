@@ -1,21 +1,26 @@
-import { useState } from "react";
-import BrandLogo from "../components/BrandLogo.jsx";
-import { tenant } from "../tenant.js";
-import { UnauthorizedError, login, logout } from "./api.js";
-import AssistantsTab from "./AssistantsTab.jsx";
+import { useEffect, useState } from "react";
+import { initials, tenant } from "../tenant.js";
+import { UnauthorizedError, listAgents, login, logout } from "./api.js";
+import AnalyticsPage from "./AnalyticsPage.jsx";
+import AssistantsPage from "./AssistantsPage.jsx";
 import BrandingTab from "./BrandingTab.jsx";
 import DocumentsTab from "./DocumentsTab.jsx";
-import UsersTab from "./UsersTab.jsx";
+import SignInPage from "./SignInPage.jsx";
+import UsersPage from "./UsersPage.jsx";
+import "../platform.css";
 import "./admin.css";
 
 const SESSION_KEY = "adminSession"; // sessionStorage: kept while the tab is open
 
-// Which tabs each role sees: a tenant_admin everything of its university, an editor the documents.
-const TABS = [
+// The admin's sections, like the design's adminView(): which roles see each. A tenant_admin
+// manages everything of its university; an editor its documents (and sees the numbers).
+const PAGES = [
   { key: "assistants", title: "Assistants", roles: ["tenant_admin"] },
   { key: "documents", title: "Documents", roles: ["tenant_admin", "editor"] },
   { key: "branding", title: "Branding", roles: ["tenant_admin"] },
-  { key: "users", title: "Users", roles: ["tenant_admin"] },
+  { key: "users", title: "Users & audiences", roles: ["tenant_admin"] },
+  { key: "analytics", title: "Analytics", roles: ["tenant_admin", "editor"] },
+  { key: "signin", title: "Sign-in", roles: ["tenant_admin", "editor"] },
 ];
 
 function savedSession() {
@@ -26,14 +31,26 @@ function savedSession() {
   }
 }
 
-// /admin: the university admin. Log in with email and password, then manage this university's
-// assistants, their documents, its look and its users. Any 401 answer shows the login form again.
+// The university's logo in the sidebar, or its short name on its main colour.
+export function UniversityMark() {
+  const university = tenant();
+  return university.logo_url
+    ? <span className="clogo"><img src={university.logo_url} alt="" /></span>
+    : <span className="clogo" style={{ background: university.colors.primary, color: "#fff" }}>{initials(university)}</span>;
+}
+
+// /admin: the university admin. Log in with email and password, then a sidebar with the
+// sections and the page of the chosen one. Any 401 answer shows the login form again.
 export default function AdminPage() {
   const [session, setSession] = useState(savedSession); // { token, user: { email, name, role } }
   const [notice, setNotice] = useState("");
-  const tabs = TABS.filter((tab) => session && tab.roles.includes(session.user.role));
-  const [tab, setTab] = useState(null);
-  const current = tabs.find((t) => t.key === tab) ?? tabs[0];
+  const [page, setPage] = useState(null);
+  const [documentsFor, setDocumentsFor] = useState(""); // open Documents filtered to one assistant
+  const [counts, setCounts] = useState({ assistants: null, documents: null });
+  const pages = PAGES.filter((p) => session && p.roles.includes(session.user.role));
+  const current = pages.find((p) => p.key === page) ?? pages[0];
+
+  useEffect(() => { document.title = `${tenant().short_name} admin`; }, []);
 
   function saveSession(value) {
     setSession(value);
@@ -56,40 +73,57 @@ export default function AdminPage() {
     }
   }
 
+  // The numbers in the sidebar (assistants, documents)
+  async function refreshCounts() {
+    try {
+      const agents = await call(listAgents);
+      setCounts({ assistants: agents.length, documents: agents.reduce((n, a) => n + (a.documents || 0), 0) });
+    } catch { /* the sidebar just shows no numbers */ }
+  }
+
+  useEffect(() => { if (session) refreshCounts(); }, [session]);
+
   async function signOut() {
     await logout(session.token).catch(() => {});
     saveSession(null);
   }
 
+  function open(key, agentId = "") {
+    setPage(key);
+    setDocumentsFor(agentId);
+  }
+
+  if (!session) {
+    return <div className="pf admin"><LoginForm onLogin={(value) => { saveSession(value); setNotice(""); setPage(null); }} notice={notice} /></div>;
+  }
+
   return (
-    <div className="admin">
-      <header className="topbar">
-        <BrandLogo className="topbar-logo" />
-        <div className="topbar-title">
-          <h1>{tenant().short_name} admin</h1>
-          <span>{session ? `${session.user.name || session.user.email} · ${session.user.role === "tenant_admin" ? "Admin" : "Editor"}`
-                         : "Assistants, documents, branding and users"}</span>
-        </div>
-        {session && <button className="secondary" onClick={signOut}>Log out</button>}
-      </header>
-      <div className="flag-stripe" />
-      {session && (
-        <nav className="admin-tabs" aria-label="Admin sections">
-          {tabs.map((t) => (
-            <button key={t.key} className={t.key === current?.key ? "active" : ""} onClick={() => setTab(t.key)}>
-              {t.title}
+    <div className="pf admin">
+      <div className="console">
+        <nav className="cnav" aria-label="Admin sections">
+          <div className="ctitle"><UniversityMark /><span>{tenant().short_name} admin</span></div>
+          {pages.map((p) => (
+            <button key={p.key} type="button" className={`navlink ${p.key === current.key ? "on" : ""}`}
+                    aria-current={p.key === current.key ? "page" : undefined} onClick={() => open(p.key)}>
+              {p.title}
+              {p.key === "assistants" && counts.assistants !== null && <span>{counts.assistants}</span>}
+              {p.key === "documents" && counts.documents !== null && <span>{counts.documents}</span>}
             </button>
           ))}
+          <div className="cuser">
+            <span>{session.user.name || session.user.email} · {session.user.role === "tenant_admin" ? "admin" : "editor"}</span>
+            <span><a href="/" target="_blank" rel="noreferrer">Open the chat ↗</a> · <button type="button" className="link" onClick={signOut}>Log out</button></span>
+          </div>
         </nav>
-      )}
-      <main className="admin-main">
-        {!session ? (
-          <LoginForm onLogin={(value) => { saveSession(value); setNotice(""); setTab(null); }} notice={notice} />
-        ) : current?.key === "assistants" ? <AssistantsTab call={call} />
-          : current?.key === "branding" ? <BrandingTab call={call} />
-          : current?.key === "users" ? <UsersTab call={call} me={session.user} />
-          : <DocumentsTab call={call} />}
-      </main>
+        <main className="cmain">
+          {current.key === "assistants" && <AssistantsPage call={call} onChanged={refreshCounts} openDocuments={(id) => open("documents", id)} />}
+          {current.key === "documents" && <DocumentsTab key={documentsFor} call={call} initialFilter={documentsFor} onChanged={refreshCounts} />}
+          {current.key === "branding" && <BrandingTab call={call} />}
+          {current.key === "users" && <UsersPage call={call} me={session.user} />}
+          {current.key === "analytics" && <AnalyticsPage call={call} />}
+          {current.key === "signin" && <SignInPage call={call} me={session.user} />}
+        </main>
+      </div>
     </div>
   );
 }
@@ -113,19 +147,17 @@ function LoginForm({ onLogin, notice }) {
   }
 
   return (
-    <form className="admin-card login-form" onSubmit={handleSubmit}>
-      <h2>Log in to {tenant().name}</h2>
-      {notice && <p className="error">{notice}</p>}
-      <label>
-        Email
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" autoFocus />
-      </label>
-      <label>
-        Password
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
-      </label>
-      {error && <p className="error">{error}</p>}
-      <button type="submit" disabled={!email || !password || busy}>{busy ? "Logging in…" : "Log in"}</button>
-    </form>
+    <div className="signin">
+      <form className="panel" onSubmit={handleSubmit}>
+        <div className="ctitle"><UniversityMark /> <h3>{tenant().name} admin</h3></div>
+        {notice && <p className="error">{notice}</p>}
+        <label className="field"><span>Email</span>
+          <input className="finput" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" autoFocus /></label>
+        <label className="field"><span>Password</span>
+          <input className="finput" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></label>
+        {error && <p className="error">{error}</p>}
+        <button type="submit" disabled={!email || !password || busy}>{busy ? "Logging in…" : "Log in"}</button>
+      </form>
+    </div>
   );
 }

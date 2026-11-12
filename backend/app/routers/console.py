@@ -4,8 +4,12 @@ POST /console/login                {email, password} -> {token, user}   (role pl
 POST /console/logout
 GET  /console/plans                [{key, name, monthly_token_cap, max_assistants}]
 GET  /console/templates            the ready-made assistants
-GET  /console/universities         [{id, slug, name, status, plan, hosts, assistants, users, tokens_month, ...}]
-POST /console/universities         the "New university" wizard: name, subdomain, look, assistants, first admin
+GET  /console/universities         [{id, slug, name, status, plan, hosts, assistants, users, questions_30d,
+                                     tokens_30d, cost_30d, tokens_month, ...}]
+GET  /console/models               the platform's models (names only) and which API keys are set
+GET  /console/usage                tokens, cost and questions per university and month (last 6 months)
+POST /console/universities         the "New university" wizard: name, subdomain, look, assistants (their own,
+                                   or ready-made ones), first admin
 PUT  /console/universities/{id}    {status?: "active" | "suspended", plan?}
 
 These routes work across universities, so they use the owner's connection (DB_ADMIN_USER, a
@@ -21,7 +25,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from app import auth, tenants
+from app import auth, config, tenants
 from app.auth import Session, platform_owner
 from app.db import get_admin_connection
 from app.routers.admin import COLOUR, LOGO, MAX_LOGO_CHARS, LoginRequest
@@ -40,6 +44,14 @@ class AdminIn(BaseModel):
     password: str = Field(min_length=1, max_length=200)
 
 
+class AssistantIn(BaseModel):
+    """An assistant made by the wizard: its own name and what it handles, optionally starting
+    from a ready-made template (whose instructions, texts and skills it then gets)."""
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(default="", max_length=600)
+    template_key: str | None = Field(default=None, max_length=40)
+
+
 class UniversityIn(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     short_name: str = Field(min_length=1, max_length=30)
@@ -50,7 +62,8 @@ class UniversityIn(BaseModel):
     brand_dark: str = "#1a1a1a"
     logo_url: str | None = Field(default=None, max_length=MAX_LOGO_CHARS)
     plan: str = "free"
-    templates: list[str] = Field(default_factory=list, max_length=20)  # ready-made assistants to start with
+    assistants: list[AssistantIn] = Field(default_factory=list, max_length=50)
+    templates: list[str] = Field(default_factory=list, max_length=20)  # ready-made ones by key (as they are)
     admin: AdminIn
 
 
@@ -109,12 +122,53 @@ def list_universities():
                    (SELECT count(*) FROM conversations c WHERE c.tenant_id = t.id),
                    (SELECT coalesce(sum(x.total_tokens), 0) FROM usage x
                     WHERE x.tenant_id = t.id AND x.created_at >= date_trunc('month', now())),
-                   (SELECT coalesce(sum(x.total_tokens), 0) FROM usage x WHERE x.tenant_id = t.id)
+                   (SELECT coalesce(sum(x.total_tokens), 0) FROM usage x WHERE x.tenant_id = t.id),
+                   (SELECT count(*) FROM messages m WHERE m.tenant_id = t.id AND m.role = 'user'
+                    AND m.created_at >= now() - interval '30 days'),
+                   (SELECT coalesce(sum(x.total_tokens), 0) FROM usage x
+                    WHERE x.tenant_id = t.id AND x.created_at >= now() - interval '30 days'),
+                   (SELECT coalesce(sum(x.cost_usd), 0) FROM usage x
+                    WHERE x.tenant_id = t.id AND x.created_at >= now() - interval '30 days')
             FROM tenants t JOIN plans p ON p.key = t.plan ORDER BY t.created_at, t.slug""").fetchall()
     return [{"id": str(r[0]), "slug": r[1], "name": r[2], "short_name": r[3] or r[2], "status": r[4], "plan": r[5],
              "plan_name": r[6], "monthly_token_cap": r[7], "max_assistants": r[8], "colour": r[9],
              "created_at": r[10].isoformat(), "hosts": r[11] or [], "assistants": r[12], "users": r[13],
-             "conversations": r[14], "tokens_month": int(r[15]), "tokens_total": int(r[16])} for r in rows]
+             "conversations": r[14], "tokens_month": int(r[15]), "tokens_total": int(r[16]),
+             "questions_30d": r[17], "tokens_30d": int(r[18]), "cost_30d": float(r[19])} for r in rows]
+
+
+@router.get("/models", dependencies=[Depends(platform_owner)])
+def list_models():
+    """The platform's models from .env (names only; keys are never shown, only whether they are
+    set) and how much each was used in the last 30 days, across all universities."""
+    with get_admin_connection() as conn:
+        rows = conn.execute("SELECT model, kind, count(*), sum(total_tokens), sum(cost_usd) FROM usage "
+                            "WHERE created_at >= now() - interval '30 days' GROUP BY model, kind "
+                            "ORDER BY sum(total_tokens) DESC").fetchall()
+    roles = [("Answers", [config.LABS_MODEL, *config.LABS_BACKUP_MODELS]),
+             ("Pictures", [config.VISION_MODEL, *config.VISION_BACKUP_MODELS]),
+             ("CV rewrites", [config.CAREER_MODEL, *config.CAREER_BACKUP_MODELS]),
+             ("Document editor", [config.DOC_EDIT_MODEL, *config.DOC_EDIT_BACKUP_MODELS]),
+             ("Embeddings", [config.EMBEDDING_MODEL]),
+             ("Local backup (Ollama)", [config.OLLAMA_MODEL])]
+    return {"roles": [{"role": role, "models": [m for m in models if m]} for role, models in roles],
+            "keys": {"OpenRouter": bool(config.OPENROUTER_API_KEY), "Groq": bool(config.GROQ_API_KEY)},
+            "usage_30d": [{"model": m, "kind": k, "calls": n, "tokens": int(t or 0), "cost": float(c or 0)}
+                          for m, k, n, t, c in rows]}
+
+
+@router.get("/usage", dependencies=[Depends(platform_owner)])
+def usage_by_month():
+    """Tokens, cost and model calls per university and month (the last 6 months)."""
+    with get_admin_connection() as conn:
+        rows = conn.execute("""
+            SELECT t.name, to_char(date_trunc('month', x.created_at), 'YYYY-MM'), count(*),
+                   sum(x.total_tokens), sum(x.cost_usd)
+            FROM usage x JOIN tenants t ON t.id = x.tenant_id
+            WHERE x.created_at >= date_trunc('month', now()) - interval '5 months'
+            GROUP BY 1, 2 ORDER BY 2 DESC, 4 DESC""").fetchall()
+    return [{"university": u, "month": month, "calls": n, "tokens": int(t or 0), "cost": float(c or 0)}
+            for u, month, n, t, c in rows]
 
 
 # ---------------------------------------------------------------- changing
@@ -141,12 +195,15 @@ def create_university(body: UniversityIn):
         raise HTTPException(400, f"Admin password: {problem}")
     if not re.match(r"^[^@\s]+@[^@\s]+$", email):
         raise HTTPException(400, "The admin's email is not an email address.")
-    templates = list(dict.fromkeys(body.templates))
+    assistants = [*body.assistants, *(AssistantIn(name=key, template_key=key) for key in dict.fromkeys(body.templates))]
+    templates = [a.template_key for a in assistants if a.template_key]
+    if any(not a.name.strip() for a in assistants):
+        raise HTTPException(400, "Every assistant needs a name.")
     with get_admin_connection() as conn:
         plan = conn.execute("SELECT max_assistants FROM plans WHERE key = %s", (body.plan,)).fetchone()
         if plan is None:
             raise HTTPException(400, f"Unknown plan '{body.plan}'.")
-        if plan[0] is not None and len(templates) > plan[0]:
+        if plan[0] is not None and len(assistants) > plan[0]:
             raise HTTPException(400, f"The {body.plan} plan allows {plan[0]} assistants.")
         known = {k for (k,) in conn.execute("SELECT key FROM agent_templates WHERE key = ANY(%s)", (templates,))}
         if set(templates) - known:
@@ -163,21 +220,52 @@ def create_university(body: UniversityIn):
             (slug, body.name.strip(), body.short_name.strip(), body.plan, body.brand_primary, body.brand_accent,
              body.brand_dark, body.logo_url or None, DEFAULT_AUDIENCES)).fetchone()[0]
         conn.execute("INSERT INTO tenant_domains (host, tenant_id, is_primary) VALUES (%s, %s, true)", (host, tenant_id))
-        # Its assistants: the templates' settings; no CV rewrites or campus map (it has neither yet).
-        conn.execute("""
-            INSERT INTO agents (tenant_id, template_key, name, summary, subtitle, description, audiences, answer_mode,
-                                prompt_mode, instructions, fallback_en, fallback_ar, welcome, placeholder, examples,
-                                skills, max_answer_tokens, position, folder)
-            SELECT %s, key, name, summary, subtitle, description, audiences, answer_mode, prompt_mode, instructions,
-                   fallback_en, fallback_ar, welcome, placeholder, examples, array_remove(array_remove(skills, 'cv'), 'map'),
-                   max_answer_tokens, row_number() OVER (ORDER BY position), key
-            FROM agent_templates WHERE key = ANY(%s)""", (tenant_id, templates))
+        # Its assistants, in the order given: a template's settings with the name (and what it
+        # handles) chosen here, or a new one from just its name and what it handles. No CV
+        # rewrites or campus map: a new university has neither yet. Each gets its own folder.
+        folders: set[str] = set()
+        for position, assistant in enumerate(assistants, start=1):
+            folder = unique_folder(assistant.template_key or assistant.name, folders)
+            if assistant.template_key:
+                conn.execute("""
+                    INSERT INTO agents (tenant_id, template_key, name, summary, subtitle, description, audiences,
+                                        answer_mode, prompt_mode, instructions, fallback_en, fallback_ar, welcome,
+                                        placeholder, examples, skills, max_answer_tokens, position, folder)
+                    SELECT %s, key, CASE WHEN %s = key THEN name ELSE %s END,
+                           CASE WHEN %s = '' THEN summary ELSE %s END, subtitle,
+                           CASE WHEN %s = '' THEN description ELSE %s END, audiences, answer_mode, prompt_mode,
+                           instructions, fallback_en, fallback_ar, welcome, placeholder, examples,
+                           array_remove(array_remove(skills, 'cv'), 'map'), max_answer_tokens, %s, %s
+                    FROM agent_templates WHERE key = %s""",
+                             (tenant_id, assistant.name, assistant.name, assistant.description, assistant.description,
+                              assistant.description, assistant.description, position, folder, assistant.template_key))
+            else:
+                what = assistant.description.strip() or f"questions about {assistant.name}"
+                conn.execute("""
+                    INSERT INTO agents (tenant_id, name, summary, description, audiences, answer_mode, instructions,
+                                        fallback_en, welcome, skills, position, folder)
+                    VALUES (%s, %s, %s, %s, '{student,staff}', 'docs', %s, %s, %s, '{files,images,editor,voice}', %s, %s)""",
+                             (tenant_id, assistant.name.strip(), what, what,
+                              f"You help {{university}} students and staff with {what[0].lower() + what[1:]}",
+                              "Sorry, I don't have information about that. Please contact the relevant {university} office.",
+                              "How can I help you? Ask me a question.", position, folder))
         conn.execute("INSERT INTO users (tenant_id, email, name, role, password_hash) VALUES (%s, %s, %s, 'tenant_admin', %s)",
                      (tenant_id, email, body.admin.name, auth.hash_password(body.admin.password)))
     tenants._by_host.clear()
-    log.info("Console: new university %s (%s) with %d assistants", body.name, host, len(templates))
+    log.info("Console: new university %s (%s) with %d assistants", body.name, host, len(assistants))
     return {"id": str(tenant_id), "slug": slug, "host": host, "url": f"http://{host}:5173",
             "admin_url": f"http://{host}:5173/admin"}
+
+
+def unique_folder(name: str, taken: set[str]) -> str:
+    """A readable folder name for a new assistant, not yet used by this university's others."""
+    base = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")[:40] or "assistant"
+    folder, number = base, 1
+    while folder in taken:
+        number += 1
+        folder = f"{base}_{number}"
+    taken.add(folder)
+    return folder
 
 
 @router.put("/universities/{tenant_id}")

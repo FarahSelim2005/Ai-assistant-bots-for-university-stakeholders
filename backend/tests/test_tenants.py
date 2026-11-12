@@ -672,15 +672,16 @@ class PlansAndUsage(TestDatabaseCase):
 
     def test_model_calls_are_logged_per_university(self):
         answer = mock.Mock(**{"json.return_value": {"choices": [{"message": {"content": "Hello"}}],
-                                                    "usage": {"prompt_tokens": 90, "completion_tokens": 10, "total_tokens": 100}}})
+                                                    "usage": {"prompt_tokens": 90, "completion_tokens": 10, "total_tokens": 100,
+                                                              "cost": 0.0012}}})
         with tenants.using(self.a), mock.patch.object(client._openrouter, "post", return_value=answer), \
              mock.patch.object(config, "OPENROUTER_API_KEY", "test-key"):
             usage.for_agent(self.a_agent)
             self.assertEqual(client.chat([{"role": "user", "content": "hi"}], "provider/model"), "Hello")
             usage.for_agent(None)
         db.set_tenant(self.conn, self.a.id)
-        self.assertEqual(self.rows("SELECT agent_id, model, kind, prompt_tokens, completion_tokens, total_tokens FROM usage"),
-                         [(self.a_agent, "provider/model", "chat", 90, 10, 100)])
+        self.assertEqual(self.rows("SELECT agent_id, model, kind, prompt_tokens, completion_tokens, total_tokens, "
+                                   "cost_usd::float FROM usage"), [(self.a_agent, "provider/model", "chat", 90, 10, 100, 0.0012)])
         db.set_tenant(self.conn, self.b.id)
         self.assertEqual(self.rows("SELECT count(*) FROM usage"), [(0,)])  # B sees none of A's usage
 
@@ -758,7 +759,11 @@ class PlatformConsole(TestDatabaseCase):
     def test_new_university_wizard(self):
         slug = f"new-{uuid.uuid4().hex[:6]}"
         body = {"name": "New University", "short_name": "NU", "slug": slug, "host": f"{slug}.test",
-                "brand_primary": "#123456", "plan": "standard", "templates": ["labs_research", "internship_career"],
+                "brand_primary": "#123456", "plan": "standard",
+                "assistants": [{"name": "Ask Admissions", "description": "Applying, deadlines and fees"},
+                               {"name": "Campus Guide", "template_key": "labs_research"},
+                               {"name": "Ask Admissions", "description": "A second one with the same name"}],
+                "templates": ["internship_career"],
                 "admin": {"email": f"admin@{slug}.example", "name": "First Admin", "password": "first admin password"}}
         console_client = self.console()
         made = console_client.post("/console/universities", json=body)
@@ -766,17 +771,24 @@ class PlatformConsole(TestDatabaseCase):
         self.assertEqual(made.json()["url"], f"http://{slug}.test:5173")
         page = client_for(f"{slug}.test:8000").get("/tenant").json()
         self.assertEqual((page["name"], page["short_name"], page["colors"]["primary"]), ("New University", "NU", "#123456"))
-        self.assertEqual([a["name"] for a in page["assistants"]], ["Internship & Career Assistant", "Labs & Research Assistant"])
+        self.assertEqual([a["name"] for a in page["assistants"]],
+                         ["Ask Admissions", "Campus Guide", "Ask Admissions", "Internship & Career Assistant"])
+        self.assertEqual(page["assistants"][0]["summary"], "Applying, deadlines and fees")
+        self.assertEqual(page["assistants"][1]["summary"], next(t for t in TEMPLATES if t["key"] == "labs_research")["summary"])
         self.assertTrue(all("cv" not in a["skills"] and "map" not in a["skills"] for a in page["assistants"]))
         self.assertNotIn("GIU", str(page))
         login = client_for(f"{slug}.test:8000").post("/admin/login", json={"email": f"admin@{slug}.example",
                                                                             "password": "first admin password"})
         self.assertEqual(login.json()["user"]["role"], "tenant_admin")
+        admin_client = client_for(f"{slug}.test:8000")
+        admin_client.headers["Authorization"] = f"Bearer {login.json()['token']}"
+        folders = [a["folder"] for a in admin_client.get("/admin/agents").json()]
+        self.assertEqual(folders, ["ask_admissions", "labs_research", "ask_admissions_2", "internship_career"])
         # Refused: taken subdomain, too many assistants for the plan, a bad colour
         self.assertEqual(console_client.post("/console/universities", json={**body, "host": None}).status_code, 409)
         self.assertEqual(console_client.post("/console/universities", json={
             **body, "slug": slug + "x", "host": None, "plan": "free",
-            "templates": ["labs_research", "hr_policies", "internship_career"],
+            "assistants": [{"name": "One"}, {"name": "Two"}, {"name": "Three"}], "templates": [],
             "admin": {**body["admin"], "email": f"other@{slug}.example"}}).status_code, 400)
         self.assertEqual(console_client.post("/console/universities", json={**body, "slug": slug + "y", "host": None,
                                                                           "brand_primary": "red"}).status_code, 400)
@@ -789,6 +801,52 @@ class PlatformConsole(TestDatabaseCase):
         self.assertEqual(console_client.put(f"/console/universities/{self.b.id}", json={"status": "active", "plan": "free"}).status_code, 200)
         self.assertEqual(self.client(self.b).get("/tenant").status_code, 200)
         self.assertEqual(console_client.put(f"/console/universities/{self.b.id}", json={"plan": "gold"}).status_code, 400)
+
+
+class AdminAnalytics(TestDatabaseCase):
+    """The admin's numbers (30 days) and changing one's own password (as giu_app)."""
+    role = "giu_app"
+
+    def setUp(self):
+        super().setUp()
+        self.use_app_code()
+
+    def test_questions_unanswered_and_ratings(self):
+        a = self.client(self.a, "tenant_admin")
+        fallback = "Sorry, I don't have information about that."
+        db.set_tenant(self.conn, self.a.id)
+        self.conn.execute("UPDATE agents SET fallback_en = %s WHERE id = %s", (fallback, self.a_agent))
+        for question, answer, rating in [("Where is the lab?", "In room Z901.", 5), ("What is the meaning of life?", fallback, None),
+                                         ("Opening hours?", "9 to 5.", 3)]:
+            self.insert("INSERT INTO messages (tenant_id, conversation_id, role, content) VALUES (%s, %s, 'user', %s) RETURNING id",
+                        (self.a.id, self.a_conversation, question))
+            answer_id = self.insert("INSERT INTO messages (tenant_id, conversation_id, role, content) "
+                                    "VALUES (%s, %s, 'assistant', %s) RETURNING id", (self.a.id, self.a_conversation, answer))
+            if rating:
+                self.conn.execute("INSERT INTO feedback (tenant_id, message_id, rating) VALUES (%s, %s, %s)",
+                                  (self.a.id, answer_id, rating))
+        numbers = a.get("/admin/analytics").json()
+        self.assertEqual((numbers["questions_30d"], numbers["unanswered_30d"], numbers["unanswered_pct"],
+                          numbers["average_rating"], numbers["chats_30d"]), (3, 1, 33.3, 4.0, 1))
+        self.assertEqual(numbers["recent_unanswered"][0]["question"], "What is the meaning of life?")
+        self.assertEqual(numbers["per_assistant"][0]["questions"], 3)
+        self.assertEqual(self.client(self.b, "tenant_admin").get("/admin/analytics").json()["questions_30d"], 0)  # only A's
+
+    def test_change_own_password(self):
+        db.set_tenant(self.conn, self.a.id)
+        user_id = self.insert("INSERT INTO users (tenant_id, email, role, password_hash) VALUES (%s, %s, 'editor', %s) RETURNING id",
+                              (self.a.id, f"ed@{self.a.slug}.example", auth.hash_password("old password 123")))
+        token = "editor-own-password"
+        auth._sessions[token] = auth.Session(user_id, f"ed@{self.a.slug}.example", "", "editor", self.a.id, 1e12)
+        self.addCleanup(auth._sessions.pop, token, None)
+        editor = self.client(self.a)
+        editor.headers["Authorization"] = f"Bearer {token}"
+        self.assertEqual(editor.post("/admin/me/password", json={"current_password": "wrong", "new_password": "new password 456"}).status_code, 400)
+        self.assertEqual(editor.post("/admin/me/password", json={"current_password": "old password 123", "new_password": "short"}).status_code, 400)
+        self.assertEqual(editor.post("/admin/me/password", json={"current_password": "old password 123",
+                                                                  "new_password": "new password 456"}).status_code, 200)
+        login = self.client(self.a).post("/admin/login", json={"email": f"ed@{self.a.slug}.example", "password": "new password 456"})
+        self.assertEqual(login.status_code, 200)
 
 
 if __name__ == "__main__":

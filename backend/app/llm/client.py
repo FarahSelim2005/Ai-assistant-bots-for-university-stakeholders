@@ -51,17 +51,17 @@ def chat(messages: list[dict], model: str,
         raise RuntimeError(f"{key_name} is not set in backend/.env")
 
     # Groq and OpenRouter use the same request format; Groq wants the name without "groq/".
-    response = client.post(
-        "/chat/completions",
-        headers={"Authorization": f"Bearer {api_key}"},
-        json={"model": model.removeprefix(GROQ_PREFIX), "messages": messages,
-              "temperature": temperature, "max_tokens": max_tokens},
-    )
+    # OpenRouter also reports each call's cost when asked ("usage": {"include": true}).
+    body = {"model": model.removeprefix(GROQ_PREFIX), "messages": messages,
+            "temperature": temperature, "max_tokens": max_tokens}
+    if client is _openrouter:
+        body["usage"] = {"include": True}
+    response = client.post("/chat/completions", headers={"Authorization": f"Bearer {api_key}"}, json=body)
     response.raise_for_status()
     data = response.json()
     tokens = data.get("usage") or {}
     usage.record(model, "chat", tokens.get("prompt_tokens", 0), tokens.get("completion_tokens", 0),
-                 tokens.get("total_tokens", 0))
+                 tokens.get("total_tokens", 0), tokens.get("cost", 0))
     # OpenRouter can answer "200 OK" with an error instead of choices (e.g. the provider
     # failed or a limit was hit mid-request).
     if not data.get("choices"):

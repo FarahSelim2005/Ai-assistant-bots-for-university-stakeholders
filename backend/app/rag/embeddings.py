@@ -29,7 +29,7 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
         response.raise_for_status()
         tokens = response.json().get("usage") or {}
         usage.record(config.EMBEDDING_MODEL, "embedding", prompt_tokens=tokens.get("prompt_tokens", 0),
-                     total_tokens=tokens.get("total_tokens", 0))
+                     total_tokens=tokens.get("total_tokens", 0), cost_usd=tokens.get("cost", 0))
         data = sorted(response.json()["data"], key=lambda item: item["index"])
         # float(): the API sometimes sends whole numbers like 0, and PostgreSQL arrays
         # (via psycopg) need every value to have the same type.

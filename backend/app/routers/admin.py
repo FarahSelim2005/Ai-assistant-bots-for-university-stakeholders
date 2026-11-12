@@ -7,6 +7,8 @@ needs "Authorization: Bearer <token>". Roles: tenant_admin (everything below) an
 POST   /admin/login                 {email, password} -> {token, user}
 POST   /admin/logout
 GET    /admin/me                    {user, university}
+POST   /admin/me/password           {current_password, new_password}   (any role)
+GET    /admin/analytics             questions, chats, unanswered %, ratings (30 days), per assistant
 GET    /admin/agents                [{id, folder, name, ..., live, active_skills}]   (editors too)
 GET    /admin/agent-templates       ready-made assistants to start from
 POST   /admin/agents                {template_key?, name?, ...} -> {id}
@@ -153,6 +155,79 @@ def me(session: Session = Depends(university_user)):
             "university": {"name": tenant.name, "short_name": tenant.short, "slug": tenant.slug}}
 
 
+class PasswordChange(BaseModel):
+    current_password: str = Field(min_length=1, max_length=200)
+    new_password: str = Field(min_length=1, max_length=200)
+
+
+@router.post("/me/password")
+def change_my_password(body: PasswordChange, session: Session = Depends(university_user)):
+    """Any user changes their own password (the current one is needed)."""
+    problem = auth.password_problem(body.new_password)
+    if problem:
+        raise HTTPException(400, problem)
+    tenant_id = tenants.current_id()
+    with get_connection(tenant_id) as conn:
+        row = conn.execute("SELECT password_hash FROM users WHERE id = %s AND tenant_id = %s",
+                           (session.user_id, tenant_id)).fetchone()
+        if row is None or not auth.check_password(body.current_password, row[0]):
+            raise HTTPException(400, "The current password is not right.")
+        conn.execute("UPDATE users SET password_hash = %s WHERE id = %s AND tenant_id = %s",
+                     (auth.hash_password(body.new_password), session.user_id, tenant_id))
+    return {"ok": True}
+
+
+@router.get("/analytics", dependencies=[Depends(university_user)])
+def analytics():
+    """The last 30 days: questions, chats (users do not sign in, so a chat stands for a user),
+    unanswered questions (answered with an assistant's "no information" text), ratings; per
+    assistant, and the latest unanswered questions."""
+    tenant_id = tenants.current_id()
+    agents = agents_of(tenant_id)
+    fallbacks = sorted({text for a in agents for text in (a.fallback_message, a.fallback_message_ar) if text})
+    with get_connection(tenant_id) as conn:
+        rows = conn.execute("""
+            SELECT c.agent_id, q.content, a.content, q.created_at, f.rating
+            FROM messages q
+            JOIN conversations c ON c.id = q.conversation_id AND c.tenant_id = q.tenant_id
+            LEFT JOIN LATERAL (SELECT id, content FROM messages a WHERE a.conversation_id = q.conversation_id
+                               AND a.tenant_id = q.tenant_id AND a.role = 'assistant' AND a.id > q.id
+                               ORDER BY a.id LIMIT 1) a ON true
+            LEFT JOIN LATERAL (SELECT avg(rating) AS rating FROM feedback f WHERE f.message_id = a.id
+                               AND f.tenant_id = q.tenant_id) f ON true
+            WHERE q.tenant_id = %s AND q.role = 'user' AND q.created_at >= now() - interval '30 days'
+            ORDER BY q.id DESC""", (tenant_id,)).fetchall()
+        chats = conn.execute("SELECT count(*) FROM conversations WHERE tenant_id = %s "
+                             "AND created_at >= now() - interval '30 days'", (tenant_id,)).fetchone()[0]
+    names = {a.id: a.display_name for a in agents}
+    per = {}
+    unanswered_list = []
+    ratings = []
+    for agent_id, question, answer, at, rating in rows:
+        stats = per.setdefault(agent_id, {"questions": 0, "unanswered": 0, "ratings": []})
+        stats["questions"] += 1
+        if answer in fallbacks:
+            stats["unanswered"] += 1
+            if len(unanswered_list) < 15:
+                unanswered_list.append({"question": question.split("\n[Attached")[0], "assistant": names.get(agent_id, "Deleted assistant"),
+                                        "at": at.isoformat()})
+        if rating is not None:
+            stats["ratings"].append(float(rating))
+            ratings.append(float(rating))
+    unanswered = sum(s["unanswered"] for s in per.values())
+    percent = lambda part, whole: round(100 * part / whole, 1) if whole else 0.0
+    average = lambda values: round(sum(values) / len(values), 2) if values else None
+    return {
+        "questions_30d": len(rows), "chats_30d": chats, "unanswered_30d": unanswered,
+        "unanswered_pct": percent(unanswered, len(rows)), "average_rating": average(ratings), "ratings": len(ratings),
+        "per_assistant": [{"id": str(agent_id), "name": names.get(agent_id, "Deleted assistant"),
+                           "questions": st["questions"], "unanswered_pct": percent(st["unanswered"], st["questions"]),
+                           "average_rating": average(st["ratings"])}
+                          for agent_id, st in sorted(per.items(), key=lambda item: -item[1]["questions"])],
+        "recent_unanswered": unanswered_list,
+    }
+
+
 # ---------------------------------------------------------------- assistants
 
 def agent_out(agent) -> dict:
@@ -164,7 +239,13 @@ def agent_out(agent) -> dict:
             "fallback_ar": s.fallback_ar, "welcome": s.welcome, "placeholder": s.placeholder,
             "examples": list(s.examples), "skills": list(s.skills), "max_answer_tokens": s.max_answer_tokens,
             "model": s.model, "backup_models": list(s.backup_models), "similarity_threshold": s.similarity_threshold,
-            "position": s.position, "live": s.live, "active_skills": agent.active_skills()}
+            "position": s.position, "live": s.live, "active_skills": agent.active_skills(),
+            "documents": document_count(s.folder)}
+
+
+def document_count(folder_name: str) -> int:
+    folder = tenants.data_dir(tenants.current()) / folder_name
+    return sum(1 for p in folder.iterdir() if p.is_file() and p.suffix.lower() in DOCUMENT_TYPES) if folder.is_dir() else 0
 
 
 def audience_keys() -> list[str]:
