@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from app import config
+from app import config, tenants
 from app.db import get_connection
 from app.rag.embeddings import embed_text
 
@@ -26,12 +26,13 @@ def cosine_similarity(query: np.ndarray, matrix: np.ndarray) -> np.ndarray:
 
 
 def load_chunks(agent: str, user_type: str) -> list[tuple[str, str, list[float]]]:
-    """Return (content, source, embedding) for the agent's chunks visible to this user type."""
-    with get_connection() as conn:
+    """Return (content, source, embedding) for the current tenant's chunks of this agent
+    (`agent`: the agent's id) that this user type may see."""
+    with get_connection(tenants.current_id()) as conn:
         return conn.execute(
             "SELECT content, source, embedding FROM chunks "
-            "WHERE agent = %s AND %s = ANY(audience)",
-            (agent, user_type),
+            "WHERE tenant_id = %s AND agent_id = %s AND %s = ANY(audience)",
+            (tenants.current_id(), agent, user_type),
         ).fetchall()
 
 

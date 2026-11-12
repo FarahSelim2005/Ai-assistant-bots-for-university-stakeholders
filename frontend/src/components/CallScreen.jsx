@@ -7,12 +7,14 @@
 // Loop: listen -> (user pauses) -> understanding -> thinking -> speak -> listen ...
 import { useEffect, useRef, useState } from "react";
 import { transcribe } from "../api.js";
+import { tenant } from "../tenant.js";
+import BrandLogo from "./BrandLogo.jsx";
 
 export const callSupported = Boolean(
   navigator.mediaDevices?.getUserMedia && window.MediaRecorder && window.speechSynthesis,
 );
 
-const greetingEn = (agentName) => `Hello! This is the GIU ${agentName}. Ask me in English or Arabic.`;
+const greetingEn = (university, agentName) => `Hello! This is the ${university} ${agentName}. Ask me in English or Arabic.`;
 const GREETING_AR = "أهلاً! اسألني بالعربي أو بالإنجليزي.";
 const NO_ANSWER = {
   en: "Sorry, I couldn't get an answer right now. Please try again in a moment.",
@@ -124,7 +126,7 @@ export default function CallScreen({ onAsk, onHangUp, agentName = "Labs & Resear
     const greet = () => {
       if (greeted || !activeRef.current) return;
       greeted = true;
-      speak([greetingEn(agentName.replace("&", "and")), GREETING_AR]);
+      speak([greetingEn(tenant().short_name, agentName.replace("&", "and")), GREETING_AR]);
     };
     setTimeout(greet, 1000);
     if (window.speechSynthesis.getVoices().length) greet();
@@ -263,15 +265,15 @@ export default function CallScreen({ onAsk, onHangUp, agentName = "Labs & Resear
   return (
     <div className="call" role="dialog" aria-label="Voice call with the assistant">
       <div className="call-top">
-        <img src="/giu-logo.jpg" alt="German International University" className="call-logo" />
+        <BrandLogo className="call-logo" />
         <span className="call-languages-note">العربية · English</span>
         <span className="call-time">{time}</span>
       </div>
 
       <div className="call-center">
         <button className={`call-avatar ${status}`} onClick={interrupt} aria-label="Interrupt"
-                style={glow ? { boxShadow: `0 0 0 ${glow}px rgba(196, 22, 28, 0.35)` } : undefined}>
-          GIU
+                style={glow ? { boxShadow: `0 0 0 ${glow}px color-mix(in srgb, var(--brand-primary) 35%, transparent)` } : undefined}>
+          {tenant().short_name}
         </button>
         <h2>{agentName}</h2>
         <p className="call-status">{error || STATUS_TEXT[status]}</p>

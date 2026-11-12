@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Uploaded and edited documents (document editor), deleted after an hour
+backend/data/edits/
+backend/data/tenants/

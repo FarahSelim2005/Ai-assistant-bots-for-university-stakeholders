@@ -76,8 +76,11 @@ function Pin({ x, y }) {
   );
 }
 
-export default function CampusMap({ locations = [], places = [] }) {
-  const buildings = [...new Set(locations.map((l) => l.building))];
+// `askedBuildings`: buildings asked about without a room ("where is the M"): [{ letter, name }].
+export default function CampusMap({ locations = [], places = [], askedBuildings = [] }) {
+  const buildings = [...new Set([...locations.map((l) => l.building), ...askedBuildings.map((b) => b.letter)])];
+  const buildingName = (letter) =>
+    locations.find((l) => l.building === letter)?.building_name ?? askedBuildings.find((b) => b.letter === letter)?.name;
   const placeKeys = places.map((p) => p.key).filter((key) => PLACES[key]);
   const highlighted = [...buildings.map((b) => `building ${b}`), ...placeKeys];
 
@@ -147,7 +150,7 @@ export default function CampusMap({ locations = [], places = [] }) {
                 </div>
                 <div>
                   <strong>Building {letter}</strong>
-                  <span className="muted"> · {here[0].building_name}</span>
+                  <span className="muted"> · {buildingName(letter)}</span>
                   <ol className="directions">
                     <li>From the car park, {BUILDINGS[letter].direction}.</li>
                     {here.map((l) => (

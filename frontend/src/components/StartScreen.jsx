@@ -1,22 +1,17 @@
 // First screen, in two steps:
-// 1. the user says whether they are a student or staff member;
-// 2. they choose one of the agents available to them.
-// Built agents open the chat; agents that are not built yet open their coming-soon page.
-// A link like "/?agent=internship_career" opens that agent directly once the user type is known.
+// 1. the user says who they are (the university's audiences, e.g. student or staff);
+// 2. they choose one of the assistants for them (with just one, it opens directly).
+// A link like "/?agent=<id>" opens that assistant directly once the audience is known.
 import { useEffect, useRef, useState } from "react";
-import { AGENTS } from "../agents.js";
+import { assistantsFor, tenant } from "../tenant.js";
+import BrandLogo from "./BrandLogo.jsx";
 
-const USER_TYPES = [
-  { value: "student", title: "Student", text: "Advising, orientation, careers, labs and research" },
-  { value: "staff", title: "Staff", text: "All assistants, including HR & Policies" },
-];
-
-// The Student/Staff choice is remembered for this browser tab, so "New chat" and the
-// coming-soon page's back link return straight to the assistant list.
+// The audience choice is remembered for this browser tab, so "New chat" returns straight to
+// the assistant list.
 function savedUserType() {
   try {
     const saved = sessionStorage.getItem("userType");
-    return USER_TYPES.some((type) => type.value === saved) ? saved : null;
+    return tenant().audiences.some((audience) => audience.key === saved) ? saved : null;
   } catch {
     return null;
   }
@@ -32,56 +27,57 @@ function saveUserType(type) {
 }
 
 export default function StartScreen({ onChoose, loading, error, initialAgent }) {
+  const university = tenant();
   const [userType, setUserType] = useState(savedUserType);
-  const agents = AGENTS.filter((agent) => agent.userTypes.includes(userType));
+  const agents = userType ? assistantsFor(userType) : [];
+  const audience = university.audiences.find((a) => a.key === userType);
 
-  // Opened from a link to a specific agent: start it as soon as we know the user type.
-  // (The ref makes sure it starts only once, also when React runs effects twice.)
-  const linkUsed = useRef(false);
+  // Opened from a link to a specific assistant, or there is only one: start it as soon as we
+  // know the audience. (The ref makes sure it starts only once, also when React runs effects twice.)
+  const started = useRef(false);
   useEffect(() => {
-    const linked = agents.find((agent) => agent.key === initialAgent && agent.ready);
-    if (linked && !linkUsed.current) {
-      linkUsed.current = true;
-      window.history.replaceState(null, "", "/"); // so "New chat" shows the list again
-      onChoose(userType, linked.key);
+    if (!userType || started.current) return;
+    const linked = agents.find((agent) => agent.id === initialAgent || agent.template_key === initialAgent);
+    const only = agents.length === 1 ? agents[0] : null;
+    if (linked || only) {
+      started.current = true;
+      if (linked) window.history.replaceState(null, "", "/"); // so "New chat" shows the list again
+      onChoose(userType, (linked || only).id);
     }
   }, [userType]);
 
   function chooseUserType(type) {
+    started.current = false;
     saveUserType(type);
     setUserType(type);
   }
 
-  function chooseAgent(agent) {
-    if (agent.ready) onChoose(userType, agent.key);
-    else window.location.href = `/?agent=${agent.key}`;
-  }
+  const intro = university.intro
+    || `${university.assistants.length === 1 ? "An assistant" : `${university.assistants.length} assistants`} for `
+       + `${university.audiences.map((a) => a.title.toLowerCase()).join(" and ")} users. University facts come only `
+       + `from official ${university.short_name} documents.`;
 
   return (
     <div className="start">
       <section className="start-intro">
         <div className="flag-stripe vertical" />
         <p className="eyebrow">AI Assistants</p>
-        <h1>GIU Chatbot</h1>
-        <p>
-          Five assistants for students and staff: graduation and advising, HR and policies,
-          orientation, internships and careers, and labs and research. University facts come
-          only from official GIU documents.
-        </p>
+        <h1>{university.short_name} Chatbot</h1>
+        <p>{intro}</p>
       </section>
 
       <section className="start-choice">
-        <img src="/giu-logo.jpg" alt="German International University" className="start-logo" />
+        <BrandLogo className="start-logo" />
 
         {!userType ? (
           <>
             <h2>Who are you?</h2>
             <p className="muted">Choose one to continue.</p>
             <div className="choice-cards">
-              {USER_TYPES.map((type) => (
-                <button key={type.value} className="choice-card" onClick={() => chooseUserType(type.value)}>
+              {university.audiences.map((type) => (
+                <button key={type.key} className="choice-card" onClick={() => chooseUserType(type.key)}>
                   <span className="choice-title">{type.title}</span>
-                  <span className="choice-text">{type.text}</span>
+                  {type.text && <span className="choice-text">{type.text}</span>}
                 </button>
               ))}
             </div>
@@ -93,17 +89,17 @@ export default function StartScreen({ onChoose, loading, error, initialAgent }) 
             </button>
             <h2>Choose an assistant</h2>
             <p className="muted">
-              {agents.length} assistants are available for {userType === "staff" ? "staff" : "students"}.
+              {agents.length === 0
+                ? `No assistants are available for ${audience?.title.toLowerCase() ?? userType} users yet.`
+                : `${agents.length} ${agents.length === 1 ? "assistant is" : "assistants are"} available for `
+                  + `${audience?.title.toLowerCase() ?? userType} users.`}
             </p>
             <div className="choice-cards">
               {agents.map((agent) => (
-                <button key={agent.key} className="choice-card agent-card"
-                        onClick={() => chooseAgent(agent)} disabled={loading}>
-                  <span className="choice-title">
-                    {agent.name}
-                    {!agent.ready && <span className="soon-tag">Coming soon</span>}
-                  </span>
-                  <span className="choice-text">{agent.handles}</span>
+                <button key={agent.id} className="choice-card agent-card"
+                        onClick={() => onChoose(userType, agent.id)} disabled={loading}>
+                  <span className="choice-title">{agent.name}</span>
+                  <span className="choice-text">{agent.summary}</span>
                 </button>
               ))}
             </div>

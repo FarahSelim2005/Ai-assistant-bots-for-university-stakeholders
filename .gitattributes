@@ -1,0 +1,3 @@
+# Migrations keep LF line endings: text inside them (e.g. the assistants' prompts in 004)
+# must not gain \r on Windows checkouts.
+backend/migrations/*.sql text eol=lf

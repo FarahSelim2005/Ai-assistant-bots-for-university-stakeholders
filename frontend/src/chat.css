@@ -1,0 +1,95 @@
+/* The student/staff chat, like the design's chatView() (docs/design/multi-tenant-design.html):
+   the university's dark sidebar with its assistants, then the conversation. It uses the
+   university's colours (--brand-primary, --brand-accent, --brand-dark from GET /tenant) and,
+   like the design, is light only: it is the university's own surface. */
+.tapp { --t-primary: var(--brand-primary); --t-primary-ink: #ffffff; --t-second: var(--brand-accent); --t-dark: var(--brand-dark);
+  display: grid; grid-template-columns: 260px minmax(0, 1fr); height: 100vh; background: #f6f6f7; color: #1b1d21; color-scheme: light;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif; font-size: 15px; line-height: 1.5; }
+.tapp *, .tapp *::before, .tapp *::after { box-sizing: border-box; }
+.tside { background: var(--t-dark); color: #f1f1f1; padding: 18px 14px; display: grid; align-content: start; gap: 14px; overflow-y: auto; }
+.tbrand { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.tlogo { width: 38px; height: 38px; border-radius: 9px; background: var(--t-primary); color: var(--t-primary-ink); display: grid; place-items: center;
+  font-family: "Sora", "Segoe UI", system-ui, sans-serif; font-weight: 700; font-size: 13px; flex-shrink: 0; overflow: hidden; }
+.tlogo.image { width: auto; max-width: 110px; background: #fff; padding: 4px 6px; }
+.tlogo img { height: 30px; width: auto; max-width: 100%; object-fit: contain; display: block; }
+.tbrand b { font-family: "Sora", "Segoe UI", system-ui, sans-serif; font-size: 14px; display: block; line-height: 1.25; }
+.tbrand small { color: #b9bcc2; font-size: 11.5px; }
+.tstripe { height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--t-dark) 0 33%, var(--t-primary) 33% 66%, var(--t-second) 66%);
+  border: 1px solid rgba(255, 255, 255, .15); }
+.tside .lbl { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #9a9ea6; font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; }
+.tagents { display: grid; gap: 4px; }
+button.tagent { font: inherit; text-align: left; border: 0; background: transparent; color: #e7e7e9; padding: 8px 10px; border-radius: 7px;
+  font-size: 13.5px; font-weight: 400; cursor: pointer; display: flex; justify-content: space-between; gap: 6px; align-items: center; }
+button.tagent:hover:not(:disabled) { background: rgba(255, 255, 255, .07); }
+button.tagent[aria-current="true"] { background: var(--t-primary); color: var(--t-primary-ink); }
+.tuser { margin-top: 8px; border-top: 1px solid rgba(255, 255, 255, .12); padding-top: 12px; font-size: 12.5px; color: #c3c6cc; display: grid; gap: 2px; }
+button.tlink { background: none; border: 0; padding: 0; color: #fff; text-decoration: underline; font: inherit; cursor: pointer; }
+button.tlink:hover:not(:disabled) { background: none; }
+
+.tmain { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; min-height: 0; }
+.thead { padding: 14px 20px; border-bottom: 1px solid #e3e4e7; background: #fff; display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+.thead h3 { font-family: "Sora", "Segoe UI", system-ui, sans-serif; font-size: 16px; margin: 0; color: #1b1d21; }
+.thead p { font-size: 12.5px; color: #6a6f78; margin: 0; }
+.thead-actions { display: flex; gap: 8px; align-items: center; }
+.lang { font-size: 12px; border: 1px solid #dadce0; border-radius: 999px; padding: 3px 10px; color: #474b52; background: #fff; }
+.tbody { padding: 20px; display: grid; gap: 14px; align-content: start; overflow-y: auto; }
+.tbody-inner { display: grid; gap: 14px; width: 100%; }
+
+/* Messages */
+.mrow { display: grid; gap: 6px; justify-items: start; }
+.mrow.u { justify-items: end; }
+.msg { max-width: 78%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.u { background: var(--t-primary); color: var(--t-primary-ink); border-bottom-right-radius: 4px; }
+.msg.a { background: #fff; border: 1px solid #e3e4e7; border-bottom-left-radius: 4px; display: grid; gap: 8px; white-space: normal; }
+.msg.a .text { white-space: pre-wrap; }
+.msg.a > .campus-map, .msg.a > .file-card, .msg.a > .changes { margin: 0; }
+.srcs { display: flex; flex-wrap: wrap; gap: 6px; }
+.src { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-size: 11px; background: #f1f2f4; color: #4b5059; border-radius: 5px; padding: 2px 7px; }
+.rate { display: flex; gap: 4px; font-size: 12px; color: #6a6f78; align-items: center; flex-wrap: wrap; }
+.rate button { width: 22px; height: 22px; padding: 0; border-radius: 4px; border: 1px solid #d5d7db; background: #fff; color: #474b52;
+  display: grid; place-items: center; font-size: 11px; font-weight: 500; cursor: pointer; }
+.rate button:hover:not(:disabled), .rate button.on { background: var(--t-second); border-color: var(--t-second); color: #1b1d21; }
+.rate button:disabled { opacity: 1; cursor: default; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+button.chip { font: inherit; font-size: 13px; font-weight: 400; border: 1px solid #dadce0; background: #fff; border-radius: 999px; padding: 5px 12px; color: #2d3036; cursor: pointer; }
+button.chip:hover:not(:disabled) { border-color: var(--t-primary); color: var(--t-primary); background: #fff; }
+.handover { border: 1px dashed var(--t-primary); border-radius: 10px; padding: 8px 12px; font-size: 13px; color: #2d3036; display: flex;
+  justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+.tbtn, a.tbtn, button.tbtn { border: 0; border-radius: 9px; padding: 9px 14px; background: var(--t-primary); color: var(--t-primary-ink); font: inherit;
+  font-weight: 600; font-size: 13px; text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+button.tbtn:hover:not(:disabled), a.tbtn:hover { background: var(--t-primary); filter: brightness(1.08); }
+.tbtn.ghost, button.tbtn.ghost { background: #fff; color: #2d3036; border: 1px solid #d5d7db; }
+button.tbtn.ghost:hover:not(:disabled) { background: #f6f6f7; filter: none; }
+.tbtn.dark, button.tbtn.dark { background: var(--t-dark); }
+.typing-dots { display: flex; gap: 5px; align-items: center; height: 20px; }
+.typing-dots span { width: 7px; height: 7px; border-radius: 50%; background: #b9bcc2; animation: bounce 1.2s infinite; }
+.typing-dots span:nth-child(2) { animation-delay: .15s; background: var(--t-primary); }
+.typing-dots span:nth-child(3) { animation-delay: .3s; background: var(--t-second); }
+.slow-note { font-size: 12.5px; color: #6a6f78; margin: 0; max-width: 420px; }
+
+/* Input bar */
+.tfoot { background: #fff; border-top: 1px solid #e3e4e7; }
+.tfoot > .error, .tfoot > .doc-bar, .tfoot > .pending-files { margin: 10px 20px 0; max-width: none; }
+/* The GIU chatbot's rounded bar (App.css .composer): "+" | text | mic | send (only with
+   text) or stop (while answering) */
+.tfoot .composer { margin: 12px 20px 16px; max-width: none; }
+.tfoot .composer .composer-input { color: #1b1d21; font-size: 15px; }
+.tfoot .composer .composer-input::placeholder { color: #8a8f98; }
+.tfoot .composer .send-button { background: var(--t-primary); }
+.tfoot .composer .send-button:hover:not(:disabled) { background: var(--brand-primary-dark); }
+.tfoot .composer .stop-button { background: var(--t-dark); }
+
+/* A stopped question: "Stopped" with Retry, Edit and Copy, and the edit box (App.css) */
+.mrow.u .message-actions, .mrow.u .edit-message { justify-self: end; }
+.tapp .edit-message textarea { color: #1b1d21; }
+
+@media (max-width: 760px) {
+  .tapp { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); height: 100dvh; }
+  .tside { padding: 12px; gap: 10px; }
+  .tagents { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tuser { margin-top: 0; padding-top: 8px; }
+  .msg { max-width: 92%; }
+  .thead, .tbody { padding-left: 14px; padding-right: 14px; }
+  .tfoot .composer { margin: 10px 12px 12px; }
+  .tfoot > .error, .tfoot > .doc-bar, .tfoot > .pending-files { margin: 8px 14px 0; }
+}

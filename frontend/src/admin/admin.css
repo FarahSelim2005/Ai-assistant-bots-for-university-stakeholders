@@ -1,0 +1,99 @@
+/* Admin page: same colours, buttons and top bar as the chat (App.css) */
+.admin { min-height: 100%; display: flex; flex-direction: column; }
+.admin-main { width: 100%; max-width: 1000px; margin: 0 auto; padding: 32px; }
+
+.admin-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 24px 28px;
+}
+.admin-card h2 { margin: 0 0 16px; font-size: 20px; }
+.admin label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 14px; margin-bottom: 16px; }
+.admin input, .admin select, .admin textarea {
+  font: inherit;
+  font-weight: 400;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+.admin input:focus, .admin select:focus, .admin textarea:focus { outline: none; border-color: var(--brand-primary); }
+.admin textarea { font-family: Consolas, "Courier New", monospace; font-size: 14px; resize: vertical; line-height: 1.5; }
+.admin .small { font-size: 13px; margin: -8px 0 16px; }
+.hint { font-weight: 400; font-size: 13px; color: var(--muted); }
+.notice { color: #1e6b32; background: #e8f5ec; border: 1px solid #bfe3c9; border-radius: 10px; padding: 10px 14px; margin: 0 0 16px; }
+
+.login-form { max-width: 380px; margin: 40px auto; }
+.login-form button { width: 100%; }
+
+.list-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.list-header h2 { flex: 1; margin: 0; }
+
+.doc-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.doc-table th { text-align: left; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.doc-table td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.row-actions { text-align: right; white-space: nowrap; }
+.row-actions button { padding: 6px 14px; margin-left: 6px; }
+button.danger { background: var(--surface); color: var(--brand-primary); border: 1px solid #f0c4c6; }
+button.danger:hover:not(:disabled) { background: #fdecec; }
+
+.form-row { display: flex; gap: 12px; align-items: flex-end; }
+.form-row .grow { flex: 1; }
+.file-pick { cursor: pointer; }
+.button-like {
+  display: inline-block;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.button-like.secondary { background: var(--surface); border: 1px solid var(--border); }
+.button-like.secondary:hover { border-color: var(--brand-dark); }
+.form-actions { display: flex; gap: 10px; }
+
+@media (max-width: 640px) {
+  .admin-main { padding: 16px; }
+  .admin-card { padding: 18px 16px; }
+  .form-row, .list-header { flex-wrap: wrap; }
+  .doc-table th:nth-child(3), .doc-table td:nth-child(3) { display: none; }
+}
+
+/* Tabs (Assistants, Documents, Branding, Users) */
+.admin-tabs { display: flex; gap: 4px; padding: 12px 32px 0; max-width: 1000px; width: 100%; margin: 0 auto; box-sizing: border-box; flex-wrap: wrap; }
+.admin-tabs button { background: none; color: var(--muted); border: none; border-bottom: 3px solid transparent; border-radius: 0; padding: 10px 14px; font-weight: 600; }
+.admin-tabs button:hover:not(:disabled) { background: none; color: var(--text); }
+.admin-tabs button.active { color: var(--brand-primary); border-bottom-color: var(--brand-primary); }
+
+/* Forms */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 16px; }
+.admin fieldset { border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px 4px; margin: 0 0 16px; }
+.admin legend { font-weight: 600; font-size: 14px; padding: 0 6px; }
+.admin label.check { flex-direction: row; align-items: center; gap: 8px; font-weight: 400; margin-bottom: 10px; }
+.admin label.check input { width: auto; }
+.admin details { margin: 0 0 16px; }
+.admin summary { cursor: pointer; font-weight: 600; margin-bottom: 12px; }
+.assistant-form textarea, .admin-card textarea[dir] { font-family: inherit; }
+.add-user { border-top: 1px solid var(--border); margin-top: 24px; padding-top: 8px; }
+.add-user h3 { font-size: 16px; }
+
+/* Lists */
+.tag { display: inline-block; margin-left: 8px; font-size: 12px; font-weight: 600; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; }
+.hidden-row td { opacity: 0.6; }
+.order-cell { white-space: nowrap; }
+.order-cell button { padding: 4px 9px; margin-right: 4px; }
+
+/* Branding */
+.logo-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.logo-preview { height: 56px; max-width: 200px; object-fit: contain; }
+.colour-row { display: flex; gap: 24px; flex-wrap: wrap; }
+.admin label.colour { flex-direction: row; align-items: center; gap: 8px; }
+.admin label.colour input { width: 48px; height: 36px; padding: 2px; }
+.audience-row { display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 8px; margin-bottom: 8px; }
+
+@media (max-width: 640px) {
+  .admin-tabs { padding: 8px 16px 0; }
+  .audience-row { grid-template-columns: 1fr 1fr; }
+}

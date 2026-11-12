@@ -7,14 +7,19 @@ slices (database, backend, frontend and evaluation):
   places, answered **only from ingested documents** (retrieval-augmented generation). If
   no document is relevant enough, it says it doesn't have the information instead of
   guessing.
-- **Internship & Career** (students only): the GIU Career Fair, the GIU Internship
+- **Internship & Career** (students and staff): the GIU Career Fair, the GIU Internship
   Semester, how to apply, CVs, interviews, skills and career paths. **GIU facts come only
   from its documents**; general career advice may also come from the model's own
   knowledge and is marked "General advice:". It can **analyse an uploaded CV**
   ("📄 Analyze my CV").
+- **Graduation & Advising** (students and staff): the advising process, the advising
+  list, probation, adding hours, schedule rules, electives, B.Sc./internship eligibility,
+  memos and graduation plans, answered **only from its documents** (the Academic
+  Performance Department's advising guidelines), like Labs & Research.
 
-The other three (Graduation & Advising, HR & Policies, Orientation) show a "coming soon"
-page.
+- **HR & Policies** (staff only): leave, public holidays, contracts, the annual raise,
+  resignation and notice, answered **only from its document** (Egyptian Labour Law No. 14 of 2025
+  and GIU facts; GIU's own HR policies are listed as "ask GIU HR" until they are added).
 
 ## How it works
 
@@ -36,7 +41,8 @@ Question ──► Rules ──► Retrieve ──► Validate ──► Generat
 | LLM | `backend/app/llm/client.py` | Chat completions through OpenRouter, or a local Ollama model (`ollama/<name>`) |
 | Database | PostgreSQL `giu-bots` | Chunks with embeddings, conversations, messages, feedback |
 
-**Stack:** Python 3.13, FastAPI, psycopg 3 (raw SQL), httpx, numpy, pypdf ·
+**Stack:** Python 3.13, FastAPI, psycopg 3 (raw SQL), httpx, numpy, PyMuPDF (PDF text in reading order, link URLs) with pypdf as fallback, python-docx /
+openpyxl / python-pptx (document editor) ·
 PostgreSQL 18 · OpenRouter (`baai/bge-m3` multilingual embeddings, chat
 model set in `.env`) · React + Vite.
 
@@ -50,41 +56,62 @@ model set in `.env`) · React + Vite.
 
 ## 1. Database
 
-Create a database called `giu-bots` (for example in pgAdmin) and run this SQL in it.
-Skip this if your database already has these tables.
+Create a database called `giu-bots` (for example in pgAdmin). The tables are created and
+changed by the numbered SQL files in `backend/migrations/`, applied in order by
+`scripts/migrate.py` once the backend is set up (step 2):
+
+```bash
+cd backend
+source .venv/Scripts/activate
+python -m scripts.migrate --status   # which files are applied / pending
+python -m scripts.migrate            # apply the pending ones
+```
+
+**Back up the database first** (pgAdmin: right-click `giu-bots` → *Backup...*, format
+*Custom*). Each file runs in its own transaction, so a failing file changes nothing, and
+applied files are recorded in the `schema_migrations` table, so running the command again
+only applies new files. Every file is also safe to run twice by hand.
+
+| File | What it does |
+|---|---|
+| `000_base.sql` | The original tables (`chunks`, `conversations`, `messages`, `feedback`). Changes nothing on an existing database. |
+| `001_tenants.sql` | Multitenancy: a `tenants` table (one row per university; `giu` is created) and `tenant_domains` (which host opens which university: `localhost`, `127.0.0.1` and `giu.localhost` open GIU). Adds `tenant_id` to `chunks`, `conversations`, `messages` and `feedback`, fills it with GIU's id for all existing rows and makes it required. Until the app sends the tenant itself, `tenant_id` defaults to GIU, so nothing changes for the app. |
+| `002_tenant_required.sql` | Removes that temporary default (an INSERT without a tenant now fails instead of becoming GIU) and makes the database refuse cross-tenant links: a message must have its conversation's tenant, a rating its message's tenant. **Apply it only after restarting the backend with the tenant-aware code**: the old code's INSERTs have no `tenant_id`. |
+| `003_row_level_security.sql` | Row-level security. Creates the role `giu_app` (can log in; not a superuser, not the owner of the tables; only `SELECT/INSERT/UPDATE/DELETE` on `chunks`, `conversations`, `messages`, `feedback`, read-only `tenants` and `tenant_domains`). On the four tenant tables a policy shows and accepts only rows whose `tenant_id` is the current tenant (`app.tenant_id`, set by `get_connection(tenant_id)` for each transaction), even when a query forgets its `WHERE`; with no tenant set they look empty. The password is not in the file (see *Row-level security* below). |
+| `004_agents.sql` | Assistants in the database (see *Assistants* below): `agent_templates` (GIU's four agents as ready-made templates, copied exactly from the code) and `agents` (each university's own assistants, any number and any name, with row-level security). GIU gets its four agents with fixed ids; every other tenant gets one per agent key it already used (demo: Labs & Research). `chunks` and `conversations` get a required `agent_id` (an agent of the same tenant), filled from the agent key; the old `agent` column stays, no longer required. After applying it, run `python -m scripts.move_agent_folders` once (see *Assistants*). |
+| `005_skills.sql` | Skills and prompts from parts. `tenants` get `short_name` (for `{university}` in texts), `has_cv_model` and `campus_map` (GIU: `GIU`, true, true; others: their name, false, false). Templates and agents get `prompt_mode`: GIU's four keep their complete prompts unchanged; the templates become prompts built from parts with `{university}` instead of GIU, and other universities' assistants that still had 004's (GIU) text get the new template text. |
+| `006_branding_and_folders.sql` | Each university's look: `logo_url`, `brand_primary`, `brand_accent`, `brand_dark`, `intro` (start screen) and `audiences` (who the assistants are for, with the start screen's text); GIU keeps exactly its logo, colours and texts. `agents.folder`: each assistant's readable document folder, unique per university (GIU's: `labs_research` ... again). After applying it, run `python -m scripts.move_agent_folders` once. |
+| `007_users_and_audiences.sql` | The university admin: a `users` table (email, scrypt password hash, role `tenant_admin`, `editor` or `platform_owner`; row-level security per university; platform owners invisible to `giu_app`) replacing `ADMIN_PASSWORD`; audiences per university (the fixed student/staff checks become format checks); `agents.deleted_at` (a deleted assistant is hidden but kept with its chats and documents); `tenants` readable by all, and `giu_app` may change only its own university's name, look, intro and audiences. |
+| `008_plans_and_usage.sql` | Plans (`free`: 300,000 tokens a month and 2 assistants; `standard`: 5,000,000 and 8; `unlimited`) and `tenants.plan` (GIU: `unlimited`, so it keeps working as before); a `usage` table with one row per model call (university, assistant, model, kind, tokens), with row-level security. |
+| `009_usage_cost.sql` | `usage.cost_usd`: the cost of each model call as OpenRouter reports it (Groq's free tier and local Ollama: 0), for the console's "Model cost". |
+| `010_signup_and_billing.sql` | The public sign-up and subscriptions: plan prices in EGP, trial days and "public" on `plans` (and a Campus plan), `signups` (only a hash of the email code), `checkouts`, `subscriptions`, `billing_events`, `platform_settings` (require review), and `tenants.email_domain`, `signed_up_at` and the `review` status. Nothing is deleted. |
+
+To try the migrations on a copy first: in pgAdmin create a database `giu-bots-copy` with
+*Template* `giu-bots` (no other connection to `giu-bots` may be open), then run
+`python -m scripts.migrate --database giu-bots-copy`.
+
+**Row-level security (after 003).** The app should log in as `giu_app`, not as `postgres`:
+superusers skip the policies. Give the role a password once, in pgAdmin's Query Tool (on any
+database; roles belong to the whole server) and put it in `backend/.env`:
 
 ```sql
-CREATE TABLE chunks (
-    id        SERIAL PRIMARY KEY,
-    agent     TEXT NOT NULL,
-    audience  TEXT[] NOT NULL DEFAULT '{student,staff}',
-    source    TEXT,
-    content   TEXT NOT NULL,
-    embedding DOUBLE PRECISION[]
-);
-
-CREATE TABLE conversations (
-    id         SERIAL PRIMARY KEY,
-    user_type  TEXT NOT NULL CHECK (user_type IN ('student', 'staff')),
-    agent      TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-
-CREATE TABLE messages (
-    id              SERIAL PRIMARY KEY,
-    conversation_id INTEGER REFERENCES conversations(id) ON DELETE CASCADE,
-    role            TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
-    content         TEXT NOT NULL,
-    created_at      TIMESTAMPTZ DEFAULT now()
-);
-
-CREATE TABLE feedback (
-    id         SERIAL PRIMARY KEY,
-    message_id INTEGER REFERENCES messages(id) ON DELETE CASCADE,
-    rating     INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
-    created_at TIMESTAMPTZ DEFAULT now()
-);
+ALTER ROLE giu_app PASSWORD 'choose-a-long-password';
 ```
+
+```
+DB_USER=giu_app
+DB_PASSWORD=choose-a-long-password
+DB_ADMIN_USER=postgres          # migrations and the ingest script: the owner of the tables
+DB_ADMIN_PASSWORD=your-postgres-password
+```
+
+Without `DB_ADMIN_USER`, migrations and ingest use `DB_USER` too (fine before 003).
+
+**Test database.** The tests that need PostgreSQL (tenant isolation, row-level security) use a
+separate, empty database and never `giu-bots`. Create it once in pgAdmin (right-click
+*Databases* → *Create* → *Database...*, name `giu-bots-test`, owner `postgres`) and add
+`TEST_DB_NAME=giu-bots-test` to `backend/.env`. The tests apply the migrations to it themselves
+(as `DB_ADMIN_USER`) and roll back everything they insert; without `TEST_DB_NAME` they are skipped.
 
 pgvector is not used: embeddings are stored as `DOUBLE PRECISION[]` and the cosine
 similarity is computed in Python (`cosine_similarity` in `backend/app/rag/retriever.py`).
@@ -103,22 +130,33 @@ Open `backend/.env` and fill in:
 
 | Variable | Value |
 |---|---|
-| `DB_PASSWORD` | your PostgreSQL password (the other `DB_` values usually stay as they are) |
+| `DB_PASSWORD` | your PostgreSQL password (the other `DB_` values usually stay as they are; after migration 003 see *Row-level security* in step 1) |
+| `APP_ENV` | `development` on your own computer (allows `*.localhost:5173` and the `X-Tenant` header); leave it out on a server |
 | `OPENROUTER_API_KEY` | your key from https://openrouter.ai/keys |
 | `LABS_MODEL` | a chat model ID from https://openrouter.ai/models, e.g. `google/gemini-2.5-flash-lite` |
 | `VISION_MODEL` | a model that accepts **image** input, used only when a user attaches a picture, e.g. `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` (free, tested: reads English and Arabic text in images) or `google/gemini-2.5-flash-lite` (paid). Leave empty to allow documents only. |
 
 `.env` is ignored by git. Never commit it.
 
-**Local models (Ollama):** any model written as `ollama/<name>` runs on your own
-computer through [Ollama](https://ollama.com) instead of OpenRouter: free, unlimited and
-offline, but slower. Measured on a laptop with a 4-thread CPU and a GeForce 940MX,
-`ollama/gemma4:e4b` scored 17/18 with ~27 s per answer (Nemotron on OpenRouter: ~2 s).
-It works best as the **last backup**, so the chat keeps answering after the free
-OpenRouter limit is reached:
-`LABS_BACKUP_MODEL=nvidia/nemotron-3-super-120b-a12b:free,ollama/gemma4:e4b`.
-Ollama must be running (`ollama serve`, or the Ollama app). Thinking is turned off for
-local models in `backend/app/llm/client.py`, which makes Gemma 4 about 3x faster.
+**Groq models:** writing `groq/<name>` in a model list (e.g.
+`LABS_BACKUP_MODEL=...,groq/openai/gpt-oss-120b`) sends that request to
+[Groq](https://console.groq.com) with `GROQ_API_KEY` (the key also used for voice). Groq's
+free tier is separate from OpenRouter's daily limit, and GPT-OSS 120B answers in about
+1-3 s (Groq retired Llama 3.3 70B). The free tier allows 8,000 tokens per minute, about
+6 questions a minute; above that the next model in the list answers. It reads text only, so it is not used for pictures.
+
+**Local model (Ollama):** writing `ollama` in a model list (e.g.
+`LABS_BACKUP_MODEL=...,ollama`) runs `OLLAMA_MODEL` on your own computer through
+[Ollama](https://ollama.com): free, unlimited and offline. It is the last backup, used
+when the online models fail. Default `OLLAMA_MODEL=gemma3:1b` (switch back with
+`OLLAMA_MODEL=gemma4:e4b`, better in Arabic but ~30-50 s per answer on a laptop). Local
+requests in `backend/app/llm/client.py` use Ollama's own `/api/chat` with thinking off
+(`think: false`), the model kept loaded (`keep_alive: -1`), short answers
+(`num_predict: 100`, `num_ctx: 2048`, "1-3 short sentences"), at most 1,200 characters of
+documents and the last 2 history messages, and a warm-up when the backend starts.
+Measured on a laptop with a GeForce 940MX: gemma3:1b answers in ~3-5 s. Each request's
+time is logged ("Ollama gemma3:1b answered in 3.4 s"). Ollama must be running
+(`ollama serve`, or the Ollama app).
 
 **Choosing `LABS_MODEL`:** lab questions are simple lookups, so pick a fast,
 cheap, *non-reasoning* model ("flash-lite", "nano", "mini"). Reasoning/"thinking"
@@ -137,22 +175,76 @@ possible, and always report which model ID you used.
 
 ## 3. Ingest documents
 
-Each agent has its own folder: put `.pdf`, `.txt` or `.md` files in
-`backend/data/raw/labs_research/` or `backend/data/raw/internship_career/`, then:
+Each assistant has its own folder, its `folder` name (readable, unique per university): put
+`.pdf`, `.txt` or `.md` files in `backend/data/raw/<folder>/` for GIU (see the table below) or
+`backend/data/tenants/<slug>/<folder>/` for another university (`GET /admin/agents` shows every
+assistant's folder), then:
 
 ```bash
-python -m scripts.ingest                            # every agent's folder
-python -m scripts.ingest --agent internship_career  # only one agent
+python -m scripts.ingest                            # every assistant's folder
+python -m scripts.ingest --agent internship_career  # only one (its id, or a GIU template key)
+python -m scripts.ingest --tenant demo              # another university's documents (see "Several universities")
 ```
 
 Each file is split into chunks (paragraphs kept together, a new chunk at every
-Markdown heading, at most 200 words), embedded, and stored with the folder's agent
-and that agent's audience from `backend/app/agents/directory.py` (Career: students
-only). Re-running is safe: a file's old chunks are replaced, and chunks of files you
+Markdown heading, at most 200 words), embedded, and stored with the folder's assistant
+and that assistant's audiences (HR: staff only). Re-running is safe: a file's old chunks are replaced, and chunks of files you
 deleted are removed.
 
-The documents:
+The assistants and their folders:
 
+| University | Assistant | Id | Folder |
+|---|---|---|---|
+| GIU | Graduation & Advising Assistant | `a0000000-0000-4000-8000-000000000001` | `backend/data/raw/graduation_advising/` |
+| GIU | HR & Policies Assistant (staff only) | `a0000000-0000-4000-8000-000000000002` | `backend/data/raw/hr_policies/` |
+| GIU | Internship & Career Assistant | `a0000000-0000-4000-8000-000000000003` | `backend/data/raw/internship_career/` |
+| GIU | Labs & Research Assistant | `a0000000-0000-4000-8000-000000000004` | `backend/data/raw/labs_research/` |
+| demo (if you made it) | Labs & Research Assistant | made by migration 004 | `backend/data/tenants/demo/labs_research/` |
+
+GIU's ids are fixed in migration 004, so they are the same on every computer. A new
+assistant gets its folder from its template key or its name (`Library Helper` ->
+`library_helper`, `library_helper_2` if taken); the folder stays when it is renamed.
+
+The documents (by assistant):
+
+- `graduation_advising/advising_guidelines.md`: the slides "Advising Process – General
+  Guidelines" (Heba El Mougy, Academic Performance Department) written out as text: what
+  advising means, reasons for the advising list, probation (GPA > 3.7), the process steps,
+  order of courses, adding hours (minimum load 60%), schedule constraints, electives,
+  B.Sc./internship eligibility, ticketing and memos, graduation plans. Topics the slides
+  only name (e.g. consequences of probation, timeline dates) are listed as not covered.
+  Every section also has an Egyptian Arabic version.
+- `graduation_advising/computer_science_curriculum.md`: the four Computer Science
+  programs (Data Science, Software Engineering, IT Security, Media Informatics): courses
+  and ECTS per semester (semesters 1-4 and 7-8 shared, 5-6 per program, 240 ECTS each),
+  program descriptions, and one short section per course (its Arabic name, semester, ECTS
+  and programs), all with Arabic.
+- `graduation_advising/business_informatics_curriculum.md`: the Business Informatics
+  program: description, courses and ECTS per semester (240 ECTS), and one section per
+  course, all with Arabic.
+- `graduation_advising/business_administration_curriculum.md`: the seven Business
+  Administration majors (International Business; Finance, Banking & Accounting; Digital
+  Marketing; Entrepreneurship & SMEs; Supply Chain Management; Real Estate Management;
+  Tourism & Hospitality Management): shared and major-specific semesters (240 ECTS),
+  descriptions, core competencies and job profiles, and one section per course, with Arabic.
+- `graduation_advising/design_curriculum.md`: the three Design majors (Digital Media and
+  Communication Design, Fashion Design, Industrial Design): semesters (1, 7 and 8 shared,
+  30 ECTS each, 240 in total), descriptions and one section per course, with Arabic.
+- `graduation_advising/engineering_curriculum.md`: the five Engineering majors (Automotive
+  Mechatronics, Manufacturing, Robotics and Automation, Automation and Control, Electrical
+  Power Systems): semesters (1, 2, 7, 8 shared by all; 3-4 shared within the mechatronics and
+  the electrical groups), six electives, descriptions and one section per course, with Arabic.
+- `graduation_advising/biotechnology_curriculum.md`: the Biotechnology program: courses and
+  ECTS per semester (240 ECTS), four electives and one section per course, with Arabic.
+- `graduation_advising/physical_therapy_curriculum.md`: the Physical Therapy program: 10
+  semesters of 30 ECTS (300 ECTS), Bachelor thesis in semester 8, four electives in semesters
+  9-10, and one section per course, with Arabic.
+- `graduation_advising/architecture_curriculum.md`: Architectural Engineering with its two
+  majors (Architectural Design, Interior Architecture; semesters 5-6 differ), 240 ECTS, four
+  electives, and one section per course, with Arabic.
+- `graduation_advising/pharmaceutical_engineering_curriculum.md`: Pharmaceutical Engineering
+  and Technology: semesters (240 ECTS), four electives, job profiles, and one section per
+  course, with Arabic.
 - `internship_career/career_guide.md`: GIU facts from GIU's official news pages (Career
   Fair 2025 on November 14 with 95 exhibitors and its employers, the five-month GIU
   Internship Semester, the first fair in 2022 and the GIU Career Center, with sources),
@@ -199,9 +291,17 @@ npm run dev
 ```
 
 Open http://localhost:5173, choose **Student** or **Staff**, then choose an assistant:
-students see 3 (Graduation & Advising, Orientation, Labs & Research), staff see all 4
-(also HR & Policies). The list is in `frontend/src/agents.js`; only Labs & Research is
-built, the others open a "coming soon" page.
+students see 3 (Graduation & Advising, Internship & Career, Labs & Research), staff see all 4.
+
+The three screens follow the design in `docs/design/multi-tenant-design.html` (open it in a
+browser; its `chatView()`, `adminView()` and `platformView()` draw the mock-ups):
+
+| Screen | Address | Look |
+|---|---|---|
+| Chat | http://localhost:5173 (GIU), http://demo.localhost:5173 | The university's dark sidebar (logo, name, its 3-colour stripe, "N assistants for <audience>", the assistants; the current one in its main colour), the assistant's name and description with an "EN · ع" pill, the user's questions in the main colour, answers in white with source chips and a 1–5 rating, and the GIU chatbot's rounded input bar (+, text, mic, a round send arrow, a round stop square while it answers; a stopped question gets Retry, Edit and Copy). Light only (the university's own surface). `frontend/src/chat.css` |
+| University admin | `.../admin` | Platform look (teal, Sora / Inter / JetBrains Mono, light and dark): a sidebar with the university's logo, then Assistants (two columns: list with live/hidden switch, editor), Documents, Branding, Users & audiences, Analytics, Sign-in. `frontend/src/platform.css` |
+| Platform console | http://localhost:5173/console | Platform look: a sidebar (Universities, Templates, Models & keys, Usage & billing, Audit log), KPI tiles and the universities table, the "New university" wizard inside it. |
+
 Each answer shows its source files and a 1–5 rating.
 
 **Campus map:** when an answer mentions a room such as `M005` or `A312`, a map card
@@ -235,12 +335,13 @@ Google Maps walking navigation from the user's location to the building's entran
 The real GPS positions of the entrances (M: 2, A: 3, S: 1) are in
 `frontend/src/campusGeo.js`; no API key is needed.
 
-**Links to the other agents:** the GIU chatbot has five agents (Graduation & Advising,
-HR & Policies, Orientation, Internship & Career, Labs & Research). When an agent has no answer, the
-question is compared with each agent's description (`backend/app/agents/directory.py`,
-embeddings only, no chat model call) and the fallback message gets a button to the
-best-matching agent. Students can be sent to Orientation and Graduation & Advising;
-staff also to HR & Policies. Nothing is suggested when no agent matches
+**Links to the other agents:** the GIU chatbot has four agents (Graduation & Advising,
+HR & Policies, Internship & Career, Labs & Research). When an agent has no answer, the
+question is compared with the description of each of the university's own live assistants
+(`backend/app/agents/directory.py`; embeddings only, no chat model call; each description's
+embedding is stored in `agents.description_embedding` the first time it is needed) and the fallback message gets a button to the
+best-matching agent. Students can be sent to Graduation & Advising, Internship & Career and Labs &
+Research; staff to all four. An agent the user may not use (HR, for a student) is named without a button. Nothing is suggested when no agent matches
 (`AGENT_LINK_MIN_GAP` in `config.py`: the best agent must clearly beat the second best). Agents that are not built yet open a
 "coming soon" page (`/?agent=<key>`, `frontend/src/components/ComingSoon.jsx`); built
 ones open directly. A question that only weakly matches an agent's documents (best score
@@ -274,6 +375,391 @@ Scanned PDFs have no text; upload them as images instead.
 The backend URL is set in `frontend/src/api.js`. The backend only accepts requests
 from `http://localhost:5173` (CORS, set in `backend/app/config.py`).
 
+## Several universities (tenants)
+
+The app can serve several universities (tenants) from one backend and one database. Each
+request's tenant comes from its **host name**: the `tenant_domains` table maps hosts to tenants
+(`app/tenants.py`, `TenantMiddleware`). Every query on `chunks`, `conversations`, `messages` and
+`feedback` is filtered by that tenant, so a university never sees another one's documents,
+chats or ratings; an unknown host gets `404`, a suspended tenant `403`.
+
+- **GIU** is tenant `giu`. Plain `localhost` and `127.0.0.1` still open GIU, so
+  http://localhost:5173 works as before; http://giu.localhost:5173 is the same.
+- The frontend calls the backend on the **same host name** as the page
+  (`giu.localhost:5173` → `giu.localhost:8000`), so the backend sees which university is open.
+  Chrome and Edge resolve every `*.localhost` name to your own computer, and Vite accepts them;
+  no hosts-file change is needed.
+- Only with `APP_ENV=development` (in `backend/.env`) CORS allows `localhost`, `127.0.0.1` and
+  any `*.localhost` on port 5173, and an `X-Tenant: <slug>` header may choose the tenant
+  (for curl and tests). Without it (the default, for servers) the header is ignored, only the host
+  decides, and only `http://localhost:5173` may call the API from a browser.
+- Documents: GIU's are in `backend/data/raw/<agent id>/`; another tenant's in
+  `backend/data/tenants/<slug>/<agent id>/` (not in git). `ingest`, `try_retrieve`, `try_chat` and
+  `evaluate` take `--tenant <slug>` (default `giu`).
+- An admin login works only on the host (tenant) where it was made.
+- Each tenant has its own assistants, skills and look. The frontend loads `GET /tenant` before
+  its first screen (`frontend/src/tenant.js`): name, logo (or the short name on the brand
+  colour), colours (the CSS variables `--brand-primary`, `--brand-primary-dark`,
+  `--brand-accent`, `--brand-dark`), page title, start screen text, audiences and the live
+  assistants with the skills that work there. The start screen shows one card per audience,
+  then the assistants for it (with just one, it opens directly). The CV button follows the
+  `cv` skill, the voice button `voice`, file upload `files` / `images`, and the campus map
+  only appears with `map` at a university with a campus map. Demo shows no GIU anywhere.
+
+**Trying a second university ("demo")**
+
+1. Easiest: the public sign-up (http://localhost:5173/signup, see *Sign-up and subscriptions*)
+   or the console's **Add by hand** wizard (see *Platform console*). Or by hand,
+   in pgAdmin's Query Tool on `giu-bots`:
+   ```sql
+   INSERT INTO tenants (slug, name) VALUES ('demo', 'Demo University');
+   INSERT INTO tenant_domains (host, tenant_id, is_primary)
+   SELECT 'demo.localhost', id, true FROM tenants WHERE slug = 'demo';
+   ```
+2. Give it an assistant and one small document. A demo that already had the Labs &
+   Research documents before migration 004 got that assistant from the migration (run
+   `python -m scripts.move_agent_folders --tenant demo` to move its folder). A new demo gets
+   one from the template: on http://demo.localhost:5173/admin (log in as demo's admin) →
+   Assistants → Ready-made assistant → Labs & Research → Add; or with curl and a login token:
+   ```bash
+   curl -X POST http://demo.localhost:8000/admin/agents -H "Content-Type: application/json" \
+        -d '{"template_key": "labs_research", "name": "Demo Lab Assistant"}'   # -> {"id": "..."}
+   ```
+   Then put the document in `backend/data/tenants/demo/<that id>/zebra-lab.md`:
+   ```markdown
+   ## Zebra Lab
+   The Zebra Lab of Demo University is in room Z901 in building Z. It is open Sunday to
+   Thursday from 9:00 to 17:00. The lab supervisor is Dr. Demo Example.
+   ```
+3. Index it and compare what each university retrieves (embeddings only, no chat model):
+   ```bash
+   python -m scripts.ingest --tenant demo
+   python -m scripts.try_retrieve "Where is the Zebra Lab?" --tenant demo   # zebra-lab.md, PASS
+   python -m scripts.try_retrieve "Where is the Zebra Lab?"                 # GIU: never zebra-lab.md
+   python -m scripts.try_retrieve "Where is the gym?" --tenant demo         # only zebra-lab.md, below the threshold
+   ```
+4. In the browser (uses the chat model): http://demo.localhost:5173 → Student → Labs & Research →
+   "Where is the Zebra Lab?" answers Z901 from `zebra-lab.md`; "Where is the gym?" gets the
+   "no information" answer. On http://localhost:5173 the Zebra Lab question gets that answer,
+   and the gym question is answered from GIU's documents as before.
+   http://demo.localhost:5173/admin lists only `zebra-lab.md`.
+5. To remove the demo university again:
+   ```sql
+   DELETE FROM conversations WHERE tenant_id = (SELECT id FROM tenants WHERE slug = 'demo');  -- with their messages and ratings
+   DELETE FROM chunks        WHERE tenant_id = (SELECT id FROM tenants WHERE slug = 'demo');
+   DELETE FROM tenants WHERE slug = 'demo';                                                   -- with its hosts
+   ```
+   and delete the folder `backend/data/tenants/demo/`.
+
+   To change demo's look (step 3 adds a Branding page for this):
+   ```sql
+   UPDATE tenants SET short_name = 'DU', brand_primary = '#0b6e4f', brand_accent = '#f2a900' WHERE slug = 'demo';
+   ```
+
+## Admin page
+
+**http://localhost:5173/admin** (or `http://<university>.localhost:5173/admin`) is the admin of
+the university of that address, in the platform's look (light or dark, as the computer is set). Log in with **email and password**; accounts are made with:
+
+```bash
+python -m scripts.create_user --tenant giu --email admin@giu.example --role tenant_admin --generate
+python -m scripts.create_user --tenant giu --email editor@giu.example --role editor --generate
+python -m scripts.create_user --email admin@giu.example --new-password     # a new password
+```
+
+(`--generate` makes up a password and prints it once; without it the script asks for one.)
+Admins can also add users on the Users tab. Roles:
+
+| Role | Tabs |
+|---|---|
+| `tenant_admin` | **Assistants**: numbers for the last 30 days (questions, active users = chats started, unanswered %, average rating), the list (who uses each, number of documents, live/hidden switch) and the selected one's editor (name, what it handles, who can use it, answers from, skills, documents; "More settings": texts, examples, instructions, "no information" answers, model); "+ New assistant" and "Start from a template"; hide, delete. **Documents**, **Branding** (name, short name, logo, colours, start screen text), **Users & audiences** (users: add, change role, new password, deactivate; audiences), **Analytics** (per assistant, and the latest unanswered questions), **Sign-in** (how people sign in; change your password), **Billing** (plan, payments, cancel; see *Sign-up and subscriptions*) |
+| `editor` | **Documents**, **Analytics**, **Sign-in** |
+
+**Documents:** per assistant (filter), **add** (pick a file or paste Markdown; start each topic
+with a `## Heading`), **edit**, **move** to another assistant, **delete**. Every change is
+re-indexed at once (`app/routers/admin.py` uses `ingest_file` from `scripts/ingest.py`), so the
+assistant answers from the new text right away; the message shows the number of chunks.
+
+**Deleting an assistant** hides it everywhere and it never answers again, but its row, chats
+and documents are kept (`agents.deleted_at`). **Deactivating a user** logs them out; accounts
+are never deleted. A university always keeps at least one active admin.
+
+**Audiences** (Branding tab) are who the assistants are for: the start screen's "Who are you?"
+cards (GIU: Student, Staff). Each assistant is for some of them; changing an assistant's
+audiences also changes who may read its documents.
+
+Logins last 8 hours (`ADMIN_TOKEN_HOURS`, kept in memory: a restart logs everyone out), only
+work on their own university's address, and a wrong password waits 1 second. `ADMIN_PASSWORD`
+is no longer used. File names are cleaned (no folders, only `.md` / `.txt`), and document ids
+cannot point outside the assistant's folder.
+
+## Platform console
+
+**http://localhost:5173/console** is for the platform owner (role `platform_owner`, no
+university; make the account with
+`python -m scripts.create_user --email owner@platform.example --role platform_owner --generate`).
+With `APP_ENV=development` (your own computer) it opens without a login; on a server it
+always asks for a platform owner's login. It has a sidebar (Universities, Subscriptions, Plans & prices, Templates,
+Models & keys, Usage & billing, Audit log) and, under Universities, four tiles (universities and how many are
+on trial, questions and tokens in the last 30 days, monthly revenue in EGP with the model cost) and a table with every university's colour, address, status, plan,
+assistants, users, a token-use bar, tokens and cost. Models & keys shows the platform's models
+from `.env` (never the keys, only whether they are set) and their use; Usage & billing the
+tokens per month; the Audit log is not recorded yet. It shows every university with its status, plan,
+addresses, assistants (and the plan's
+maximum), users, chats and tokens used this month (against the plan's cap) and in total, and:
+
+- **Add by hand** (a wizard, inside the console; for a university that pays by invoice: it has
+  no subscription and billing never pauses it): name and short name → subdomain
+  (`<slug>.localhost`, or its own address) → colours and logo → plan and assistants: any
+  number with the university's own names ("+ Add assistant": a name and what it handles),
+  and ready-made ones from the templates (renamed there too), each removable, up to the
+  plan's limit → first admin (email, name, password). Everything is made at once: the university, its address, its assistants
+  (each in its own folder, without CV rewrites or campus map) and its admin. Its chat is then
+  at `http://<slug>.localhost:5173` and its admin page at `.../admin`.
+- **Suspend / Reactivate**: a suspended university's chat and admin pages answer
+  "not available" (403) until it is reactivated; nothing is deleted.
+- **Plan**: change it in the table.
+- **Delete** (any university, also GIU): removes it for good with its assistants, documents (the files in
+  `data/tenants/<slug>/` too; GIU's `data/raw/` stays, it is in git), chats, ratings, users, usage, sign-up and
+  payments. You type its subdomain to confirm, and the backend first saves a full `pg_dump` backup to
+  `BACKUP_DIR` (default `D:/Download/db-backups/`); if the backup fails, nothing is deleted. Restore one with
+  `pg_restore`. Its address, email domain and admin email can then be used again.
+- **Require review before going live**: when on, a university that signs up waits
+  ("waiting for review", its pages answer "being set up") until you press **Approve**.
+- **Subscriptions** and **Plans & prices**: see *Sign-up and subscriptions*.
+
+**Usage and limits** (`app/usage.py`): every model call (chat models, pictures, CV rewrites,
+document edits, local Ollama, embeddings) is logged with its tokens for the university of the
+request. When a university reaches its plan's monthly token cap, chat questions are refused
+with a clear message (429) until the next calendar month, before any search or model call;
+documents saved on the admin page are kept but not indexed. A plan's `max_assistants` limits
+new assistants (deleted ones do not count). Plans (name, price, caps, trial days, offered on
+the sign-up page or not) are changed in the console under **Plans & prices**.
+
+The console's routes (`app/routers/console.py`) work across universities, so they use the
+owner's connection (`DB_ADMIN_USER`, a superuser) and only accept platform owners.
+
+## Sign-up and subscriptions
+
+**http://localhost:5173/signup** is the public page where a university creates its chatbot and
+subscribes without you (the design's "Sign up (public)"), in six steps:
+
+1. **Plan**: the public plans with their prices in EGP (`plans.price_egp`, changed in the
+   console). Free trial (14 days, 2 assistants), Standard, Campus; GIU's "Unlimited" is not offered.
+2. **Your account**: name, university email, password. Personal addresses (Gmail, Yahoo,
+   Outlook, ...) are refused. A 6-digit code is emailed; only a hash of it is stored, it works
+   for 10 minutes and allows 5 tries (a new code can be asked for after a minute, 5 per sign-up).
+3. **University**: full and short name, and the code. One university per email domain, so
+   one trial per domain; a second sign-up from the same domain is told to ask its admin.
+4. **Address & look**: `<slug>.localhost` (checked while typing; reserved and taken addresses
+   are refused), main colour, optional logo, with a preview.
+5. **Assistants**: any names, up to the plan's number, or from the templates.
+6. **Subscribe**: the free trial starts at once; a paid plan opens the payment page. When the
+   university is made, "Open admin" logs the new admin in on its own address with a one-time
+   link (`#ticket=...`, 10 minutes, once).
+
+**Payments** (`app/billing/`) go through a small provider interface
+(`create_checkout`, `verify_webhook`, `cancel` in `providers.py`), so Stripe or Paymob can be
+added later without changing the rest. For now the only provider is **simulated**: no real
+payment, no keys. Its payment page is ours (`/checkout/<id>`, with a "Test mode, no real
+payment" banner) with **Pay** and **Fail payment**; both send a signed event through the same
+webhook handling (`POST /billing/webhook/<provider>`) a real provider would call. Every event
+is stored once in `billing_events`, so a repeated call changes nothing.
+
+A subscription is `trialing`, `active`, `past_due` (a failed renewal: the chat keeps working
+for 7 days), `paused` (the trial ended or the grace days passed: the chat answers "paused") or
+`canceled` (cancelled by the university: it runs to the end of the paid month). Nothing is ever
+deleted, and paying makes it active again. Universities added by hand (GIU, demo) have no
+subscription and are never paused.
+
+- **Admin → Billing** (tenant_admin): the plan and status, **Choose** a paid plan, **Pay now**
+  after a failed renewal, **Cancel** / **Keep my subscription**, and the history.
+- **Console → Subscriptions**: every signed-up university with its status and payments,
+  **Payment succeeds** / **Payment fails** (test mode: a month passes and the renewal is paid
+  or fails), **Extend trial 7 days**, and the latest billing events.
+- **Console → Plans & prices**: name, price (EGP a month), trial days, assistants, tokens a
+  month, shown on the sign-up page or not. A new price applies from the next payment.
+
+**Email**: `app/mail.py` sends with Python's `smtplib`, set up by `SMTP_HOST`, `SMTP_PORT`
+(465 = SSL, otherwise STARTTLS), `SMTP_USER`, `SMTP_PASSWORD` and `SMTP_FROM` in `.env`. With
+`SMTP_HOST` empty (the default) nothing is sent and the code is printed in the backend's log:
+
+```
+WARNING:  Email (no SMTP_HOST set, so it is only printed here) to m.hassan@cairo-tech.edu.eg: Your sign-up code: 482913
+```
+
+**Trying it**: open http://localhost:5173/signup, use any non-personal address (for example
+`you@cairo-tech.edu.eg`), take the code from the backend's log, choose an address such as
+`ctu`, and finish. Then open http://localhost:5173/console → Subscriptions and press
+**Payment fails** twice (past due, then paused), and pay again from the university's
+**Admin → Billing**.
+
+## Assistants
+
+Each university creates its own assistants, any number and any name. They are rows of the
+`agents` table (migration 004, with row-level security), loaded by `app/agents/__init__.py`
+(`agents_of`, `load_agent`) and cached per university until one of its rows changes. Each row
+becomes a `ConfiguredAgent` (`app/agents/configured.py`); the shared flow `BaseAgent.run()`
+(rules, retrieve, validate, generate) is the same for all.
+
+| Setting | What it does |
+|---|---|
+| `name`, `summary`, `subtitle` | what people see (start screen, chat header) |
+| `description` | what it handles; decides hand-overs between the university's assistants |
+| `audiences` | `student` and/or `staff` |
+| `answer_mode` | `docs`: only from its documents (fallback message otherwise); `advice`: may also give general advice |
+| `instructions`, `prompt_mode` | `composed` (default): what this assistant does, in a few sentences; the prompt is built around it. `complete`: the instructions are the whole system prompt (GIU's four) |
+| `fallback_en`, `fallback_ar` | the "no information" answer |
+| `welcome`, `placeholder`, `examples` | the chat screen |
+| `skills` | what it can do (see *Skills* below) |
+| `model`, `backup_models`, `similarity_threshold`, `max_answer_tokens` | empty: the platform's settings from `.env` |
+| `position`, `live` | order, and whether users see it |
+
+**Prompts.** A `composed` prompt (`system_prompt` in `app/rag/prompts.py`) is: "You are the
+<name> of <university>.", the assistant's instructions, then the rules of its answer mode, of
+its skills (attachments, room codes) and of the platform (copy facts exactly, plain text, the
+user's language). `{university}` in any text becomes the university's short name. Another
+university's assistants never mention GIU.
+
+**Skills.**
+
+| Skill | Without it |
+|---|---|
+| `files` | attached documents are refused |
+| `images` | attached pictures are refused (pictures also need `VISION_MODEL`) |
+| `editor` | "translate this file", "make it shorter", "send it as PDF" are answered as questions; `POST /documents/edit` gives 403 |
+| `cv` | no CV rewrites. Also needs a university with a trained CV model (`tenants.has_cv_model`, GIU only): the Career prompt, "(no matching GIU documents)" and the CV checks stay exactly as giu-cv was trained |
+| `map` | no room facts, buildings, places or campus map. Also needs `tenants.campus_map` (GIU only): other universities never see GIU's buildings |
+| `voice` | the frontend hides the voice call button (step 2c) |
+
+`GET /admin/agents` shows each assistant's `skills` and its `active_skills` (those that work at
+this university). A university's settings are changed in SQL for now, as the owner:
+
+```sql
+UPDATE tenants SET short_name = 'DU', campus_map = false, has_cv_model = false WHERE slug = 'demo';
+```
+
+**Templates.** `agent_templates` holds the four ready-made assistants for any university, in
+parts (`app/agents/templates.py`: `TEMPLATES`; migration 005). GIU's own four assistants
+(`GIU_AGENTS`, fixed ids) keep their complete prompts and texts, so GIU answers
+exactly as before (checked on all 66 evaluation questions, for students and staff, with the model and
+embeddings replaced by recorders: the same prompts, models, sources, fallbacks, hand-over
+links and map data as the original fixed-agent code).
+
+**Admin API** (`app/routers/admin.py`; the Assistants tab of the admin page uses it):
+
+```
+GET  /admin/agents                 this university's assistants
+GET  /admin/agent-templates        ready-made ones to start from
+POST /admin/agents                 {template_key?, name?, description?, ...} -> {id}
+PUT  /admin/agents/{id}            {name?, ..., live?}   (live: false hides it)
+```
+
+Assistants are named by their id everywhere (links: `/?agent=<id>`). Old links and the
+evaluation CSV may still name GIU's by template key (`labs_research`); that still works.
+
+**After applying migration 006**, rename document folders still named by an assistant's id
+(from migration 004) to its readable folder name:
+
+```bash
+python -m scripts.move_agent_folders --dry-run   # what would move
+python -m scripts.move_agent_folders
+```
+
+GIU's folders are already back to their names in git. If you change `EMBEDDING_MODEL`, ingest every
+folder again and clear the stored description embeddings
+(`UPDATE agents SET description_embedding = NULL;` as the owner).
+
+## Document editor
+
+Users attach a **.docx, .xlsx, .pptx, .pdf, .txt or .md** file (up to 10 MB) and say what to
+change: *"correct the grammar"*, *"make it more professional"*, *"translate it to Arabic"*,
+*"shorten section 2"*, *"add my new internship at Valeo"*, *"fill in the form with: name Sara,
+ID 123"*, *"convert this PDF to Word"*. **`/chat` decides automatically** (no switch): a request
+to change something (`is_edit_request` in `editor.py`: rewrite, fix, translate, restructure,
+make..., also Egyptian Arabic) is edited; a question about the file (*"what does it say about
+...?"*, *"Analyze my CV"*, *"review it"*) is answered as before. The answer says what changed
+(with a "Show changes" list) and has **View** (opens it in the browser; Word, PowerPoint and Excel
+as a simple HTML page) and **Download** buttons. A bar above the message box shows the open
+document: later edit requests (*"now make it shorter"*) change it without uploading it again,
+questions are still answered normally; **Close** forgets it.
+
+**CVs in the Internship & Career agent:** *"restructure my CV"* / *"send me this cv restructured"*
+with a CV attached still goes to the fine-tuned CV model (`giu-cv`, v6). It answers with the CV,
+then a **CV ANALYSIS** (rating, what it changed, what to improve; "تحليل الـ CV" in Arabic). The
+CV becomes a **PDF** (View / Download) and an editable **Word** file (`app/documents/cv_file.py`);
+the analysis is the chat message. The checks against the original CV (invented links, dates and
+numbers, GIU written into another university's CV) run on the CV part only. The analysis is then
+checked against that CV (`app/documents/cv_analysis.py`): strengths it does not support (profile
+links, skill levels, measurable results) are removed, advice it does not need is removed ("Add
+2-3 bullets ..." when no role lacks details, "Add more skills ..." with 6 or more skills, "Say in
+your summary which role ..." when the summary says it, "Keep personal details and hobbies out ..."
+unless "What I changed" says some were removed), the Summary, Skills and Experience lines
+of "Section by section" are corrected to match the CV ("no internship or job yet"), a
+missing LinkedIn link and, with no job yet, a first internship or part-time job are added to "Most
+important to improve", and the rating is computed in code from a fixed rubric (phone, links,
+summary, target role, education dates, experience, numbers, projects, skills, languages, extra
+sections). For a 1-page target the PDF may use slightly tighter spacing (text stays at least
+10pt); a section heading always stays with its content. The PDF is
+ATS-friendly (selectable text, one column, standard headings, no tables or pictures; body 10.5pt,
+headings 13pt, as many pages as the content needs). Arabic CVs come back in Arabic and are laid out
+right to left, in Tahoma when the system has it (its text reads back correctly), otherwise in
+MuPDF's built-in Arabic font. Later
+edit requests change the Word version and come back as a new PDF and Word file. A file whose name
+contains cv / resume counts as a CV ("fix this" + cv1.docx). Only CV rewrites use the CV model
+(CAREER_MODEL); other Career questions use the normal models, since the CV model was trained only
+to restructure attached CVs.
+
+**PDF versions:** "send it as pdf", "convert it to pdf", "حوله بي دي اف" return a PDF of the attached or
+open document without asking a model: a restructured CV in its CV layout, other files as a simple
+PDF (text, headings, lists, tables; the original Word / PowerPoint / Excel layout is not kept).
+"Translate it and send it as pdf" edits the file and adds a PDF of the result.
+
+How it works (`backend/app/documents/`, `app/routers/chat.py`, `app/routers/documents.py`):
+
+1. The file is checked: extension **and** content (a real Word/Excel/PowerPoint zip, a real PDF,
+   UTF-8 text), size, password protection, damage.
+2. It is split into numbered parts: paragraphs (also in tables, headers and footers), slide texts,
+   spreadsheet cells, PDF lines or text blocks.
+3. The model (`DOC_EDIT_MODEL`, default: the Labs models) gets the instruction and the parts, in
+   batches of about 6,000 characters for long documents, and answers **only with JSON edits**
+   (replace / insert after / delete a part). It never runs code or touches files. Unknown ids
+   are ignored; it is asked again once if its answer is not usable.
+4. The edits are applied to exactly those parts in the original file, so styles, fonts, tables,
+   pictures, headers, numbering, layout, formulas and slide layouts stay as they were. The new
+   file is opened once more to make sure it is valid, then offered for download.
+
+Per format:
+
+| Format | What is edited | Limits |
+|---|---|---|
+| .docx | paragraphs, table cells, headers, footers | a changed paragraph takes the font of its first run |
+| .xlsx | text and number cells, empty cells | formulas are never changed; no new rows/columns; charts and pictures are not kept (openpyxl) |
+| .pptx | all text in placeholders, text boxes, groups, tables | speaker notes are not edited |
+| .pdf | lines are replaced in place (same position, size, colour; Helvetica) | no new lines and no Arabic inside a PDF: ask to **convert it to Word** |
+| scanned .pdf | read page by page by the vision model (no OCR program needed), saved as .docx | first 5 pages |
+| .txt / .md | blocks between blank lines; Markdown is kept | |
+
+Files are stored under random names in `backend/data/edits/<conversation>/` (not in git),
+at most 5 versions, and deleted after 60 minutes (`DOC_EDIT_KEEP_MINUTES`) or on **Close**.
+View and Download need the random 32-character token from the answer; follow-up edits and Close
+need the token of the latest version, so nobody can open or change another chat's document by
+guessing a conversation number. The View page is sent with a strict Content-Security-Policy and
+all text is escaped. Document contents are never logged.
+
+Tests (no model, network or database needed; the model is replaced by a stand-in):
+
+```bash
+cd backend
+python -m unittest discover -s tests -v
+```
+
+To try each format by hand: start a chat with any assistant, attach a file and write e.g.
+*Word*: "correct the spelling", *Excel*: "translate the item names to
+Arabic and set B3 to 30", *PowerPoint*: "fix the typos and add a step: Evaluate the model",
+*PDF*: "fix the spelling" (stays a PDF) or "convert to Word and translate to Arabic",
+*Markdown*: "add a Next steps section", *CV* (Internship & Career): "restructure my CV".
+
 ## 6. Evaluate
 
 ```bash
@@ -291,8 +777,8 @@ and maximum response time, and how many answers took over 2 seconds.
 python -m scripts.evaluate --user-type staff --out data/results.csv   # save every answer
 ```
 
-The 25 included questions (17 Labs & Research, 8 Internship & Career) are placeholders
-based on the two documents. Three of them (the AI lab's phone number, renewing a
+The 61 included questions (17 Labs & Research, 8 Internship & Career, 36 Graduation &
+Advising) are placeholders based on the documents. Three of them (the AI lab's phone number, renewing a
 passport, a paid internship semester) ask for information that is not in the documents
 and expect `don't have`, to check the agents do not invent answers. Questions for an
 agent the chosen user type may not use (Career for staff) are skipped.
@@ -322,24 +808,53 @@ backend/
     campus.py            finds room codes in answers for the campus map
     speech.py            speech-to-text for the voice call (Groq Whisper, local fallback)
     db.py                PostgreSQL connection
+    tenants.py           which university (tenant) a request is for
+    auth.py              logins: users, passwords, sessions, roles
+    usage.py             tokens per model call, the monthly cap, the paused-subscription check
+    universities.py      making a university (console wizard and sign-up)
+    mail.py              email with smtplib (or the backend's log without SMTP_HOST)
+    billing/             providers.py (payment provider interface, the simulated provider), service.py (subscriptions)
     schemas.py           request/response models
-    routers/             session.py, chat.py, feedback.py, speech.py
-    agents/              base.py (shared flow), labs_research.py, internship_career.py, directory.py
+    routers/             tenant.py (GET /tenant), console.py (/console), signup.py (/signup), billing.py (/billing, /admin/billing), session.py, chat.py, feedback.py, speech.py, documents.py (document editor), admin.py (admin page)
+    documents/           document editor: formats.py (read/edit/save each format), editor.py (model -> JSON edits), storage.py
+    agents/              base.py (shared flow), configured.py (an assistant from the agents table), __init__.py (loading
+                         and caching each university's assistants), templates.py, internship_career.py (CV rewrites),
+                         directory.py (hand-overs)
     rag/                 embeddings.py, retriever.py, prompts.py, transliteration.py
     llm/client.py        chat completions (OpenRouter or local Ollama)
+  tests/
+    test_documents.py    document editor tests (python -m unittest discover -s tests)
+    test_admin.py        admin route tests
+    test_migrate.py      migration runner tests
+    test_tenants.py      tenant detection, isolation, row-level security, assistants API, logins, users,
+                         branding, audiences (needs TEST_DB_NAME, else skipped)
+    test_agents.py       configured assistants and their cache
+    test_skills.py       skills, prompts built from parts, chat routing by skill
+    test_billing.py      sign-up, email codes, payments, renewals, grace, pause, cancel, review (needs TEST_DB_NAME)
+  migrations/            numbered SQL files (000_base.sql, 001_tenants.sql, ...)
   scripts/
+    migrate.py           apply the pending migrations
+    create_user.py       make a login (or set a new password)
+    move_agent_folders.py  rename agent-key document folders to agent ids (once, after 004)
     ingest.py            load documents into the chunks table
     evaluate.py          accuracy and response time on test questions
     try_retrieve.py      show retrieved chunks for a question
     try_chat.py          ask the agent from the terminal
   data/
-    raw/                 documents to ingest
+    raw/                 GIU's documents to ingest
+    tenants/<slug>/      other universities' documents (not in git)
     test_questions.csv   evaluation questions
 frontend/
   src/
     api.js               all backend calls (API URL)
+    tenant.js            the university of this page (GET /tenant): look, audiences, assistants
+    chat.css             the chat's layout (the design's chatView())
+    platform.css         the admin's and console's look (the design's tokens, light and dark)
+    admin/               the university admin (/admin): AdminPage.jsx and its tabs
+    console/             the platform console (/console): ConsolePage.jsx, NewUniversity.jsx
+    signup/              the public sign-up (/signup) and the payment page (/checkout/<id>)
     App.jsx              chat state and flow
-    components/          StartScreen.jsx, Message.jsx, CampusMap.jsx, CallScreen.jsx, ComingSoon.jsx
+    components/          StartScreen.jsx, Message.jsx, CampusMap.jsx, CallScreen.jsx, ComingSoon.jsx, BrandLogo.jsx
     App.css              styles
 ```
 

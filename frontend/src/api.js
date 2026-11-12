@@ -1,5 +1,7 @@
-// All calls to the backend live here. Change API_URL if the backend runs elsewhere.
-const API_URL = "http://localhost:8000";
+// All calls to the backend live here. The backend runs on port 8000 of the same host name
+// as this page, so it sees which university is open: giu.localhost:5173 calls
+// giu.localhost:8000, demo.localhost:5173 calls demo.localhost:8000 (plain localhost is GIU).
+export const API_URL = `${window.location.protocol}//${window.location.hostname}:8000`;
 
 // `signal` (optional) lets the caller cancel the request, e.g. the chat's Stop button.
 async function post(path, body, signal) {
@@ -22,13 +24,16 @@ export function startSession(userType, agent) {
   return post("/session", { user_type: userType, agent }); // -> { conversation_id }
 }
 
-// `attachment` is optional: { filename, dataUrl } where dataUrl is "data:<type>;base64,<content>".
-export function sendMessage(conversationId, query, attachment = null, signal = undefined) {
-  const body = { conversation_id: conversationId, query };
-  if (attachment) {
-    body.attachment = { filename: attachment.filename, data_base64: attachment.dataUrl.split(",")[1] };
+// `files` (optional): the attached files, each { filename, dataUrl } where dataUrl is
+// "data:<type>;base64,<content>". `documentToken` (optional): the document this chat is working
+// on, so a request like "now make it shorter" edits it. The backend decides whether a message
+// is an edit or a question.
+export function sendMessage(conversationId, query, files = [], signal = undefined, documentToken = null) {
+  const body = { conversation_id: conversationId, query, document_token: documentToken };
+  if (files.length) {
+    body.attachments = files.map((f) => ({ filename: f.filename, data_base64: f.dataUrl.split(",")[1] }));
   }
-  return post("/chat", body, signal); // -> { answer, sources, message_id }
+  return post("/chat", body, signal); // -> { answer, sources, message_id, file?, changes? }
 }
 
 export function sendFeedback(messageId, rating) {
@@ -45,4 +50,14 @@ export async function transcribe(recording) {
     reader.readAsDataURL(recording);
   });
   return post("/transcribe", { audio_base64: dataUrl.split(",")[1], mime_type: recording.type || "audio/webm" });
+}
+
+// "Close" the chat's document: the backend deletes its files.
+export function closeDocument(conversationId, token) {
+  return fetch(`${API_URL}/documents/${conversationId}/${token}`, { method: "DELETE" });
+}
+
+// Download links come as paths ("/documents/12/<token>").
+export function fileUrl(path) {
+  return `${API_URL}${path}`;
 }

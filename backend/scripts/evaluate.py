@@ -8,22 +8,27 @@ average and maximum response time.
 Run from the backend folder:
     python -m scripts.evaluate
     python -m scripts.evaluate --user-type staff --out data/results.csv
+    python -m scripts.evaluate --user-type staff --agent hr_policies --agent graduation_advising
+    python -m scripts.evaluate --tenant demo   # another tenant's documents (default: giu)
 """
 import argparse
 import csv
+import sys
 import time
 
 import httpx
 
-from app import config
-from app.agents import AGENTS
+from app import config, tenants
+from app.agents import script_agent
 from app.llm.client import LLMError
 
 DEFAULT_CSV = config.BACKEND_DIR / "data" / "test_questions.csv"
 
 
 def normalize(text: str) -> str:
-    """Lowercase and use straight apostrophes, so "Don’t" matches "don't"."""
+    """Lowercase, straight apostrophes, plain spaces and hyphens, so "Don’t" matches
+    "don't" and "north\u2011east" (a special hyphen some models write) matches "north-east"."""
+    text = text.replace("\u202f", " ").replace("\u00a0", " ").replace("\u2011", "-")
     return text.lower().replace("’", "'")
 
 
@@ -37,20 +42,27 @@ def main() -> None:
     parser.add_argument("--csv", default=str(DEFAULT_CSV))
     parser.add_argument("--user-type", default="student", choices=["student", "staff"])
     parser.add_argument("--out", help="optional CSV file to save every answer and result")
+    parser.add_argument("--agent", action="append",
+                        help="only this agent's questions, as named in the CSV (can be given more than once)")
+    parser.add_argument("--tenant", default=config.DEFAULT_TENANT, help="tenant slug (default: giu)")
     args = parser.parse_args()
+    tenant = tenants.use_for_script(args.tenant)
+    sys.stdout.reconfigure(encoding="utf-8")  # Arabic answers in the Windows terminal
 
     with open(args.csv, newline="", encoding="utf-8") as f:
-        rows = list(csv.DictReader(f))
+        rows = [row for row in csv.DictReader(f) if not args.agent or row["agent"] in args.agent]
 
+    # The CSV names each question's assistant by id or by a GIU template key ("labs_research").
+    agents = {key: script_agent(tenant.id, key) for key in dict.fromkeys(row["agent"] for row in rows)}
     results = []
     for number, row in enumerate(rows, start=1):
-        if args.user_type not in AGENTS[row["agent"]].allowed_user_types:
+        if args.user_type not in agents[row["agent"]].allowed_user_types:
             print(f"{number:2}. skipped (not available for {args.user_type}): {row['question']}")
             continue
         keywords = [k.strip() for k in row["expected_keywords"].split(";") if k.strip()]
         start = time.perf_counter()
         try:
-            answer = AGENTS[row["agent"]].run(row["question"], args.user_type).answer
+            answer = agents[row["agent"]].run(row["question"], args.user_type).answer
         except (httpx.HTTPError, LLMError) as error:  # count a failed model call as wrong
             answer = f"ERROR: {error}"
         seconds = time.perf_counter() - start

@@ -58,6 +58,113 @@ GLOSSARY = {
     "career center": ["كارير سنتر"],
     "career": ["كارير"],
     "skills": ["سكيلز", "سكيل"],
+    # advising (Graduation & Advising agent)
+    "IT": ["اي تي", "آي تي"],
+    "advising": ["ادفايزنج", "ادفايزينج", "ادفيزنج"],
+    "advisor": ["ادفايزر", "ادفيزر"],
+    "probation": ["بروبيشن", "بروبيجن"],
+    "memo": ["ميمو"],
+    "clash": ["كلاش"],
+    "electives": ["اليكتيف", "الكتيف", "اليكتيفز"],
+    "makeup exam": ["ميك اب", "ميكاب"],
+    "GPA": ["جي بي ايه", "جي بي اي"],
+    "Bachelor thesis": ["باتشلر", "باتشلور"],
+    # study programs and courses (Computer Science curriculum)
+    "IT security": ["اي تي سيكيوريتي", "آي تي سيكيوريتي"],
+    "security": ["سيكيوريتي", "سكيوريتي"],
+    "data science": ["داتا ساينس", "داتا ساينز"],
+    "software engineering": ["سوفتوير انجينيرنج", "سوفت وير انجينيرنج", "سوفتوير"],
+    "media informatics": ["ميديا انفورماتكس", "ميديا انفورماتيكس"],
+    "computer science": ["كمبيوتر ساينس", "كومبيوتر ساينس"],
+    "semester": ["سيمستر", "سمستر"],
+    "ECTS": ["اي سي تي اس"],
+    "credit hours": ["كريدت اورز", "كريديت اورز", "كريدت"],
+    "courses": ["كورسات", "كورسز"],
+    "machine learning": ["ماشين ليرنينج", "ماشين ليرننج"],
+    "big data": ["بيج داتا", "بج داتا"],
+    "business informatics": ["بيزنس انفورماتكس", "بيزنس إنفورماتكس", "بيزنس انفورماتيكس"],
+    "accounting": ["اكاونتنج", "أكاونتنج"],
+    "marketing": ["ماركتنج", "ماركتينج"],
+    "cybersecurity": ["سايبر سيكيوريتي", "سايبر"],
+    "calculus": ["كالكولس", "كالكيولس"],
+    "economics": ["ايكونوميكس", "إيكونوميكس"],
+    "cloud computing": ["كلاود كمبيوتنج", "كلاود"],
+    "fintech": ["فينتك", "فين تك"],
+    "business administration": ["بيزنس ادمنستريشن", "بيزنس أدمنستريشن", "بيزنس ادمن"],
+    "supply chain": ["سبلاي تشين", "سابلاي تشين"],
+    "real estate": ["ريل استيت", "ريل ستيت"],
+    "tourism": ["توريزم"],
+    "hospitality": ["هوسبيتاليتي"],
+    "entrepreneurship": ["انتربرنرشيب", "انتربرينرشيب"],
+    "banking": ["بانكنج", "بانكينج"],
+    "logistics": ["لوجستيكس"],
+    "minor": ["ماينور"],
+    "major": ["ميجور"],
+    "taxation": ["تاكسيشن"],
+    "microeconomics": ["مايكرو"],
+    "macroeconomics": ["ماكرو"],
+    "digital media": ["ديجيتال ميديا"],
+    "fashion design": ["فاشون ديزاين", "فاشن ديزاين"],
+    "fashion": ["فاشون", "فاشن"],
+    "industrial design": ["اندستريال ديزاين", "إندستريال ديزاين"],
+    "design": ["ديزاين", "ديزاين"],
+    "animation": ["انيميشن", "أنيميشن"],
+    "motion graphics": ["موشن جرافيكس", "موشن جرافيك"],
+    "cinematography": ["سينماتوجرافي"],
+    "typography": ["تايبوجرافي"],
+    "portfolio": ["بورتفوليو"],
+    "textile": ["تكستايل"],
+    "automotive mechatronics": ["اوتوموتيف ميكاترونكس"],
+    "automotive": ["اوتوموتيف", "أوتوموتيف"],
+    "mechatronics": ["ميكاترونكس", "ميكاترونيكس"],
+    "manufacturing": ["مانيوفاكتشرينج", "مانيفاكتشرنج", "مانيوفاكتشرنج"],
+    "robotics": ["روبوتكس", "روبوتيكس"],
+    "automation": ["اوتوميشن", "أوتوميشن"],
+    "control": ["كنترول", "كونترول"],
+    "electrical power": ["الكتريكال باور", "إلكتريكال باور"],
+    "power": ["باور"],
+    "electrical": ["الكتريكال", "إلكتريكال"],
+    "engineering": ["انجينيرنج", "إنجينيرنج", "انجنيرنج"],
+    "microcontrollers": ["ميكروكنترولرز", "ميكروكنترولر"],
+    "mechanics": ["ميكانيكس", "ميكانيك"],
+    "embedded systems": ["امبيدد سيستمز", "إمبيدد سيستمز"],
+    "CAD": ["كاد"],
+    "biotechnology": ["بيوتكنولوجي", "بايوتكنولوجي", "بيوتك"],
+    "microbiology": ["مايكروبيولوجي", "ميكروبيولوجي"],
+    "biochemistry": ["بيوكيمستري", "بايوكيمستري"],
+    "bioinformatics": ["بيوانفورماتكس", "بيوإنفورماتكس"],
+    "biology": ["بيولوجي", "بايولوجي"],
+    "chemistry": ["كيمستري"],
+    "genetics": ["جينيتكس", "جينتكس"],
+    "immunology": ["اميونولوجي", "إميونولوجي"],
+    "nanotechnology": ["نانوتكنولوجي", "نانو"],
+    "fermentation": ["فيرمنتيشن"],
+    "physical therapy": ["فيزيكال ثيرابي", "فيزيوثيرابي", "فيزيو"],
+    "anatomy": ["اناتومي", "أناتومي"],
+    "physiology": ["فسيولوجي", "فيسيولوجي", "فيزيولوجي"],
+    "kinesiology": ["كاينزيولوجي", "كينزيولوجي"],
+    "electrotherapy": ["الكتروثيرابي", "إلكتروثيرابي"],
+    "biomechanics": ["بيوميكانيكس", "بايوميكانيكس"],
+    "pathology": ["باثولوجي"],
+    "pharmacology": ["فارماكولوجي"],
+    "radiology": ["راديولوجي"],
+    "neurology": ["نيورولوجي"],
+    "orthopedic": ["اورثوبيديك", "أورثو"],
+    "pediatrics": ["بيدياتركس"],
+    "architecture": ["اركيتكتشر", "آركيتكتشر", "اركيتكشر"],
+    "interior architecture": ["انتيريور اركيتكتشر", "إنتيريور أركيتكتشر"],
+    "interior": ["انتيريور", "إنتيريور"],
+    "design studio": ["ديزاين ستوديو", "ديزاين استوديو"],
+    "pharmaceutical engineering": ["فارماسيوتيكال انجينيرنج", "فارما انجينيرنج"],
+    "pharmaceutical": ["فارماسيوتيكال", "فارماسوتيكال"],
+    "pharma": ["فارما"],
+    "project management": ["بروجكت مانجمنت", "بروجيكت مانجمنت"],
+    "databases": ["داتابيز", "داتا بيز", "داتابيس"],
+    "programming": ["بروجرامنج", "بروجرامينج"],
+    "operating systems": ["اوبريتنج سيستمز", "اوبرتنج سيستم"],
+    "networks": ["نتوركس", "نتورك"],
+    "computer graphics": ["كمبيوتر جرافيكس", "جرافيكس"],
+    "cryptography": ["كريبتوجرافي", "كريبتو"],
     # Egyptian question words, so "فين بسكت بال" can also be searched as "where is basketball"
     "where is": ["فين"],
     "when": ["امتي"],
@@ -103,6 +210,17 @@ _PHRASES = sorted(
 )
 
 
+# Very short words leave a skeleton of only 1-2 letters, which many everyday words share
+# ("مواد" and "ميديا" are both "مد", "ماما" and "ميمو" both "مم"). Those glossary words,
+# and the ones in EXACT_ONLY, must be written exactly as listed.
+EXACT_ONLY = {"فارما"}  # same skeleton as "فورم" (form)
+_EXACT_SHORT = {}
+for _spellings in GLOSSARY.values():
+    for _spelling in _spellings:
+        if " " not in _spelling and (len(skeleton(_spelling)) <= 2 or _spelling in EXACT_ONLY):
+            _EXACT_SHORT.setdefault(skeleton(_spelling), set()).add(_strip_prefix(normalize_arabic(_spelling))[0])
+
+
 def _looks_like_a_place(words: list[str], had_article: bool) -> bool:
     return had_article or any(_strip_prefix(w)[0] in PLACE_CUES or w in PLACE_CUES for w in words)
 
@@ -119,6 +237,8 @@ def _matches(text: str) -> list[tuple[int, int, str]]:
                 continue
             had_article = _strip_prefix(words[i])[1]
             if n == 1 and phrase[0] in AMBIGUOUS and not _looks_like_a_place(words, had_article):
+                continue
+            if n == 1 and phrase[0] in _EXACT_SHORT and _strip_prefix(words[i])[0] not in _EXACT_SHORT[phrase[0]]:
                 continue
             found.append((i, n, english))
             i += n

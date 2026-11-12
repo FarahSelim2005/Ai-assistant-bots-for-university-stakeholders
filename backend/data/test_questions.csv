@@ -24,3 +24,44 @@ What should I bring to the career fair?,CV,internship_career
 How should I answer behavioural interview questions?,STAR,internship_career
 Is the GIU Internship Semester paid?,don't have,internship_career
 الكارير فير كان امتى؟,14,internship_career
+What GPA puts a student on probation?,3.7,graduation_advising
+What is the minimum load a student can take?,60%,graduation_advising
+What are the steps of the advising process?,appointment;meeting,graduation_advising
+Which courses are selected first: failed or unattended courses?,failed,graduation_advising
+Can a schedule clash be allowed?,graduation,graduation_advising
+How many failed courses before the 7th semester still allow the Bachelor thesis?,4,graduation_advising
+What are the consequences of being on probation?,don't have,graduation_advising
+البروبيشن بيبقى امتى؟,3.7,graduation_advising
+What courses are in the first semester of Computer Science?,Mathematics I;Programming I,graduation_advising
+How many ECTS is the Bachelor Thesis and Colloquium?,20,graduation_advising
+What are the 5th semester courses in Data Science?,Machine Learning,graduation_advising
+Which courses do IT Security students take in the 6th semester?,Network Security,graduation_advising
+How many ECTS is the whole Computer Science program?,240,graduation_advising
+مواد الترم السادس سوفتوير انجينيرنج ايه؟,Cloud,graduation_advising
+How many ECTS is the Business Informatics program?,240,graduation_advising
+When do Business Informatics students take Databases?,5,graduation_advising
+مواد الترم السادس بيزنس انفورماتكس ايه؟,Cybersecurity,graduation_advising
+What majors does the Business Administration program have?,Supply Chain,graduation_advising
+What are the 5th semester courses of the Supply Chain Management major?,Lean,graduation_advising
+مواد الترم السادس ريل استيت ايه؟,Digital Real Estate,graduation_advising
+What majors does the Design program have?,Fashion Design,graduation_advising
+What are the 3rd semester courses of Fashion Design?,Textile,graduation_advising
+مواد الترم الرابع اندستريال ديزاين ايه؟,CAD,graduation_advising
+What majors does Engineering have?,Mechatronics,graduation_advising
+What are the 6th semester courses of Automotive Mechatronics?,Vehicle Dynamics,graduation_advising
+مواد الترم الخامس اوتوميشن آند كنترول ايه؟,Embedded,graduation_advising
+What are the 5th semester courses of Biotechnology?,Fermentation,graduation_advising
+How many ECTS is Immunology in Biotechnology?,6,graduation_advising
+مواد الترم السادس بيوتكنولوجي ايه؟,Bioinformatics,graduation_advising
+How many semesters is the Physical Therapy program?,10,graduation_advising
+How many ECTS is Occupational Therapy?,6,graduation_advising
+مواد الترم الاول فيزيكال ثيرابي ايه؟,Histology,graduation_advising
+What majors does Architectural Engineering have?,Interior Architecture,graduation_advising
+What are the 6th semester courses of Interior Architecture?,Furniture Design,graduation_advising
+What jobs can Pharmaceutical Engineering graduates get?,Validation,graduation_advising
+مواد الترم الخامس فارما ايه؟,Control Engineering,graduation_advising
+How many days of annual leave do I get from the second year?,21,hr_policies
+How long is maternity leave?,120,hr_policies
+What is the notice period for a resignation?,three months,hr_policies
+When is Sinai Liberation Day?,25 April,hr_policies
+What is my salary?,don't have,hr_policies
