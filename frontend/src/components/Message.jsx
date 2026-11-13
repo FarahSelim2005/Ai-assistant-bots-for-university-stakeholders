@@ -8,7 +8,7 @@ const USERS = { student: { en: "students", ar: "للطلبة" }, staff: { en: "s
 
 // One chat message, in the design's chatView() style: the user's question in the
 // university's colour; the answer in white, with the map (rooms, places), a file to view
-// and download, a hand-over to another assistant, the source documents and a 1-5 rating.
+// and download, a hand-over to another assistant and a 1-5 rating (the source documents are not shown).
 export default function Message({ message, onRate, onResend, busy }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -137,12 +137,6 @@ export default function Message({ message, onRate, onResend, busy }) {
             {!onlyFor && (
               <a href={message.redirect.url} target="_blank" rel="noreferrer" className="tbtn">Open {message.redirect.name} →</a>
             )}
-          </div>
-        )}
-
-        {message.sources?.length > 0 && (
-          <div className="srcs">
-            {message.sources.map((source) => <span key={source} className="src" title="Source document">{source}</span>)}
           </div>
         )}
 
