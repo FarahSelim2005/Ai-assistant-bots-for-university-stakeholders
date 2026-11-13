@@ -535,12 +535,14 @@ class AssistantsApi(TestDatabaseCase):
         self.assertEqual([x["key"] for x in page["audiences"]], ["student", "staff"])
         self.assertTrue(all(c.startswith("#") for c in page["colors"].values()))
 
-    def test_new_assistants_get_every_skill(self):
+    def test_new_assistants_skills_like_giu(self):
         a = self.client(self.a, "tenant_admin")
-        for body in [{"name": "From scratch"}, {"template_key": "graduation_advising"}]:
+        for body, skills in [({"name": "From scratch"}, ["files", "images", "editor", "voice"]),
+                             ({"template_key": "internship_career"}, ["files", "images", "cv", "editor", "voice"]),
+                             ({"template_key": "labs_research"}, ["files", "images", "editor", "voice"])]:  # no campus map here
             made = a.post("/admin/agents", json=body).json()["id"]
             agent = next(x for x in a.get("/admin/agents").json() if x["id"] == made)
-            self.assertEqual(agent["skills"], ["files", "images", "cv", "editor", "voice"], body)
+            self.assertEqual(agent["skills"], skills, body)
         chosen = a.post("/admin/agents", json={"name": "Only files", "skills": ["files"]}).json()["id"]
         self.assertEqual(next(x for x in a.get("/admin/agents").json() if x["id"] == chosen)["skills"], ["files"])
 
@@ -783,8 +785,10 @@ class PlatformConsole(TestDatabaseCase):
                          ["Ask Admissions", "Campus Guide", "Ask Admissions", "Internship & Career Assistant"])
         self.assertEqual(page["assistants"][0]["summary"], "Applying, deadlines and fees")
         self.assertEqual(page["assistants"][1]["summary"], next(t for t in TEMPLATES if t["key"] == "labs_research")["summary"])
-        # Every new assistant does all that GIU's do (no campus map: the university has none)
-        self.assertEqual({tuple(a["skills"]) for a in page["assistants"]}, {("files", "images", "cv", "editor", "voice")})
+        # Ready-made ones do what they do at GIU (CV rewrites for Internship & Career; no campus map
+        # here), new ones the usual skills
+        self.assertEqual([a["skills"] for a in page["assistants"]],
+                         [["files", "images", "editor", "voice"]] * 3 + [["files", "images", "cv", "editor", "voice"]])
         self.assertNotIn("GIU", str(page))
         login = client_for(f"{slug}.test:8000").post("/admin/login", json={"email": f"admin@{slug}.example",
                                                                             "password": "first admin password"})

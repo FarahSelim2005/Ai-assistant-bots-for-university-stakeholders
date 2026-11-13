@@ -90,10 +90,9 @@ def create(conn, *, name: str, short_name: str, slug: str, host: str | None, pla
          DEFAULT_AUDIENCES, status, email_domain, signed_up)).fetchone()[0]
     conn.execute("INSERT INTO tenant_domains (host, tenant_id, is_primary) VALUES (%s, %s, true)", (host, tenant_id))
     # Its assistants, in the order given: a template's settings with the name (and what it
-    # handles) chosen here, or a new one from just its name and what it handles. Every one gets
-    # all the skills (files, pictures, CV rewrites, editor, voice; no campus map: a new
-    # university has none yet). Each gets its own folder.
-    skills = skills_for(campus_map=False)
+    # handles) chosen here, or a new one from just its name and what it handles. A ready-made one
+    # keeps its GIU skills (CV rewrites for Internship & Career, ...), a new one gets the usual
+    # skills; no campus map, a new university has none yet. Each gets its own folder.
     folders: set[str] = set()
     for position, assistant in enumerate(assistants, start=1):
         name_, description, template_key = assistant["name"].strip(), (assistant.get("description") or "").strip(), assistant.get("template_key")
@@ -107,10 +106,10 @@ def create(conn, *, name: str, short_name: str, slug: str, host: str | None, pla
                        CASE WHEN %s = '' THEN summary ELSE %s END, subtitle,
                        CASE WHEN %s = '' THEN description ELSE %s END, audiences, answer_mode, prompt_mode,
                        instructions, fallback_en, fallback_ar, welcome, placeholder, examples,
-                       %s, max_answer_tokens, %s, %s
+                       array_remove(skills, 'map'), max_answer_tokens, %s, %s
                 FROM agent_templates WHERE key = %s""",
-                         (tenant_id, name_, name_, description, description, description, description, skills, position,
-                          folder, template_key))
+                         (tenant_id, name_, name_, description, description, description, description, position, folder,
+                          template_key))
         else:
             what = description or f"questions about {name_}"
             conn.execute("""
@@ -120,7 +119,7 @@ def create(conn, *, name: str, short_name: str, slug: str, host: str | None, pla
                          (tenant_id, name_, what, what,
                           f"You help {{university}} students and staff with {what[0].lower() + what[1:]}",
                           "Sorry, I don't have information about that. Please contact the relevant {university} office.",
-                          "How can I help you? Ask me a question.", skills, position, folder))
+                          "How can I help you? Ask me a question.", skills_for(campus_map=False), position, folder))
     conn.execute("INSERT INTO users (tenant_id, email, name, role, password_hash) VALUES (%s, %s, %s, 'tenant_admin', %s)",
                  (tenant_id, email, admin_name, password_hash))
     return tenant_id, host

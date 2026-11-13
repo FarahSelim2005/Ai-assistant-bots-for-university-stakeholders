@@ -311,9 +311,9 @@ TEMPLATE_FIELDS = ["name", "summary", "subtitle", "description", "audiences", "a
 def create_agent(body: AgentIn):
     """A new assistant: the template's settings (if one is given), changed by the fields sent.
     It goes last in the list unless a position is given. From a template, its audiences are
-    the university's (all of them when none match). Every new assistant gets all the skills
-    that work at this university (files, pictures, CV rewrites, editor, voice, and the campus
-    map where there is one), unless the request names its skills."""
+    the university's (all of them when none match). Skills, unless the request names them: a
+    ready-made assistant's as at GIU (the campus map only where there is one), a new one's the
+    usual ones (files, pictures, editor, voice); it answers from the documents uploaded for it."""
     tenant_id = tenants.current_id()
     with get_connection(tenant_id) as conn:
         settings = {}
@@ -326,8 +326,8 @@ def create_agent(body: AgentIn):
             settings["audiences"] = [a for a in settings["audiences"] if a in audience_keys()] or audience_keys()
         else:
             settings["audiences"] = audience_keys()
-        # All the skills that work here (those sent with the request win)
-        settings["skills"] = skills_for(tenants.current().campus_map)
+        # A ready-made one: its GIU skills; from scratch: the usual ones (those sent with the request win)
+        settings["skills"] = skills_for(tenants.current().campus_map, settings.get("skills"))
         settings.update({k: v for k, v in body.model_dump(exclude_unset=True).items() if k != "template_key"})
         checked_settings(settings)
         if not settings.get("name"):
