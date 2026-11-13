@@ -21,6 +21,13 @@ from app.rag.prompts import ADVISING_SYSTEM_PROMPT, CAREER_SYSTEM_PROMPT, HR_SYS
 AUDIENCES = ("student", "staff")
 ANSWER_MODES = ("docs", "advice")  # docs: only from the documents; advice: may also give general advice
 SKILLS = ("files", "images", "cv", "editor", "map", "voice")
+
+
+def skills_for(campus_map: bool) -> list[str]:
+    """The skills a new assistant gets: everything GIU's assistants do (files, pictures, CV
+    rewrites, the document editor, the voice call), and the campus map where the university
+    has one."""
+    return [skill for skill in SKILLS if skill != "map" or campus_map]
 PROMPT_MODES = ("composed", "complete")  # composed: built from parts; complete: the instructions are the whole prompt
 
 GIU_AGENT_IDS = {

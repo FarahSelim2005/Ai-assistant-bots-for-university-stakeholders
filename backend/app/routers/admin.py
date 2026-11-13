@@ -49,7 +49,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app import auth, config, tenants, usage
 from app.agents import agents_of, find_agent, load_agent
-from app.agents.templates import ANSWER_MODES, PROMPT_MODES, SKILLS
+from app.agents.templates import ANSWER_MODES, PROMPT_MODES, SKILLS, skills_for
 from app.auth import Session, tenant_admin, university_user
 from app.db import get_connection
 from scripts.ingest import ingest_file
@@ -311,7 +311,9 @@ TEMPLATE_FIELDS = ["name", "summary", "subtitle", "description", "audiences", "a
 def create_agent(body: AgentIn):
     """A new assistant: the template's settings (if one is given), changed by the fields sent.
     It goes last in the list unless a position is given. From a template, its audiences are
-    the university's (all of them when none match)."""
+    the university's (all of them when none match). Every new assistant gets all the skills
+    that work at this university (files, pictures, CV rewrites, editor, voice, and the campus
+    map where there is one), unless the request names its skills."""
     tenant_id = tenants.current_id()
     with get_connection(tenant_id) as conn:
         settings = {}
@@ -324,6 +326,8 @@ def create_agent(body: AgentIn):
             settings["audiences"] = [a for a in settings["audiences"] if a in audience_keys()] or audience_keys()
         else:
             settings["audiences"] = audience_keys()
+        # All the skills that work here (those sent with the request win)
+        settings["skills"] = skills_for(tenants.current().campus_map)
         settings.update({k: v for k, v in body.model_dump(exclude_unset=True).items() if k != "template_key"})
         checked_settings(settings)
         if not settings.get("name"):

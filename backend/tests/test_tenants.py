@@ -535,6 +535,15 @@ class AssistantsApi(TestDatabaseCase):
         self.assertEqual([x["key"] for x in page["audiences"]], ["student", "staff"])
         self.assertTrue(all(c.startswith("#") for c in page["colors"].values()))
 
+    def test_new_assistants_get_every_skill(self):
+        a = self.client(self.a, "tenant_admin")
+        for body in [{"name": "From scratch"}, {"template_key": "graduation_advising"}]:
+            made = a.post("/admin/agents", json=body).json()["id"]
+            agent = next(x for x in a.get("/admin/agents").json() if x["id"] == made)
+            self.assertEqual(agent["skills"], ["files", "images", "cv", "editor", "voice"], body)
+        chosen = a.post("/admin/agents", json={"name": "Only files", "skills": ["files"]}).json()["id"]
+        self.assertEqual(next(x for x in a.get("/admin/agents").json() if x["id"] == chosen)["skills"], ["files"])
+
     def test_refused_settings(self):
         a = self.client(self.a, "tenant_admin")
         for body in [{"description": "no name and no template"}, {"name": "X", "skills": ["teleport"]},
@@ -774,8 +783,8 @@ class PlatformConsole(TestDatabaseCase):
                          ["Ask Admissions", "Campus Guide", "Ask Admissions", "Internship & Career Assistant"])
         self.assertEqual(page["assistants"][0]["summary"], "Applying, deadlines and fees")
         self.assertEqual(page["assistants"][1]["summary"], next(t for t in TEMPLATES if t["key"] == "labs_research")["summary"])
-        self.assertTrue(all("map" not in a["skills"] for a in page["assistants"]))  # no campus map; CV rewrites work
-        self.assertIn("cv", page["assistants"][3]["skills"])  # the Internship & Career template keeps them
+        # Every new assistant does all that GIU's do (no campus map: the university has none)
+        self.assertEqual({tuple(a["skills"]) for a in page["assistants"]}, {("files", "images", "cv", "editor", "voice")})
         self.assertNotIn("GIU", str(page))
         login = client_for(f"{slug}.test:8000").post("/admin/login", json={"email": f"admin@{slug}.example",
                                                                             "password": "first admin password"})
