@@ -89,7 +89,7 @@ def create(conn, *, name: str, short_name: str, slug: str, host: str | None, pla
     conn.execute("INSERT INTO tenant_domains (host, tenant_id, is_primary) VALUES (%s, %s, true)", (host, tenant_id))
     # Its assistants, in the order given: a template's settings with the name (and what it
     # handles) chosen here, or a new one from just its name and what it handles. No CV
-    # rewrites or campus map: a new university has neither yet. Each gets its own folder.
+    # map: a new university has none yet (CV rewrites work everywhere). Each gets its own folder.
     folders: set[str] = set()
     for position, assistant in enumerate(assistants, start=1):
         name_, description, template_key = assistant["name"].strip(), (assistant.get("description") or "").strip(), assistant.get("template_key")
@@ -103,7 +103,7 @@ def create(conn, *, name: str, short_name: str, slug: str, host: str | None, pla
                        CASE WHEN %s = '' THEN summary ELSE %s END, subtitle,
                        CASE WHEN %s = '' THEN description ELSE %s END, audiences, answer_mode, prompt_mode,
                        instructions, fallback_en, fallback_ar, welcome, placeholder, examples,
-                       array_remove(array_remove(skills, 'cv'), 'map'), max_answer_tokens, %s, %s
+                       array_remove(skills, 'map'), max_answer_tokens, %s, %s
                 FROM agent_templates WHERE key = %s""",
                          (tenant_id, name_, name_, description, description, description, description, position, folder,
                           template_key))

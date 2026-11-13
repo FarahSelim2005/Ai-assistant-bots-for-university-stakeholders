@@ -540,7 +540,6 @@ class AssistantsApi(TestDatabaseCase):
         for body in [{"description": "no name and no template"}, {"name": "X", "skills": ["teleport"]},
                      {"name": "X", "audiences": ["alumni"]}, {"name": "X", "answer_mode": "guess"},
                      {"name": "X", "prompt_mode": "magic"},
-                     {"name": "X", "skills": ["cv"]},  # only universities with a trained CV model
                      {"template_key": "no_such_template"}]:
             self.assertEqual(a.post("/admin/agents", json=body).status_code, 400, body)
 
@@ -775,7 +774,8 @@ class PlatformConsole(TestDatabaseCase):
                          ["Ask Admissions", "Campus Guide", "Ask Admissions", "Internship & Career Assistant"])
         self.assertEqual(page["assistants"][0]["summary"], "Applying, deadlines and fees")
         self.assertEqual(page["assistants"][1]["summary"], next(t for t in TEMPLATES if t["key"] == "labs_research")["summary"])
-        self.assertTrue(all("cv" not in a["skills"] and "map" not in a["skills"] for a in page["assistants"]))
+        self.assertTrue(all("map" not in a["skills"] for a in page["assistants"]))  # no campus map; CV rewrites work
+        self.assertIn("cv", page["assistants"][3]["skills"])  # the Internship & Career template keeps them
         self.assertNotIn("GIU", str(page))
         login = client_for(f"{slug}.test:8000").post("/admin/login", json={"email": f"admin@{slug}.example",
                                                                             "password": "first admin password"})

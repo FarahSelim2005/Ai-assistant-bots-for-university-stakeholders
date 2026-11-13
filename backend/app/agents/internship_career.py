@@ -1,4 +1,5 @@
-"""CV rewrites, for assistants with the "cv" skill (GIU's Internship & Career Assistant).
+"""CV rewrites, for assistants with the "cv" skill (GIU's Internship & Career Assistant, and
+the career assistant of any other university).
 
 Such an assistant answers like any other configured assistant (its answer mode "advice" lets
 it give general career advice, marked "General advice:", while GIU facts still come only
@@ -59,6 +60,18 @@ NOT_A_CV = {"en": "This file doesn't look like a CV. Please upload your CV (PDF,
                   "and analyze it for you.",
             "ar": "الملف ده مش شكله CV. ارفع الـ CV بتاعك (PDF أو Word أو text) وأنا هظبطهولك وأحللهولك."}
 ARABIC_LETTERS = re.compile(r"[؀-ۿ]")
+
+
+def cv_instructions(tenant) -> str:
+    """The CV rewrite instructions: GIU's exactly as the CV model was trained on them; for
+    another university the same, in its name ("the three NGU CV templates", "the NGU Career
+    Center"), so the answer never sends its students to GIU."""
+    if tenant.has_cv_model:
+        return CAREER_SYSTEM_PROMPT
+    full = f"{tenant.name} ({tenant.short})" if tenant.short != tenant.name else tenant.name
+    text = re.sub(r"(?:the )?German International University \(GIU\)", lambda m: ("the " if m.group().startswith("the ") else "") + full,
+                  CAREER_SYSTEM_PROMPT)
+    return re.sub(r"\bGIU\b", tenant.short, text.replace("German International University", tenant.name))
 
 
 def is_cv_text(text: str | None) -> bool:
@@ -158,10 +171,11 @@ def check_university(answer: str, cv_text: str) -> str:
 
 
 class CvAgent(ConfiguredAgent):
-    """An assistant with the "cv" skill (GIU's Internship & Career Assistant): like any
-    configured assistant, plus CV rewrites with the fine-tuned CV model (CAREER_MODEL, e.g.
-    ollama/giu-cv), which was trained only to restructure attached CVs (asked other questions,
-    it invents a CV or writes nonsense). General questions use the agent's normal models."""
+    """An assistant with the "cv" skill (GIU's Internship & Career Assistant, or a career
+    assistant at another university): like any configured assistant, plus CV rewrites with the
+    CV models (CAREER_MODEL, e.g. the fine-tuned ollama/giu-cv, and its backups), which are
+    only used to restructure attached CVs (asked other questions, the fine-tuned model invents
+    a CV or writes nonsense). General questions use the agent's normal models."""
 
     def run(self, question: str, user_type: str, history: list[dict] | None = None,
             attachment: Attachment | None = None) -> AgentResponse:
@@ -197,7 +211,7 @@ class CvAgent(ConfiguredAgent):
         # The CV model gets the exact prompt it was trained on (full_prompt: no short local prompt),
         # whatever the assistant's own instructions say. The "reply in English only" note is left
         # out too: the CV is always in English.
-        messages = build_messages(CAREER_SYSTEM_PROMPT, question, chunks, history, attachment)
+        messages = build_messages(cv_instructions(self.tenant), question, chunks, history, attachment)
         messages[0]["content"] = messages[0]["content"].removesuffix(ENGLISH_ONLY)
         answer = chat_with_backup(messages, [config.CAREER_MODEL, *config.CAREER_BACKUP_MODELS],
                                   self.max_answer_tokens, full_prompt=True)

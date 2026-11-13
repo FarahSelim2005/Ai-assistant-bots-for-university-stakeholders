@@ -19,8 +19,7 @@ _lock = threading.Lock()
 
 
 def make_agent(settings: AgentSettings, tenant: Tenant) -> ConfiguredAgent:
-    rewrites_cvs = "cv" in settings.skills and tenant.has_cv_model
-    return (CvAgent if rewrites_cvs else ConfiguredAgent)(settings, tenant)
+    return (CvAgent if "cv" in settings.skills else ConfiguredAgent)(settings, tenant)
 
 
 def agents_of(tenant_id: uuid.UUID) -> list[ConfiguredAgent]:

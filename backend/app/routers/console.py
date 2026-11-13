@@ -134,7 +134,7 @@ def list_plans():
 def list_templates():
     with get_admin_connection() as conn:
         rows = conn.execute("SELECT key, name, summary, audiences, skills FROM agent_templates ORDER BY position").fetchall()
-    return [{"key": k, "name": n, "summary": s, "audiences": a, "skills": [x for x in sk if x not in ("cv", "map")]}
+    return [{"key": k, "name": n, "summary": s, "audiences": a, "skills": [x for x in sk if x != "map"]}
             for k, n, s, a, sk in rows]
 
 

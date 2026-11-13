@@ -8,7 +8,8 @@ agent's id; the name people see is `display_name`.
 Skills (the row's `skills`):
 - files / images: which attachments it reads (a picture also needs VISION_MODEL);
 - editor: it edits and converts documents (app/routers/chat.py, documents.py);
-- cv: CV rewrites with the fine-tuned CV model, only if the university has one (has_cv_model);
+- cv: CV rewrites (the CV comes back restructured as PDF + Word), at every university, with the
+  CV models (CAREER_MODEL and its backups) and the CV instructions in the university's name;
 - map: campus rooms, buildings and places, only if the university has a campus map (campus_map);
 - voice: the voice call button (shown by the frontend).
 """
@@ -79,7 +80,7 @@ class ConfiguredAgent(BaseAgent):
         self.reads_files = self.has_skill("files")
         self.reads_images = self.has_skill("images")
         self.edits_documents = self.has_skill("editor")
-        self.rewrites_cvs = self.has_skill("cv") and tenant.has_cv_model
+        self.rewrites_cvs = self.has_skill("cv")
         self.campus_map = self.has_skill("map") and tenant.campus_map
         self.system_prompt = system_prompt(settings.name, settings.instructions, settings.answer_mode,
                                            settings.prompt_mode, tenant.short, tenant.name,
@@ -101,7 +102,7 @@ class ConfiguredAgent(BaseAgent):
         return skill in self.settings.skills
 
     def active_skills(self) -> list[str]:
-        """The skills that work at this university (cv needs a trained CV model, map a campus map)."""
+        """The skills that work at this university (map needs a campus map)."""
         on = {"files": self.reads_files, "images": self.reads_images, "cv": self.rewrites_cvs,
               "editor": self.edits_documents, "map": self.campus_map, "voice": self.has_skill("voice")}
         return [skill for skill, works in on.items() if works]

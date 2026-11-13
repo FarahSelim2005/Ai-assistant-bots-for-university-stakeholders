@@ -282,8 +282,6 @@ def checked_settings(values: dict) -> dict:
         unknown = set(skills) - set(SKILLS)
         if unknown:
             raise HTTPException(400, f"Unknown skills: {', '.join(sorted(unknown))}. Choose from: {', '.join(SKILLS)}.")
-        if "cv" in skills and not tenants.current().has_cv_model:
-            raise HTTPException(400, "CV rewrites need a CV model trained for this university.")
     if values.get("name") is not None and not values["name"].strip():
         raise HTTPException(400, "The name must not be empty.")
     return values
@@ -313,8 +311,7 @@ TEMPLATE_FIELDS = ["name", "summary", "subtitle", "description", "audiences", "a
 def create_agent(body: AgentIn):
     """A new assistant: the template's settings (if one is given), changed by the fields sent.
     It goes last in the list unless a position is given. From a template, its audiences are
-    the university's (all of them when none match) and its "cv" skill is left out at a
-    university without a trained CV model."""
+    the university's (all of them when none match)."""
     tenant_id = tenants.current_id()
     with get_connection(tenant_id) as conn:
         settings = {}
@@ -325,8 +322,6 @@ def create_agent(body: AgentIn):
                 raise HTTPException(400, f"Unknown template '{body.template_key}'.")
             settings = dict(zip(TEMPLATE_FIELDS, row))
             settings["audiences"] = [a for a in settings["audiences"] if a in audience_keys()] or audience_keys()
-            if not tenants.current().has_cv_model:
-                settings["skills"] = [skill for skill in settings["skills"] if skill != "cv"]
         else:
             settings["audiences"] = audience_keys()
         settings.update({k: v for k, v in body.model_dump(exclude_unset=True).items() if k != "template_key"})

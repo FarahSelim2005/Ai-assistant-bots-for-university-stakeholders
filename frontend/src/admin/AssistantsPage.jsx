@@ -7,7 +7,7 @@ import {
 const SKILLS = {
   files: "Questions about uploaded files",
   images: "Questions about pictures",
-  cv: "CV review and rewrite (CV model)",
+  cv: "CV rewrites (PDF and Word)",
   editor: "Edit Word, Excel and PDF files",
   map: "Campus map and room codes",
   voice: "Voice call",

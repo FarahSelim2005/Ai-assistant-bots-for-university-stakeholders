@@ -67,9 +67,9 @@ class ComposedPrompts(unittest.TestCase):
 
 
 class Skills(unittest.TestCase):
-    def test_cv_needs_a_trained_cv_model(self):
-        self.assertNotIsInstance(agent_from_template("internship_career", DEMO), CvAgent)
-        self.assertFalse(agent_from_template("internship_career", DEMO).rewrites_cvs)
+    def test_cv_skill_at_every_university(self):
+        self.assertIsInstance(agent_from_template("internship_career", DEMO), CvAgent)  # no trained CV model needed
+        self.assertTrue(agent_from_template("internship_career", DEMO).rewrites_cvs)
         self.assertIsInstance(agent_from_template("internship_career", WITH_CV_AND_MAP), CvAgent)
         self.assertIsInstance(giu_agent_from_code("internship_career"), CvAgent)
         self.assertNotIsInstance(giu_agent_from_code("internship_career", skills=("files",)), CvAgent)
@@ -141,10 +141,22 @@ class ChatRouting(unittest.TestCase):
             chat.answer_question(ChatRequest(**body))
         return calls
 
-    def test_cv_rewrite_only_with_a_cv_model(self):
+    def test_cv_rewrite_at_every_university(self):
         self.assertEqual(self.answer(giu_agent_from_code("internship_career"), "fix my cv", "cv.txt"), ["cv rewrite"])
-        self.assertEqual(self.answer(agent_from_template("internship_career", DEMO), "fix my cv", "cv.txt"),
-                         ["editor"])  # no CV model: an ordinary edit of the file (the editor skill)
+        self.assertEqual(self.answer(agent_from_template("internship_career", DEMO), "fix my cv", "cv.txt"), ["cv rewrite"])
+        without = agent_from_template("internship_career", DEMO, skills=("files", "images", "editor"))
+        self.assertEqual(self.answer(without, "fix my cv", "cv.txt"), ["editor"])  # no "cv" skill: an ordinary edit
+
+    def test_cv_instructions_in_the_universitys_name(self):
+        from app.agents.internship_career import cv_instructions
+        from app.rag.prompts import CAREER_SYSTEM_PROMPT
+        self.assertEqual(cv_instructions(giu_agent_from_code("internship_career").tenant), CAREER_SYSTEM_PROMPT)  # GIU: as trained
+        ngu = tenants.Tenant(uuid.uuid4(), "ngu", "New Giza University", short_name="NGU")
+        text = cv_instructions(ngu)
+        self.assertNotIn("GIU", text)
+        self.assertNotIn("German International", text)
+        self.assertIn("New Giza University (NGU)", text)
+        self.assertIn("NGU CV templates", text)
 
     def test_editing_only_with_the_editor_skill(self):
         with_editor = agent_from_template("labs_research", DEMO)
