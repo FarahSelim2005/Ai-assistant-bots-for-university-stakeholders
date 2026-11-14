@@ -1,0 +1,26 @@
+{
+  "about": "Made-up universities for the multi-tenancy benchmark (scripts/benchmark.py). Their facts deliberately differ on the same topics (deadlines, fees, offices), so an answer with another university's fact is a leak. Documents: documents/<slug>/<folder>/.",
+  "universities": [
+    {
+      "slug": "bench-nvu", "name": "Nile Valley University", "short_name": "NVU", "brand_primary": "#1f4fa3",
+      "assistants": [
+        {"name": "Admissions Office", "folder": "admissions_office", "description": "Applying, deadlines, required documents, tuition fees, payment and installments"},
+        {"name": "Student Services", "folder": "student_services", "description": "Library, clinic, student ID cards, buses and transport"}
+      ]
+    },
+    {
+      "slug": "bench-dit", "name": "Delta Institute of Technology", "short_name": "DIT", "brand_primary": "#137a4b",
+      "assistants": [
+        {"name": "Admissions Office", "folder": "admissions_office", "description": "Applying, deadlines, required documents, tuition fees, payment and installments"},
+        {"name": "Student Services", "folder": "student_services", "description": "Library, clinic, student ID cards, buses and transport"}
+      ]
+    },
+    {
+      "slug": "bench-rsu", "name": "Red Sea University", "short_name": "RSU", "brand_primary": "#0f766e",
+      "assistants": [
+        {"name": "Admissions Office", "folder": "admissions_office", "description": "Applying, deadlines, required documents, tuition fees, payment and installments"},
+        {"name": "Research Labs", "folder": "research_labs", "description": "Research labs, the marine biology lab, the coral reef field station, lab safety training and equipment"}
+      ]
+    }
+  ]
+}

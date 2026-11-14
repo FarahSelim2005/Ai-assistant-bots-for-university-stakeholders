@@ -790,6 +790,41 @@ It prints each case's result and writes the report (a summary per area and every
 its result). No model is called; the database cases need `TEST_DB_NAME` (else they are
 reported as skipped). The question/answer side is under *Multi-tenancy benchmark*.
 
+## Multi-tenancy benchmark
+
+`backend/benchmark/` is the question/answer benchmark for the platform as a whole: three
+made-up universities (Nile Valley University, Delta Institute of Technology, Red Sea
+University) whose documents deliberately differ on the same topics (deadlines, fees,
+installments, offices), and 50 questions (`questions.csv`):
+
+| Kind | Questions | Correct when |
+|---|---:|---|
+| conflict | 21 | the university's own fact is in the answer and no other university's |
+| answerable | 14 | the expected fact is in the answer |
+| isolation | 6 | a fact only another university has: "don't have", and that fact never appears |
+| not_in_docs | 3 | "don't have" (nothing invented) |
+| arabic | 3 | the fact, asked in Egyptian Arabic |
+| handover | 3 | asked of the wrong assistant: it points to the right one of the same university |
+
+Besides accuracy (overall, per kind, per university) and response times, it counts **leaks**:
+another university's fact in the answer, a source document of another university, or a
+hand-over to another university's assistant. There must be none.
+
+```bash
+cd backend
+python -m scripts.benchmark --dry-run     # no model, no network: checks the pipeline and the isolation
+python -m scripts.benchmark               # real models: about 50 chat calls + embeddings (uses your quota)
+python -m scripts.benchmark --university bench-rsu --limit 5
+python -m scripts.benchmark --cleanup     # remove the benchmark universities again
+```
+
+The universities live in their own database (`giu-bots-bench`, made and migrated on the first
+run; never `giu-bots`), with hosts `<slug>.bench`. Their documents are indexed once
+(`--reindex` to index them again). Results go to `docs/testing/multitenancy-benchmark-report.md`
+and `...-results.csv` (every answer). The dry run uses word-matching stand-ins for the models
+(the "answer" is the retrieved text), so its accuracy is not the real one; its leak count is
+real (which university's documents were searched).
+
 ## 6. Evaluate
 
 ```bash

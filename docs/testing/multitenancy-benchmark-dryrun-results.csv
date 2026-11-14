@@ -1,0 +1,113 @@
+id,university,assistant,kind,question,correct,leak,missing,leaked,foreign_sources,handover,error,seconds,answer
+Q01,bench-nvu,Admissions Office,conflict,When is the application deadline?,True,False,,,,,,0.18,"## Application fee The application fee is 750 EGP. It is paid online when you submit the application and is not refunded.
+## Application deadline Applications for the fall semester at Nile Valley University close on 15 July. Late applications are not accepted.
+## Paying in installments Tuition can be paid in 3 installments during the semester. The first installment is due before classes start. Installments are not available for the summer semester.
+## Withdrawal and refunds A student who withdraws in the first two weeks gets 75% of the tuition back. After week 4 there is no refund."
+Q02,bench-nvu,Admissions Office,conflict,How much is the tuition per semester?,True,False,,,,,,0.47,"## Tuition fees Tuition at NVU is 62,000 EGP per semester for all undergraduate programmes.
+## Paying in installments Tuition can be paid in 3 installments during the semester. The first installment is due before classes start. Installments are not available for the summer semester.
+## Withdrawal and refunds A student who withdraws in the first two weeks gets 75% of the tuition back. After week 4 there is no refund.
+## Application fee The application fee is 750 EGP. It is paid online when you submit the application and is not refunded."
+Q03,bench-nvu,Admissions Office,conflict,How much is the application fee?,True,False,,,,,,0.05,"## Application fee The application fee is 750 EGP. It is paid online when you submit the application and is not refunded.
+## Paying in installments Tuition can be paid in 3 installments during the semester. The first installment is due before classes start. Installments are not available for the summer semester.
+## Withdrawal and refunds A student who withdraws in the first two weeks gets 75% of the tuition back. After week 4 there is no refund."
+Q04,bench-nvu,Admissions Office,conflict,What is the minimum score for admission?,True,False,,,,,,0.51,"## Required documents To apply you need: your secondary school certificate, a copy of your national ID, and 4 personal photos. The minimum secondary school score for admission is 75%.
+## Application fee The application fee is 750 EGP. It is paid online when you submit the application and is not refunded.
+## Paying in installments Tuition can be paid in 3 installments during the semester. The first installment is due before classes start. Installments are not available for the summer semester.
+## Withdrawal and refunds A student who withdraws in the first two weeks gets 75% of the tuition back. After week 4 there is no refund."
+Q05,bench-nvu,Admissions Office,conflict,In how many installments can I pay the tuition?,True,False,,,,,,0.25,"## Paying in installments Tuition can be paid in 3 installments during the semester. The first installment is due before classes start. Installments are not available for the summer semester.
+## Withdrawal and refunds A student who withdraws in the first two weeks gets 75% of the tuition back. After week 4 there is no refund."
+Q06,bench-nvu,Admissions Office,answerable,Can I pay the summer semester in installments?,True,False,,,,,,0.05,"## Paying in installments Tuition can be paid in 3 installments during the semester. The first installment is due before classes start. Installments are not available for the summer semester.
+## Withdrawal and refunds A student who withdraws in the first two weeks gets 75% of the tuition back. After week 4 there is no refund.
+## Application deadline Applications for the fall semester at Nile Valley University close on 15 July. Late applications are not accepted."
+Q07,bench-nvu,Admissions Office,answerable,How many photos do I need to apply?,True,False,,,,,,0.26,"## Required documents To apply you need: your secondary school certificate, a copy of your national ID, and 4 personal photos. The minimum secondary school score for admission is 75%."
+Q08,bench-nvu,Admissions Office,answerable,Where is the Admissions Office?,True,False,,,,,,0.15,"## Application fee The application fee is 750 EGP. It is paid online when you submit the application and is not refunded.
+## Contact The Admissions Office is in building A, room A101, open Sunday to Thursday from 9:00 to 15:00.
+## Paying in installments Tuition can be paid in 3 installments during the semester. The first installment is due before classes start. Installments are not available for the summer semester.
+## Withdrawal and refunds A student who withdraws in the first two weeks gets 75% of the tuition back. After week 4 there is no refund."
+Q09,bench-nvu,Student Services,conflict,What are the library opening hours?,False,False,8:00 | 8 am | 8am | 8 a.m; 20:00 | 8 pm | 8pm | 8 p.m,,,,,0.25,"Sorry, I don't have information about that. Please contact the relevant NVU office."
+Q10,bench-nvu,Student Services,conflict,Where is the student clinic?,True,False,,,,,,0.29,"## Clinic The student clinic is on the ground floor of building C. It is open from 9:00 to 17:00. Call extension 2201 for an appointment.
+## Student ID cards A lost student ID card is replaced at the Student Affairs office, room S104. The replacement fee is 150 EGP.
+## Library The NVU library is in building L. It is open Sunday to Thursday from 8:00 to 20:00. Students borrow up to 5 books for 2 weeks with their student ID card.
+## Buses NVU buses run on lines 1 to 6 from Dokki and Maadi. A monthly bus pass costs 900 EGP and is bought at the Student Affairs office."
+Q11,bench-nvu,Student Services,conflict,How much does a new student ID card cost?,True,False,,,,,,0.15,"## Student ID cards A lost student ID card is replaced at the Student Affairs office, room S104. The replacement fee is 150 EGP."
+Q12,bench-nvu,Student Services,answerable,How much is the monthly bus pass?,True,False,,,,,,0.38,"## Buses NVU buses run on lines 1 to 6 from Dokki and Maadi. A monthly bus pass costs 900 EGP and is bought at the Student Affairs office.
+## Student ID cards A lost student ID card is replaced at the Student Affairs office, room S104. The replacement fee is 150 EGP.
+## Clinic The student clinic is on the ground floor of building C. It is open from 9:00 to 17:00. Call extension 2201 for an appointment.
+## Library The NVU library is in building L. It is open Sunday to Thursday from 8:00 to 20:00. Students borrow up to 5 books for 2 weeks with their student ID card."
+Q13,bench-nvu,Student Services,isolation,Where is the Marine Biology Lab?,False,False,don't have | do not have,,,,,0.37,"## Clinic The student clinic is on the ground floor of building C. It is open from 9:00 to 17:00. Call extension 2201 for an appointment.
+## Student ID cards A lost student ID card is replaced at the Student Affairs office, room S104. The replacement fee is 150 EGP."
+Q14,bench-nvu,Student Services,isolation,How do I book the Coral Reef Field Station?,True,False,,,,,,0.37,"Sorry, I don't have information about that. Please contact the relevant NVU office."
+Q15,bench-nvu,Admissions Office,not_in_docs,Do you offer scholarships for athletes?,True,False,,,,,,0.28,"Sorry, I don't have information about that. Please contact the relevant NVU office."
+Q16,bench-nvu,Admissions Office,arabic,كام مصاريف الترم؟,False,False,"62,000 | 62000 | ٦٢٬٠٠٠ | ٦٢,٠٠٠ | 62 ألف | ٦٢ ألف",,,,,0.25,"Sorry, I don't have information about that. Please contact the relevant NVU office."
+Q17,bench-nvu,Student Services,handover,How much is the tuition per semester?,False,False,don't have | do not have,,,,,0.42,"## Student ID cards A lost student ID card is replaced at the Student Affairs office, room S104. The replacement fee is 150 EGP.
+## Library The NVU library is in building L. It is open Sunday to Thursday from 8:00 to 20:00. Students borrow up to 5 books for 2 weeks with their student ID card.
+## Clinic The student clinic is on the ground floor of building C. It is open from 9:00 to 17:00. Call extension 2201 for an appointment.
+## Buses NVU buses run on lines 1 to 6 from Dokki and Maadi. A monthly bus pass costs 900 EGP and is bought at the Student Affairs office."
+Q18,bench-dit,Admissions Office,conflict,When is the application deadline?,True,False,,,,,,0.21,"## Application fee The application fee is 500 EGP, paid at the bank or online.
+## Application deadline Applications for the fall semester at the Delta Institute of Technology close on 31 August."
+Q19,bench-dit,Admissions Office,conflict,How much is the tuition per semester?,True,False,,,,,,0.25,"## Tuition fees Tuition at DIT is 48,500 EGP per semester for all undergraduate programmes.
+## Application fee The application fee is 500 EGP, paid at the bank or online.
+## Application deadline Applications for the fall semester at the Delta Institute of Technology close on 31 August.
+## Withdrawal and refunds A student who withdraws in the first week gets 90% of the tuition back, in week 2 or 3 they get 50% back. After week 3 there is no refund."
+Q20,bench-dit,Admissions Office,conflict,How much is the application fee?,True,False,,,,,,0.17,"## Application fee The application fee is 500 EGP, paid at the bank or online.
+## Application deadline Applications for the fall semester at the Delta Institute of Technology close on 31 August."
+Q21,bench-dit,Admissions Office,conflict,What is the minimum score for admission?,True,False,,,,,,0.40,"## Required documents To apply you need: your secondary school certificate, a copy of your national ID, your birth certificate and 6 personal photos. The minimum secondary school score for admission is 70%.
+## Application fee The application fee is 500 EGP, paid at the bank or online.
+## Application deadline Applications for the fall semester at the Delta Institute of Technology close on 31 August."
+Q22,bench-dit,Admissions Office,conflict,In how many installments can I pay the tuition?,True,False,,,,,,0.55,"## Paying in installments Tuition can be paid in 2 installments. Installments are also available for the summer semester.
+## Withdrawal and refunds A student who withdraws in the first week gets 90% of the tuition back, in week 2 or 3 they get 50% back. After week 3 there is no refund."
+Q23,bench-dit,Admissions Office,answerable,Can I pay the summer semester in installments?,True,False,,,,,,0.16,"## Paying in installments Tuition can be paid in 2 installments. Installments are also available for the summer semester.
+## Application deadline Applications for the fall semester at the Delta Institute of Technology close on 31 August.
+## Withdrawal and refunds A student who withdraws in the first week gets 90% of the tuition back, in week 2 or 3 they get 50% back. After week 3 there is no refund.
+## Application fee The application fee is 500 EGP, paid at the bank or online."
+Q24,bench-dit,Admissions Office,answerable,"If I withdraw in week 3, how much do I get back?",True,False,,,,,,0.15,"## Withdrawal and refunds A student who withdraws in the first week gets 90% of the tuition back, in week 2 or 3 they get 50% back. After week 3 there is no refund."
+Q25,bench-dit,Admissions Office,answerable,Do I need my birth certificate to apply?,True,False,,,,,,0.26,"## Required documents To apply you need: your secondary school certificate, a copy of your national ID, your birth certificate and 6 personal photos. The minimum secondary school score for admission is 70%."
+Q26,bench-dit,Student Services,conflict,What are the library opening hours?,False,False,9:00 | 9 am | 9am | 9 a.m; 21:00 | 9 pm | 9pm | 9 p.m,,,,,0.25,"Sorry, I don't have information about that. Please contact the relevant DIT office."
+Q27,bench-dit,Student Services,conflict,Where is the student clinic?,True,False,,,,,,0.45,"## Clinic The student clinic is on the first floor of building H. It is open from 8:30 to 16:00. Call extension 3105 for an appointment.
+## Student ID cards A lost student ID card is replaced at office A12. The replacement fee is 200 EGP.
+## Library The DIT library is in building D2. It is open Saturday to Thursday from 9:00 to 21:00. Students borrow up to 3 books for 1 week."
+Q28,bench-dit,Student Services,conflict,How much does a new student ID card cost?,True,False,,,,,,0.30,## Student ID cards A lost student ID card is replaced at office A12. The replacement fee is 200 EGP.
+Q29,bench-dit,Student Services,answerable,Where do the buses come from?,True,False,,,,,,0.29,"## Buses DIT buses come from Tanta and Shebin El Kom. A monthly bus pass costs 650 EGP.
+## Clinic The student clinic is on the first floor of building H. It is open from 8:30 to 16:00. Call extension 3105 for an appointment."
+Q30,bench-dit,Student Services,isolation,Who supervises the Marine Biology Lab?,True,False,,,,Admissions Office,,0.30,"Sorry, I don't have information about that. Please contact the relevant DIT office."
+Q31,bench-dit,Admissions Office,isolation,Is there a research vessel I can book?,True,False,,,,,,0.14,"Sorry, I don't have information about that. Please contact the relevant DIT office."
+Q32,bench-dit,Admissions Office,not_in_docs,Is there student housing on campus?,True,False,,,,Student Services,,0.43,"Sorry, I don't have information about that. Please contact the relevant DIT office."
+Q33,bench-dit,Admissions Office,arabic,امتى آخر ميعاد للتقديم؟,False,False,31 | ٣١,,,,,0.28,"Sorry, I don't have information about that. Please contact the relevant DIT office."
+Q34,bench-dit,Student Services,handover,What documents do I need to apply?,False,False,,,,,,0.26,"Sorry, I don't have information about that. Please contact the relevant DIT office."
+Q35,bench-rsu,Admissions Office,conflict,When is the application deadline?,True,False,,,,,,0.63,"## Application fee The application fee is 600 EGP.
+## Application deadline Applications for the fall semester at Red Sea University close on 1 June.
+## Contact The Admissions Office is in the main building, room G05, open Sunday to Thursday from 8:00 to 14:00."
+Q36,bench-rsu,Admissions Office,conflict,How much is the tuition per semester?,True,False,,,,,,0.05,"## Tuition fees Tuition at RSU is 55,000 EGP per semester.
+## Application deadline Applications for the fall semester at Red Sea University close on 1 June.
+## Paying in installments Tuition can be paid in 4 installments, one each month of the semester.
+## Required documents To apply you need: your secondary school certificate, a copy of your national ID, a medical certificate and 2 personal photos. The minimum secondary school score for admission is 80%."
+Q37,bench-rsu,Admissions Office,conflict,How much is the application fee?,True,False,,,,,,0.05,"## Application fee The application fee is 600 EGP.
+## Contact The Admissions Office is in the main building, room G05, open Sunday to Thursday from 8:00 to 14:00."
+Q38,bench-rsu,Admissions Office,conflict,What is the minimum score for admission?,True,False,,,,,,0.52,"## Required documents To apply you need: your secondary school certificate, a copy of your national ID, a medical certificate and 2 personal photos. The minimum secondary school score for admission is 80%.
+## Application fee The application fee is 600 EGP.
+## Contact The Admissions Office is in the main building, room G05, open Sunday to Thursday from 8:00 to 14:00."
+Q39,bench-rsu,Admissions Office,conflict,In how many installments can I pay the tuition?,True,False,,,,,,0.14,"## Paying in installments Tuition can be paid in 4 installments, one each month of the semester."
+Q40,bench-rsu,Admissions Office,answerable,Do I need a medical certificate to apply?,True,False,,,,,,0.29,"## Required documents To apply you need: your secondary school certificate, a copy of your national ID, a medical certificate and 2 personal photos. The minimum secondary school score for admission is 80%."
+Q41,bench-rsu,Research Labs,answerable,Where is the Marine Biology Lab?,True,False,,,,,,0.05,"## Marine Biology Lab The Marine Biology Lab is in building M, room M210. Its supervisor is Dr. Laila Mansour.
+## Oceanography Lab The Oceanography Lab is in room M118. It is open from 8:00 to 18:00 on working days.
+## Lab safety training Lab safety training is required before using any lab. It takes 3 hours and is held every September.
+## Coral Reef Field Station The Coral Reef Field Station is in Hurghada. Book a visit at least 2 weeks ahead through the lab portal."
+Q42,bench-rsu,Research Labs,answerable,Who supervises the Marine Biology Lab?,True,False,,,,,,0.05,"## Marine Biology Lab The Marine Biology Lab is in building M, room M210. Its supervisor is Dr. Laila Mansour.
+## Oceanography Lab The Oceanography Lab is in room M118. It is open from 8:00 to 18:00 on working days.
+## Coral Reef Field Station The Coral Reef Field Station is in Hurghada. Book a visit at least 2 weeks ahead through the lab portal.
+## Lab safety training Lab safety training is required before using any lab. It takes 3 hours and is held every September."
+Q43,bench-rsu,Research Labs,answerable,How do I book the Coral Reef Field Station?,True,False,,,,,,0.05,## Coral Reef Field Station The Coral Reef Field Station is in Hurghada. Book a visit at least 2 weeks ahead through the lab portal.
+Q44,bench-rsu,Research Labs,answerable,When is the lab safety training held?,True,False,,,,,,0.05,"## Lab safety training Lab safety training is required before using any lab. It takes 3 hours and is held every September.
+## Marine Biology Lab The Marine Biology Lab is in building M, room M210. Its supervisor is Dr. Laila Mansour.
+## Oceanography Lab The Oceanography Lab is in room M118. It is open from 8:00 to 18:00 on working days.
+## Coral Reef Field Station The Coral Reef Field Station is in Hurghada. Book a visit at least 2 weeks ahead through the lab portal."
+Q45,bench-rsu,Research Labs,answerable,Can students book the research vessel?,True,False,,,,,,0.06,"## Research vessel The research vessel Al Morgan can only be booked by staff.
+## Coral Reef Field Station The Coral Reef Field Station is in Hurghada. Book a visit at least 2 weeks ahead through the lab portal."
+Q46,bench-rsu,Research Labs,isolation,What are the library opening hours?,True,False,,,,,,0.15,"Sorry, I don't have information about that. Please contact the relevant RSU office."
+Q47,bench-rsu,Admissions Office,isolation,How much is the monthly bus pass?,False,False,don't have | do not have,,,,,0.23,"## Application fee The application fee is 600 EGP.
+## Contact The Admissions Office is in the main building, room G05, open Sunday to Thursday from 8:00 to 14:00."
+Q48,bench-rsu,Admissions Office,not_in_docs,Can I transfer from another university?,True,False,,,,,,0.32,"Sorry, I don't have information about that. Please contact the relevant RSU office."
+Q49,bench-rsu,Research Labs,arabic,معمل الأحياء البحرية فين؟,False,False,M210 | م210,,,,,0.24,"Sorry, I don't have information about that. Please contact the relevant RSU office."
+Q50,bench-rsu,Research Labs,handover,What is the application deadline?,False,False,don't have | do not have,,,,,0.14,"## Marine Biology Lab The Marine Biology Lab is in building M, room M210. Its supervisor is Dr. Laila Mansour.
+## Oceanography Lab The Oceanography Lab is in room M118. It is open from 8:00 to 18:00 on working days.
+## Coral Reef Field Station The Coral Reef Field Station is in Hurghada. Book a visit at least 2 weeks ahead through the lab portal."
