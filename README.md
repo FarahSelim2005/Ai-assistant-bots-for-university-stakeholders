@@ -760,6 +760,36 @@ Arabic and set B3 to 30", *PowerPoint*: "fix the typos and add a step: Evaluate 
 *PDF*: "fix the spelling" (stays a PDF) or "convert to Word and translate to Arabic",
 *Markdown*: "add a Next steps section", *CV* (Internship & Career): "restructure my CV".
 
+## Multi-tenancy test set
+
+`backend/tests/multitenancy_catalogue.csv` is the standard test set for the multi-tenant
+platform (not for one university): 76 numbered cases in 11 areas, each with its feature,
+scenario, expected result and the automated test that checks it.
+
+| Area | Ids | What is checked |
+|---|---|---|
+| Tenant resolution | MT-T01–09 | the host decides the university; X-Tenant only in development; unknown 404, suspended 403; CORS |
+| Data isolation | MT-I01–19 | documents, chats, ratings, assistants, admin documents and billing never cross universities; row-level security as `giu_app` |
+| Branding | MT-B01–06 | each university's page, colours, audiences; prompts and CV instructions in its own name, never GIU's |
+| Assistants and skills | MT-A01–12 | create, rename, hide, delete; skills like GIU's; CV rewrites everywhere; map only with a campus map |
+| Users and roles | MT-U01–08 | logins per university, editors, expired and foreign tokens, own password, analytics per university |
+| Plans and usage | MT-P01–03 | usage per university, monthly token cap, assistants per plan |
+| Sign-up | MT-S01–05 | account rules, email code (hash, 10 minutes, 5 tries), trial, review before going live, email sending |
+| Billing | MT-BL01–04 | paid sign-up, renewals, 7 days' grace, pause, cancel, webhook signature and repeats, prices |
+| Console | MT-C01–04 | owner login, add by hand, suspend, delete for good (backup first) |
+| Database | MT-D01–03 | migrations, templates, university settings |
+| GIU unchanged | MT-G01–03 | GIU's assistants, ids and prompts as before |
+
+```bash
+cd backend
+python -m scripts.test_catalogue                    # all cases; writes docs/testing/multitenancy-test-report.md
+python -m scripts.test_catalogue --area "Data isolation"
+```
+
+It prints each case's result and writes the report (a summary per area and every case with
+its result). No model is called; the database cases need `TEST_DB_NAME` (else they are
+reported as skipped). The question/answer side is under *Multi-tenancy benchmark*.
+
 ## 6. Evaluate
 
 ```bash
@@ -777,8 +807,8 @@ and maximum response time, and how many answers took over 2 seconds.
 python -m scripts.evaluate --user-type staff --out data/results.csv   # save every answer
 ```
 
-The 61 included questions (17 Labs & Research, 8 Internship & Career, 36 Graduation &
-Advising) are placeholders based on the documents. Three of them (the AI lab's phone number, renewing a
+The 66 included questions (17 Labs & Research, 8 Internship & Career, 36 Graduation &
+Advising, 5 HR & Policies) are placeholders based on the documents. Three of them (the AI lab's phone number, renewing a
 passport, a paid internship semester) ask for information that is not in the documents
 and expect `don't have`, to check the agents do not invent answers. Questions for an
 agent the chosen user type may not use (Career for staff) are skipped.

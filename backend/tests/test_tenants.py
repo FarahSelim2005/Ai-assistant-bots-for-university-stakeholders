@@ -862,5 +862,58 @@ class AdminAnalytics(TestDatabaseCase):
         self.assertEqual(login.status_code, 200)
 
 
+
+class CrossTenantAdmin(TestDatabaseCase):
+    """An admin of one university can never reach another's assistants, documents or billing
+    (as giu_app, through the real routes)."""
+    role = "giu_app"
+
+    def setUp(self):
+        super().setUp()
+        self.use_app_code()
+        import tempfile
+        from app.billing import service
+        from app.routers import billing
+        self.files = Path(tempfile.mkdtemp())
+        shared = SharedConnection(self.conn)
+        for target, name, value in [(config, "TENANTS_DATA_DIR", self.files), (admin, "ingest_file", lambda path, agent, audience: 1),
+                                    (admin, "delete_chunks", lambda agent, name: None),
+                                    (service, "get_admin_connection", lambda *a, **k: shared()),
+                                    (billing, "get_admin_connection", lambda *a, **k: shared())]:
+            patch = mock.patch.object(target, name, value)
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def test_another_universitys_assistant_cannot_be_changed(self):
+        a = self.client(self.a, "tenant_admin")
+        self.assertEqual(a.put(f"/admin/agents/{self.b_agent}", json={"name": "Taken over"}).status_code, 404)
+        self.assertEqual(a.delete(f"/admin/agents/{self.b_agent}").status_code, 404)
+        db.set_tenant(self.conn, self.b.id)
+        self.assertEqual(self.rows("SELECT name, deleted_at FROM agents WHERE id = %s", (self.b_agent,)),
+                         [(f"{self.b.name} Labs", None)])
+
+    def test_documents_stay_with_their_university(self):
+        a, b = self.client(self.a, "tenant_admin"), self.client(self.b, "tenant_admin")
+        made = a.post("/admin/documents", json={"agent": str(self.a_agent), "filename": "secret.md", "content": "A only"})
+        self.assertEqual(made.status_code, 200, made.text)
+        self.assertTrue((self.files / self.a.slug / "labs_research" / "secret.md").exists())  # in A's own folder
+        self.assertEqual([d["filename"] for d in a.get("/admin/documents").json()], ["secret.md"])
+        self.assertEqual(b.get("/admin/documents").json(), [])  # B sees none of A's
+        self.assertEqual(b.get(f"/admin/documents/{made.json()['id']}").status_code, 404)
+        self.assertEqual(b.post("/admin/documents", json={"agent": str(self.a_agent), "filename": "x.md",
+                                                          "content": "into A"}).status_code, 400)  # not B's assistant
+
+    def test_billing_shows_only_the_own_university(self):
+        self.conn.execute("RESET ROLE")
+        self.conn.execute("INSERT INTO subscriptions (tenant_id, plan_key, status, provider, current_period_end) "
+                          "VALUES (%s, 'standard', 'active', 'simulated', now() + interval '1 month')", (self.a.id,))
+        # The billing routes read with the owner's connection, filtered by the host's university
+        self.assertEqual(self.client(self.a, "tenant_admin").get("/admin/billing").json()["subscription"]["plan"], "standard")
+        self.assertIsNone(self.client(self.b, "tenant_admin").get("/admin/billing").json()["subscription"])
+        self.conn.execute("SET LOCAL ROLE giu_app")
+        db.set_tenant(self.conn, self.b.id)
+        self.assertEqual(self.rows("SELECT count(*) FROM subscriptions"), [(0,)])  # row-level security: B sees no rows
+
+
 if __name__ == "__main__":
     unittest.main()
