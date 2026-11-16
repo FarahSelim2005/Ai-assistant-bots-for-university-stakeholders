@@ -1,0 +1,51 @@
+id,university,assistant,kind,question,correct,leak,missing,leaked,foreign_sources,handover,error,seconds,answer
+Q01,bench-nvu,Admissions Office,conflict,When is the application deadline?,True,False,,,,,,31.56,The application deadline for the fall semester is 15 July.
+Q02,bench-nvu,Admissions Office,conflict,How much is the tuition per semester?,True,False,,,,,,11.98,"The tuition is 62,000 EGP per semester for all undergraduate programmes."
+Q03,bench-nvu,Admissions Office,conflict,How much is the application fee?,True,False,,,,,,10.86,The application fee is 750 EGP.
+Q04,bench-nvu,Admissions Office,conflict,What is the minimum score for admission?,True,False,,,,,,7.02,The minimum secondary school score for admission is 75%.
+Q05,bench-nvu,Admissions Office,conflict,In how many installments can I pay the tuition?,True,False,,,,,,14.87,Tuition can be paid in 3 installments during the semester. The first installment is due before classes start. Installments are not available for the summer semester.
+Q06,bench-nvu,Admissions Office,answerable,Can I pay the summer semester in installments?,True,False,,,,,,4.91,"No, installments are not available for the summer semester."
+Q07,bench-nvu,Admissions Office,answerable,How many photos do I need to apply?,True,False,,,,,,3.87,You need 4 personal photos to apply.
+Q08,bench-nvu,Admissions Office,answerable,Where is the Admissions Office?,True,False,,,,,,10.99,"The Admissions Office is in building A, room A101."
+Q09,bench-nvu,Student Services,conflict,What are the library opening hours?,True,False,,,,,,12.11,The library is open Sunday to Thursday from 8:00 to 20:00.
+Q10,bench-nvu,Student Services,conflict,Where is the student clinic?,True,False,,,,,,7.36,The student clinic is on the ground floor of building C.
+Q11,bench-nvu,Student Services,conflict,How much does a new student ID card cost?,True,False,,,,,,7.37,A new student ID card costs 150 EGP.
+Q12,bench-nvu,Student Services,answerable,How much is the monthly bus pass?,True,False,,,,,,7.62,The monthly bus pass costs 900 EGP.
+Q13,bench-nvu,Student Services,isolation,Where is the Marine Biology Lab?,True,False,,,,,,2.63,"Sorry, I don't have information about that. Please contact the relevant NVU office."
+Q14,bench-nvu,Student Services,isolation,How do I book the Coral Reef Field Station?,True,False,,,,,,1.32,"Sorry, I don't have information about that. Please contact the relevant NVU office."
+Q15,bench-nvu,Admissions Office,not_in_docs,Do you offer scholarships for athletes?,True,False,,,,,,0.90,"Sorry, I don't have information about that. Please contact the relevant NVU office."
+Q16,bench-nvu,Admissions Office,arabic,كام مصاريف الترم؟,False,False,"62,000 | 62000 | ٦٢٬٠٠٠ | ٦٢,٠٠٠ | 62 ألف | ٦٢ ألف",,,,,0.97,"Sorry, I don't have information about that. Please contact the relevant NVU office."
+Q17,bench-nvu,Student Services,handover,How much is the tuition per semester?,True,False,,,,Admissions Office,,0.33,"Sorry, I don't have information about that. Please contact the relevant NVU office."
+Q18,bench-dit,Admissions Office,conflict,When is the application deadline?,True,False,,,,,,11.63,The application deadline is 31 August.
+Q19,bench-dit,Admissions Office,conflict,How much is the tuition per semester?,True,False,,,,,,10.52,"The tuition is 48,500 EGP per semester."
+Q20,bench-dit,Admissions Office,conflict,How much is the application fee?,True,False,,,,,,9.45,The application fee is 500 EGP.
+Q21,bench-dit,Admissions Office,conflict,What is the minimum score for admission?,True,False,,,,,,6.13,The minimum secondary school score for admission is 70%.
+Q22,bench-dit,Admissions Office,conflict,In how many installments can I pay the tuition?,True,False,,,,,,9.54,You can pay the tuition in 2 installments.
+Q23,bench-dit,Admissions Office,answerable,Can I pay the summer semester in installments?,True,False,,,,,,4.09,"Yes, you can pay the summer semester in installments."
+Q24,bench-dit,Admissions Office,answerable,"If I withdraw in week 3, how much do I get back?",True,False,,,,,,8.55,"If you withdraw in week 3, you get 50% of the tuition back."
+Q25,bench-dit,Admissions Office,answerable,Do I need my birth certificate to apply?,True,False,,,,,,5.20,"Yes, you need your birth certificate to apply."
+Q26,bench-dit,Student Services,conflict,What are the library opening hours?,True,False,,,,,,8.36,"The library is open from 9:00 to 21:00, Saturday to Thursday."
+Q27,bench-dit,Student Services,conflict,Where is the student clinic?,True,False,,,,,,6.60,The student clinic is on the first floor of building H.
+Q28,bench-dit,Student Services,conflict,How much does a new student ID card cost?,True,False,,,,,,4.25,A new student ID card costs 200 EGP.
+Q29,bench-dit,Student Services,answerable,Where do the buses come from?,True,False,,,,,,4.84,The buses come from Tanta and Shebin El Kom.
+Q30,bench-dit,Student Services,isolation,Who supervises the Marine Biology Lab?,True,False,,,,,,0.67,"Sorry, I don't have information about that. Please contact the relevant DIT office."
+Q31,bench-dit,Admissions Office,isolation,Is there a research vessel I can book?,True,False,,,,Student Services,,0.84,"Sorry, I don't have information about that. Please contact the relevant DIT office."
+Q32,bench-dit,Admissions Office,not_in_docs,Is there student housing on campus?,True,False,,,,,,3.94,I don't have that information.
+Q33,bench-dit,Admissions Office,arabic,امتى آخر ميعاد للتقديم؟,True,False,,,,,,5.03,آخر ميعاد للتقديم هو 31 أغسطس.
+Q34,bench-dit,Student Services,handover,What documents do I need to apply?,True,False,,,,Admissions Office,,1.51,"Sorry, I don't have information about that. Please contact the relevant DIT office."
+Q35,bench-rsu,Admissions Office,conflict,When is the application deadline?,True,False,,,,,,9.12,The application deadline is 1 June.
+Q36,bench-rsu,Admissions Office,conflict,How much is the tuition per semester?,True,False,,,,,,7.67,"The tuition at RSU is 55,000 EGP per semester."
+Q37,bench-rsu,Admissions Office,conflict,How much is the application fee?,True,False,,,,,,9.40,The application fee is 600 EGP.
+Q38,bench-rsu,Admissions Office,conflict,What is the minimum score for admission?,True,False,,,,,,9.76,The minimum secondary school score for admission is 80%.
+Q39,bench-rsu,Admissions Office,conflict,In how many installments can I pay the tuition?,True,False,,,,,,7.47,"You can pay the tuition in 4 installments, one each month of the semester."
+Q40,bench-rsu,Admissions Office,answerable,Do I need a medical certificate to apply?,True,False,,,,,,4.25,"Yes, you need a medical certificate to apply."
+Q41,bench-rsu,Research Labs,answerable,Where is the Marine Biology Lab?,True,False,,,,,,10.21,"The Marine Biology Lab is in building M, room M210."
+Q42,bench-rsu,Research Labs,answerable,Who supervises the Marine Biology Lab?,True,False,,,,,,4.22,Dr. Laila Mansour supervises the Marine Biology Lab.
+Q43,bench-rsu,Research Labs,answerable,How do I book the Coral Reef Field Station?,True,False,,,,,,4.99,Book the Coral Reef Field Station at least 2 weeks ahead through the lab portal.
+Q44,bench-rsu,Research Labs,answerable,When is the lab safety training held?,True,False,,,,,,3.89,Lab safety training is held every September.
+Q45,bench-rsu,Research Labs,answerable,Can students book the research vessel?,True,False,,,,,,6.58,"No, students cannot book the research vessel. The research vessel Al Morgan can only be booked by staff."
+Q46,bench-rsu,Research Labs,isolation,What are the library opening hours?,True,False,,,,,,4.42,I don't have that information.
+Q47,bench-rsu,Admissions Office,isolation,How much is the monthly bus pass?,True,False,,,,,,5.74,I don't have that information.
+Q48,bench-rsu,Admissions Office,not_in_docs,Can I transfer from another university?,False,False,don't have | do not have,,,,,8.26,"Yes, you can transfer from another university to Red Sea University (RSU). For more information, contact the RSU Admissions Office."
+Q49,bench-rsu,Research Labs,arabic,معمل الأحياء البحرية فين؟,True,False,,,,,,6.77,معمل الأحياء البحرية في غرفة M210 في المبنى M.
+Q50,bench-rsu,Research Labs,handover,What is the application deadline?,True,False,,,,Admissions Office,,0.79,"Sorry, I don't have information about that. Please contact the relevant RSU office."
