@@ -10,7 +10,8 @@ Skills (the row's `skills`):
 - editor: it edits and converts documents (app/routers/chat.py, documents.py);
 - cv: CV rewrites (the CV comes back restructured as PDF + Word), at every university, with the
   CV models (CAREER_MODEL and its backups) and the CV instructions in the university's name;
-- map: campus rooms, buildings and places, only if the university has a campus map (campus_map);
+- map: campus rooms, buildings and places: GIU's built-in map (campus_map), or the university's
+  own (tenants.campus, added in the admin under this skill) once it has a building or place;
 - voice: the voice call button (shown by the frontend).
 """
 import uuid
@@ -19,6 +20,7 @@ from datetime import datetime
 
 from app import config
 from app.agents.base import BaseAgent
+from app.campus import UniversityCampus
 from app.rag.prompts import render, system_prompt
 from app.tenants import Tenant
 
@@ -81,7 +83,9 @@ class ConfiguredAgent(BaseAgent):
         self.reads_images = self.has_skill("images")
         self.edits_documents = self.has_skill("editor")
         self.rewrites_cvs = self.has_skill("cv")
-        self.campus_map = self.has_skill("map") and tenant.campus_map
+        # The campus map: GIU's built-in one, or the university's own once it has a building or place.
+        self.campus = None if tenant.campus_map else UniversityCampus.of(tenant.campus)
+        self.campus_map = self.has_skill("map") and (tenant.campus_map or self.campus is not None)
         self.system_prompt = system_prompt(settings.name, settings.instructions, settings.answer_mode,
                                            settings.prompt_mode, tenant.short, tenant.name,
                                            files=self.reads_files, images=self.reads_images, campus_map=self.campus_map)
@@ -102,7 +106,7 @@ class ConfiguredAgent(BaseAgent):
         return skill in self.settings.skills
 
     def active_skills(self) -> list[str]:
-        """The skills that work at this university (map needs a campus map)."""
+        """The skills that work at this university (map needs a campus: GIU's, or a building or place)."""
         on = {"files": self.reads_files, "images": self.reads_images, "cv": self.rewrites_cvs,
               "editor": self.edits_documents, "map": self.campus_map, "voice": self.has_skill("voice")}
         return [skill for skill, works in on.items() if works]

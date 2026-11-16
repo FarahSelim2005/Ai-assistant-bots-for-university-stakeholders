@@ -4,7 +4,10 @@
 // aerial map: A top-left, S below A next to the road, M on the right, and the sports
 // and food area north-east of M. Keep it in line with the "Campus Layout and
 // Directions" and place sections of backend/data/raw/campus_buildings.md.
+// Other universities draw their own campus in the admin: OwnCampusMap.jsx.
 import { googleMapsWalkingUrl, placeWalkingUrl } from "../campusGeo.js";
+import { tenant } from "../tenant.js";
+import OwnCampusMap from "./OwnCampusMap.jsx";
 
 const BUILDINGS = {
   A: {
@@ -77,7 +80,13 @@ function Pin({ x, y }) {
 }
 
 // `askedBuildings`: buildings asked about without a room ("where is the M"): [{ letter, name }].
-export default function CampusMap({ locations = [], places = [], askedBuildings = [] }) {
+export default function CampusMap(props) {
+  const campus = tenant()?.campus;
+  if (campus && !campus.built_in) return <OwnCampusMap campus={campus} {...props} />;
+  return <GiuCampusMap {...props} />;
+}
+
+function GiuCampusMap({ locations = [], places = [], askedBuildings = [] }) {
   const buildings = [...new Set([...locations.map((l) => l.building), ...askedBuildings.map((b) => b.letter)])];
   const buildingName = (letter) =>
     locations.find((l) => l.building === letter)?.building_name ?? askedBuildings.find((b) => b.letter === letter)?.name;

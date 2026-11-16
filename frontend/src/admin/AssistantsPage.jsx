@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   createAgent, deleteAgent, getBranding, listAgents, listTemplates, request, updateAgent,
 } from "./api.js";
+import CampusEditor from "./CampusEditor.jsx";
 
 // The six skills, as the design names them
 const SKILLS = {
@@ -199,13 +200,14 @@ export default function AssistantsPage({ call, onChanged, openDocuments }) {
               {Object.entries(SKILLS).map(([key, title]) => <button key={key} type="button" className="opt" aria-pressed={draft.skills.includes(key)}
                                                                     onClick={() => flip("skills", key)}>{title}</button>)}
             </span></div>
-            {agent.skills.some((s) => !agent.active_skills.includes(s)) && (
-              <div className="field"><span /><span className="note">Not available at this university: {agent.skills.filter((s) => !agent.active_skills.includes(s)).map((s) => SKILLS[s]).join(", ")}.</span></div>
+            {agent.skills.some((s) => s !== "map" && !agent.active_skills.includes(s)) && (
+              <div className="field"><span /><span className="note">Not available at this university: {agent.skills.filter((s) => s !== "map" && !agent.active_skills.includes(s)).map((s) => SKILLS[s]).join(", ")}.</span></div>
             )}
             <div className="field"><span>Documents</span><span className="opts">
               <span className="fval">{agent.documents} file{agent.documents === 1 ? "" : "s"} · in <code>{agent.folder}/</code></span>
               <button type="button" className="ghost" onClick={() => openDocuments(agent.id)}>Open documents</button>
             </span></div>
+            {draft.skills.includes("map") && <CampusEditor call={call} />}
 
             <details>
               <summary>More settings: texts, instructions, model</summary>

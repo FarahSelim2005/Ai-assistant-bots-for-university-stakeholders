@@ -175,7 +175,7 @@ export default function NewUniversity({ call, plans, templates, onDone, onCancel
               <button type="button" className="ghost" onClick={addTemplate} disabled={!template || full}>Add</button>
             </div>
             {full && <p className="note">The {plan.name} plan allows {limit} assistants. Choose a bigger plan above for more.</p>}
-            <p className="note">A new assistant answers only from the documents the university adds for it (no CV rewrites or campus map yet).</p>
+            <p className="note">A new assistant answers from the documents the university adds for it. Ready-made ones keep their skills: CV rewrites (PDF and Word) for Internship &amp; Career, and the campus map for Labs &amp; Research once the university adds its buildings.</p>
           </>
         )}
         {step === 4 && (

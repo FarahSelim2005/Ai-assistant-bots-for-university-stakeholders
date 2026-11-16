@@ -36,7 +36,7 @@ class Tenant:
     status: str = "active"
     short_name: str = ""         # e.g. "GIU": used in prompts and texts ("{university}")
     has_cv_model: bool = False   # a CV model trained on its CV templates: the "cv" skill works
-    campus_map: bool = False     # campus buildings, rooms and map: the "map" skill works (GIU only)
+    campus_map: bool = False     # GIU's built-in campus map (app/campus.py); others have `campus`
     # Its look (migration 006): logo (empty: the short name is shown), colours, start screen.
     logo_url: str | None = None
     brand_primary: str = "#1f4e79"
@@ -45,6 +45,9 @@ class Tenant:
     intro: str = ""
     audiences: list = field(default_factory=list)  # [{"key", "title", "text"}]: who the assistants are for
     plan: str = "free"  # plans.key (migration 008): monthly token cap and number of assistants
+    # Its own campus (migration 011): {"buildings": [...], "places": [...], "image_version"}, or None.
+    # Edited in the admin where an assistant has the "map" skill; GIU keeps its built-in map.
+    campus: dict | None = None
 
     @property
     def short(self) -> str:
@@ -92,7 +95,7 @@ def data_dir(tenant: Tenant) -> Path:
 # ---------------------------------------------------------------- finding a tenant
 
 TENANT_COLUMNS = ("t.id, t.slug, t.name, t.status, t.short_name, t.has_cv_model, t.campus_map, t.logo_url, "
-                  "t.brand_primary, t.brand_accent, t.brand_dark, t.intro, t.audiences, t.plan")
+                  "t.brand_primary, t.brand_accent, t.brand_dark, t.intro, t.audiences, t.plan, t.campus")
 SELECT_TENANT = f"SELECT {TENANT_COLUMNS} FROM tenants t "
 
 

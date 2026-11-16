@@ -69,6 +69,14 @@ class Outcome:
     changes: list[dict] = field(default_factory=list)
 
 
+def building_name(code: str) -> str:
+    """A building's name: GIU's built-in ones, or one the university added to its campus."""
+    tenant = tenants.current()
+    if tenant.campus_map:
+        return BUILDINGS[code]
+    return next((b["name"] for b in (tenant.campus or {}).get("buildings", []) if b["code"] == code), code)
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat(body: ChatRequest, request: Request):
     # The work itself is slow, blocking code (database, model calls), so it runs in a
@@ -84,7 +92,7 @@ async def chat(body: ChatRequest, request: Request):
         sources=result.sources,
         locations=[asdict(location) for location in result.locations],
         places=[{"key": place.key, "name": place.name} for place in result.places],
-        buildings=[{"letter": letter, "name": BUILDINGS[letter]} for letter in result.buildings],
+        buildings=[{"letter": letter, "name": building_name(letter)} for letter in result.buildings],
         redirect=asdict(result.redirect) if result.redirect else None,
         message_id=message_id,
         file=file,

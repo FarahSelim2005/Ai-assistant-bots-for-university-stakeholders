@@ -327,7 +327,7 @@ def create_agent(body: AgentIn):
         else:
             settings["audiences"] = audience_keys()
         # A ready-made one: its GIU skills; from scratch: the usual ones (those sent with the request win)
-        settings["skills"] = skills_for(tenants.current().campus_map, settings.get("skills"))
+        settings["skills"] = skills_for(settings.get("skills"))
         settings.update({k: v for k, v in body.model_dump(exclude_unset=True).items() if k != "template_key"})
         checked_settings(settings)
         if not settings.get("name"):

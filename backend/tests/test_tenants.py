@@ -9,6 +9,7 @@ No chat model or embedding service is called.
 Run from the backend folder:
     python -m unittest discover -s tests -v
 """
+import base64
 import unittest
 import uuid
 from pathlib import Path
@@ -28,7 +29,7 @@ from app.agents.templates import GIU_AGENT_IDS, GIU_AGENTS, TEMPLATES
 from tests import giu_agents
 from app.main import app
 from app.rag import retriever
-from app.routers import admin, chat, console, documents, feedback, session
+from app.routers import admin, campus, chat, console, documents, feedback, session
 from scripts import ingest, migrate
 
 GIU = tenants.Tenant(uuid.UUID(int=1), "giu", "German International University")
@@ -269,7 +270,7 @@ class TestDatabaseCase(unittest.TestCase):
     def use_app_code(self):
         """The app's code runs on this test's connection (and transaction)."""
         shared = SharedConnection(self.conn)
-        for module in [tenants, retriever, chat, session, feedback, documents, admin, ingest, registry, directory, auth]:
+        for module in [tenants, retriever, chat, session, feedback, documents, admin, campus, ingest, registry, directory, auth]:
             patch = mock.patch.object(module, "get_connection", shared)
             patch.start()
             self.addCleanup(patch.stop)
@@ -539,12 +540,34 @@ class AssistantsApi(TestDatabaseCase):
         a = self.client(self.a, "tenant_admin")
         for body, skills in [({"name": "From scratch"}, ["files", "images", "editor", "voice"]),
                              ({"template_key": "internship_career"}, ["files", "images", "cv", "editor", "voice"]),
-                             ({"template_key": "labs_research"}, ["files", "images", "editor", "voice"])]:  # no campus map here
+                             ({"template_key": "labs_research"}, ["files", "images", "editor", "map", "voice"])]:
             made = a.post("/admin/agents", json=body).json()["id"]
             agent = next(x for x in a.get("/admin/agents").json() if x["id"] == made)
             self.assertEqual(agent["skills"], skills, body)
         chosen = a.post("/admin/agents", json={"name": "Only files", "skills": ["files"]}).json()["id"]
         self.assertEqual(next(x for x in a.get("/admin/agents").json() if x["id"] == chosen)["skills"], ["files"])
+
+    def test_own_campus_map(self):
+        a, b = self.client(self.a, "tenant_admin"), self.client(self.b, "tenant_admin")
+        labs = a.post("/admin/agents", json={"template_key": "labs_research"}).json()["id"]
+        active = lambda: next(x for x in a.get("/admin/agents").json() if x["id"] == labs)["active_skills"]
+        self.assertNotIn("map", active())  # the skill is on, but there is no building yet
+        picture = "data:image/png;base64," + base64.b64encode(b"\x89PNG fake").decode()
+        saved = a.put("/admin/campus", json={
+            "buildings": [{"code": "b", "name": "Engineering Building", "floors": 3, "x": 0.4, "y": 0.3}],
+            "places": [{"name": "Cafeteria", "words": ["food"], "lat": 30.0, "lng": 31.7}], "image": picture})
+        self.assertEqual(saved.status_code, 200, saved.text)
+        self.assertIn("map", active())
+        campus = a.get("/tenant").json()["campus"]
+        self.assertEqual((campus["built_in"], campus["buildings"][0]["code"], campus["places"][0]["key"]),
+                         (False, "B", "cafeteria"))
+        self.assertEqual(a.get(campus["image_url"]).content, b"\x89PNG fake")
+        self.assertEqual(b.get("/tenant").json()["campus"]["buildings"], [])   # only A's own
+        self.assertEqual(b.get("/campus/image").status_code, 404)
+        for bad in [{"buildings": [{"code": "B1", "name": "X"}]}, {"buildings": [{"code": "B", "name": "X"}] * 2},
+                    {"image": "data:text/html;base64,PGI+"}]:
+            self.assertEqual(a.put("/admin/campus", json=bad).status_code, 400, bad)
+        self.assertEqual(a.put("/admin/campus", json={"buildings": []}).json()["image_url"], campus["image_url"])  # kept
 
     def test_refused_settings(self):
         a = self.client(self.a, "tenant_admin")

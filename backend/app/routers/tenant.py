@@ -7,6 +7,7 @@ from fastapi import APIRouter
 from app import tenants
 from app.agents import agents_of
 from app.rag.prompts import render
+from app.routers.campus import image_url
 
 router = APIRouter()
 
@@ -36,4 +37,8 @@ def current_tenant():
         "intro": text(tenant.intro),
         "audiences": [{**audience, "text": text(audience.get("text"))} for audience in tenant.audiences],
         "assistants": assistants,
+        # The map under answers: GIU's built-in one, or the university's own buildings, places and picture.
+        "campus": ({"built_in": True} if tenant.campus_map else
+                   {"built_in": False, "buildings": (tenant.campus or {}).get("buildings", []),
+                    "places": (tenant.campus or {}).get("places", []), "image_url": image_url(tenant.campus)}),
     }

@@ -28,12 +28,12 @@ SKILLS = ("files", "images", "cv", "editor", "map", "voice")
 NEW_ASSISTANT_SKILLS = ("files", "images", "editor", "voice")
 
 
-def skills_for(campus_map: bool, template_skills=None) -> list[str]:
+def skills_for(template_skills=None) -> list[str]:
     """The skills a new assistant gets. From a ready-made assistant: the same as at GIU (the
-    Internship & Career Assistant rewrites CVs, Labs & Research shows the campus map, ...),
-    without the campus map where the university has none. From scratch: NEW_ASSISTANT_SKILLS."""
-    skills = template_skills if template_skills is not None else NEW_ASSISTANT_SKILLS
-    return [skill for skill in skills if skill != "map" or campus_map]
+    Internship & Career Assistant rewrites CVs, Labs & Research shows the campus map, which
+    works once the university adds its buildings under that skill). From scratch:
+    NEW_ASSISTANT_SKILLS."""
+    return list(template_skills if template_skills is not None else NEW_ASSISTANT_SKILLS)
 
 
 PROMPT_MODES = ("composed", "complete")  # composed: built from parts; complete: the instructions are the whole prompt

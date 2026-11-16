@@ -33,6 +33,7 @@ class BaseAgent:
     display_name: str = ""  # the name people see
     university: str = "GIU"  # the university's short name, for "(no matching ... documents)"
     campus_map: bool = True  # rooms, buildings and places on the campus map (the "map" skill)
+    campus = None  # another university's own campus (app.campus.UniversityCampus); None: GIU's
     allowed_user_types: tuple[str, ...]
     system_prompt: str
     model: str
@@ -67,7 +68,9 @@ class BaseAgent:
         relevant = self.validate(chunks)
         # A room code in the question (e.g. "Where is A107?") adds its building and
         # floor from the numbering rules, so any valid room can be answered.
-        asked_rooms = rooms_in_question(question) if self.campus_map else []
+        campus = self.campus
+        asked_rooms = ((campus.rooms_in_question(question) if campus else rooms_in_question(question))
+                       if self.campus_map else [])
         if asked_rooms:
             relevant.insert(0, RetrievedChunk(room_facts(asked_rooms), ROOM_FACTS_SOURCE, 1.0))
         # Which agent a question belongs to is decided on the question alone: with the
@@ -100,6 +103,13 @@ class BaseAgent:
         answer = self.generate(question, relevant, self.history_for(question, history, attachment), attachment)
         if not self.campus_map:
             return AgentResponse(answer=answer, sources=unique_sources(relevant))
+        if campus:
+            places = campus.find_places(search_question) or campus.find_places(answer)
+            locations = campus.find_locations(answer)
+            buildings = [b for b in campus.buildings_asked(question, answer)
+                         if b not in {location.building for location in locations}] if not places else []
+            return AgentResponse(answer=answer, sources=unique_sources(relevant),
+                                 locations=locations, places=places, buildings=buildings)
         # Show only the places the user asked about (an answer about the gym may also
         # mention the supermarket next to it); use the answer only if the question
         # names no place, e.g. "where can I work out?".

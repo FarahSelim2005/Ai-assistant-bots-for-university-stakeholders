@@ -85,6 +85,7 @@ only applies new files. Every file is also safe to run twice by hand.
 | `008_plans_and_usage.sql` | Plans (`free`: 300,000 tokens a month and 2 assistants; `standard`: 5,000,000 and 8; `unlimited`) and `tenants.plan` (GIU: `unlimited`, so it keeps working as before); a `usage` table with one row per model call (university, assistant, model, kind, tokens), with row-level security. |
 | `009_usage_cost.sql` | `usage.cost_usd`: the cost of each model call as OpenRouter reports it (Groq's free tier and local Ollama: 0), for the console's "Model cost". |
 | `010_signup_and_billing.sql` | The public sign-up and subscriptions: plan prices in EGP, trial days and "public" on `plans` (and a Campus plan), `signups` (only a hash of the email code), `checkouts`, `subscriptions`, `billing_events`, `platform_settings` (require review), and `tenants.email_domain`, `signed_up_at` and the `review` status. Nothing is deleted. |
+| `011_campus.sql` | Every university's own campus map: `tenants.campus` (buildings and places, JSON) and `tenants.campus_image` (the picture), changed by giu_app on its own university only. GIU keeps its built-in map. |
 
 To try the migrations on a copy first: in pgAdmin create a database `giu-bots-copy` with
 *Template* `giu-bots` (no other connection to `giu-bots` may be open), then run
@@ -514,7 +515,8 @@ maximum), users, chats and tokens used this month (against the plan's cap) and i
   number with the university's own names ("+ Add assistant": a name and what it handles),
   and ready-made ones from the templates (renamed there too), each removable, up to the
   plan's limit → first admin (email, name, password). Everything is made at once: the university, its address, its assistants
-  (each in its own folder, without CV rewrites or campus map) and its admin. Its chat is then
+  (each in its own folder; ready-made ones keep their skills, e.g. CV rewrites and the campus map)
+  and its admin. Its chat is then
   at `http://<slug>.localhost:5173` and its admin page at `.../admin`.
 - **Suspend / Reactivate**: a suspended university's chat and admin pages answer
   "not available" (403) until it is reactivated; nothing is deleted.
@@ -628,8 +630,8 @@ university's assistants never mention GIU.
 | `files` | attached documents are refused |
 | `images` | attached pictures are refused (pictures also need `VISION_MODEL`) |
 | `editor` | "translate this file", "make it shorter", "send it as PDF" are answered as questions; `POST /documents/edit` gives 403 |
-| `cv` | no CV rewrites. Also needs a university with a trained CV model (`tenants.has_cv_model`, GIU only): the Career prompt, "(no matching GIU documents)" and the CV checks stay exactly as giu-cv was trained |
-| `map` | no room facts, buildings, places or campus map. Also needs `tenants.campus_map` (GIU only): other universities never see GIU's buildings |
+| `cv` | no CV rewrites. Works at every university (the CV comes back as PDF and Word); with a trained CV model (`tenants.has_cv_model`, GIU) the Career prompt, "(no matching GIU documents)" and the CV checks stay exactly as giu-cv was trained, elsewhere the same instructions in the university's name |
+| `map` | no room facts, buildings, places or campus map. GIU has its built-in map (`tenants.campus_map`). Any other university draws its own under this skill in the admin (the **Campus map** panel of an assistant with the skill): a campus picture, buildings (code, name, floors; room B204 = Building B, 2nd floor) and outdoor places, each placed on the picture and optionally given its Google Maps location for "Walk me there" (`tenants.campus`, migration 011; `GET/PUT /admin/campus`, `GET /campus/image`). The skill works once it has a building or place; other universities never see GIU's buildings |
 | `voice` | the frontend hides the voice call button (step 2c) |
 
 `GET /admin/agents` shows each assistant's `skills` and its `active_skills` (those that work at

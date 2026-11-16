@@ -25,6 +25,9 @@ from app.schemas import ChatRequest
 DEMO = tenants.Tenant(uuid.UUID(int=2), "demo", "Demo University", short_name="DU")
 WITH_CV_AND_MAP = tenants.Tenant(uuid.UUID(int=3), "other", "Other University", short_name="OU",
                                  has_cv_model=True, campus_map=True)
+WITH_OWN_CAMPUS = tenants.Tenant(uuid.UUID(int=4), "own", "Own University", short_name="OWN", campus={
+    "buildings": [{"code": "B", "name": "Engineering Building", "floors": 3}],
+    "places": [{"key": "cafeteria", "name": "Cafeteria", "words": ["food"]}]})
 
 
 class ComposedPrompts(unittest.TestCase):
@@ -76,7 +79,8 @@ class Skills(unittest.TestCase):
 
     def test_map_only_with_the_skill_and_a_campus_map(self):
         self.assertTrue(giu_agent_from_code("labs_research").campus_map)
-        self.assertFalse(agent_from_template("labs_research", DEMO).campus_map)            # no campus map
+        self.assertFalse(agent_from_template("labs_research", DEMO).campus_map)            # no campus yet
+        self.assertTrue(agent_from_template("labs_research", WITH_OWN_CAMPUS).campus_map)  # its own buildings
         self.assertFalse(giu_agent_from_code("labs_research", skills=("files",)).campus_map)  # no map skill
 
     def run_agent(self, agent, question):
@@ -96,6 +100,20 @@ class Skills(unittest.TestCase):
         demo, sent = self.run_agent(agent_from_template("internship_career", DEMO), "Where is M005?")
         self.assertEqual((demo.sources, demo.locations, demo.places, demo.buildings), ([], [], [], []))
         self.assertNotIn("building M", sent)  # no GIU campus facts in another university's prompt
+
+    def test_own_campus(self):
+        labs = agent_from_template("labs_research", WITH_OWN_CAMPUS)
+        room, sent = self.run_agent(labs, "Where is b204?")
+        self.assertIn("Room numbering rules", room.sources)  # the room's facts, from its own buildings
+        self.assertEqual(room.locations, [])                 # the stand-in answer names GIU's M005: not a room here
+        self.assertEqual([(l.room, l.building_name, l.floor_name) for l in labs.campus.rooms_in_question("Where is b204?")],
+                         [("B204", "Engineering Building", "2nd floor")])
+        campus = labs.campus
+        for question in ["where is the engineering building?", "where is building b", "فين مبنى B"]:
+            self.assertEqual(campus.buildings_asked(question), ["B"], question)
+        self.assertEqual(campus.buildings_asked("where is it?", "It is in Building B."), ["B"])
+        self.assertEqual([p.key for p in campus.find_places("where can I get food?")], ["cafeteria"])
+        self.assertEqual([l.room for l in campus.find_locations("Go to B204, then B901, B0 or M005.")], ["B204"])  # 3 floors
 
     def test_attachments_need_their_skill(self):
         text_only = agent_from_template("labs_research", DEMO, skills=("files",))

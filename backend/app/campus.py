@@ -117,3 +117,79 @@ def buildings_asked(question: str, answer: str = "") -> list[str]:
         in_answer = list(dict.fromkeys(ANSWER_BUILDING.findall(answer)))
         letters = in_answer[:1]
     return list(dict.fromkeys(letters))
+
+
+# --- Other universities' campuses ----------------------------------------------------
+# GIU's campus above is fixed in code. Every other university draws its own in the admin
+# (tenants.campus, migration 011): buildings with a code ("B"), a name and a number of floors,
+# and outdoor places. Room codes follow one simple rule: the building's code, the floor
+# (0 = ground floor) and a two-digit number, e.g. B204 = Building B, 2nd floor.
+
+def ordinal_floor(floor: int) -> str:
+    if floor == 0:
+        return "Ground floor"
+    suffix = "th" if 10 <= floor % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(floor % 10, "th")
+    return f"{floor}{suffix} floor"
+
+
+class UniversityCampus:
+    """A university's own buildings and places (tenants.campus), with the same questions
+    answered as for GIU: rooms in an answer or a question, places, buildings asked about."""
+
+    def __init__(self, campus: dict):
+        self.buildings = {b["code"]: b for b in campus.get("buildings", [])}
+        self.places = [Place(p["key"], p["name"], tuple(w.lower() for w in [p["name"], *p.get("words", [])] if w))
+                       for p in campus.get("places", [])]
+        codes = "|".join(sorted(map(re.escape, self.buildings), key=len, reverse=True)) or "(?!)"
+        self.room_pattern = re.compile(rf"(?<![A-Za-z0-9])({codes})(\d)(\d{{2}})(?![A-Za-z0-9])")
+        self.question_room_pattern = re.compile(rf"(?<![A-Za-z0-9])({codes})[\s-]?(\d)(\d{{2}})(?![A-Za-z0-9])",
+                                                re.IGNORECASE)
+        self.building_word = re.compile(rf"\b(?:building|bldg|block)\s*({codes})\b|(?:مبنى|مبني|المبنى|بلوك)\s*({codes})(?![\w])",
+                                        re.IGNORECASE)
+        self.letter_at_end = re.compile(rf"\b(?:where|wher|fin)\b.*?\b(?:the\s+)?({codes})\s*[?.!]*\s*$|"
+                                        rf"(?:فين|وين)\s+(?:ال)?({codes})\s*[?؟.!]*\s*$", re.IGNORECASE)
+        self.answer_building = re.compile(rf"\bBuilding\s+({codes})\b")
+
+    @classmethod
+    def of(cls, campus: dict | None) -> "UniversityCampus | None":
+        """The campus, or None when the university has not added a building or place yet."""
+        if not campus or not (campus.get("buildings") or campus.get("places")):
+            return None
+        return cls(campus)
+
+    def code(self, text: str) -> str | None:
+        """The building code as saved ("b" -> "B"), or None."""
+        return next((code for code in self.buildings if code.lower() == text.lower()), None)
+
+    def location(self, code: str, floor: int, number: int) -> Location | None:
+        building = self.buildings.get(code)
+        if building is None or floor > int(building.get("floors", 0)) or number < 1:
+            return None
+        return Location(f"{code}{floor}{number:02d}", code, building["name"], floor, ordinal_floor(floor))
+
+    def find_locations(self, text: str) -> list[Location]:
+        found: dict[str, Location] = {}
+        for code, floor, number in self.room_pattern.findall(text):
+            location = self.location(code, int(floor), int(number))
+            if location and location.room not in found:
+                found[location.room] = location
+        return list(found.values())[:MAX_LOCATIONS]
+
+    def rooms_in_question(self, question: str) -> list[Location]:
+        rooms = [f"{self.code(c)}{f}{n}" for c, f, n in self.question_room_pattern.findall(question)]
+        return self.find_locations(" ".join(rooms))
+
+    def find_places(self, text: str) -> list[Place]:
+        lower = text.lower()
+        return [place for place in self.places if any(word in lower for word in place.keywords)]
+
+    def buildings_asked(self, question: str, answer: str = "") -> list[str]:
+        codes = []
+        for match in list(self.building_word.finditer(question)) + list(self.letter_at_end.finditer(question)):
+            codes.append(self.code(next(group for group in match.groups() if group)))
+        if not codes and WHERE_WORDS.search(question):
+            lower = question.lower()
+            codes = [code for code, b in self.buildings.items() if b["name"].lower() in lower][:1]
+            if not codes:
+                codes = list(dict.fromkeys(self.code(c) for c in self.answer_building.findall(answer)))[:1]
+        return [code for code in dict.fromkeys(codes) if code]

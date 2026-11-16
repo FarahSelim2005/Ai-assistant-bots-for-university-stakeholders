@@ -42,6 +42,11 @@ export function googleMapsWalkingUrl(building) {
   return walkingUrl(ENTRANCES[building][0]);
 }
 
+// Another university's building or place, from the latitude and longitude its admin entered.
+export function walkingUrlTo(lat, lng) {
+  return lat == null || lng == null ? null : walkingUrl([lat, lng]);
+}
+
 export function placeWalkingUrl(placeKey) {
   return PLACES[placeKey] ? walkingUrl(PLACES[placeKey]) : null;
 }

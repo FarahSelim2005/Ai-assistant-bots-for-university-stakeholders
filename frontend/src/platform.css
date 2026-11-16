@@ -268,3 +268,31 @@
 .pf button.danger-solid { background: var(--crit); color: #fff; }
 .pf button.danger-solid:hover:not(:disabled) { background: var(--crit); filter: brightness(1.1); }
 .pf .tablewrap td:last-child { white-space: nowrap; }
+
+/* Admin: the campus map under an assistant's "Campus map" skill (CampusEditor.jsx) */
+.pf .campus-editor { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
+.pf .ghost-button { display: inline-block; cursor: pointer; font-size: 13px; font-weight: 600; border-radius: 8px; padding: 7px 14px;
+  background: var(--surface); color: var(--fg); border: 1px solid var(--line); }
+.pf .ghost-button:hover { background: var(--sunken); }
+.pf .cpicture { position: relative; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; line-height: 0; }
+.pf .cpicture img { width: 100%; height: auto; display: block; }
+.pf .cpicture.placing { cursor: crosshair; outline: 2px solid var(--accent); }
+.pf .cmark { position: absolute; transform: translate(-50%, -50%); line-height: 1.4; min-width: 22px; padding: 1px 5px; text-align: center;
+  font-size: 11px; font-weight: 700; color: var(--accent-ink); background: var(--accent); border-radius: 6px; pointer-events: none; }
+.pf .cmark.place { background: transparent; font-size: 16px; }
+.pf .cpicture-hint { position: absolute; left: 8px; top: 8px; line-height: 1.4; font-size: 12px; padding: 3px 8px; border-radius: 6px;
+  background: var(--surface); color: var(--fg); border: 1px solid var(--line); pointer-events: none; }
+.pf .crows { display: grid; gap: 6px; font-size: 13px; }
+.pf .crow-item { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.4fr) auto auto; gap: 6px; align-items: center; }
+.pf .crow-item:has(.code) { grid-template-columns: 56px minmax(0, 1.4fr) auto minmax(0, 1.3fr) auto auto; }
+.pf .crow-item .code { text-transform: uppercase; text-align: center; }
+.pf .cfloors { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.pf .cfloors .finput { width: 52px; }
+.pf .crow-item button.ghost { padding: 5px 9px; }
+@media (max-width: 760px) {
+  .pf .crow-item, .pf .crow-item:has(.code) { grid-template-columns: 1fr 1fr; }
+}
+.pf label.cfloors { display: flex; flex-direction: row; align-items: center; margin: 0; font-weight: 400; }
+.pf .campus-editor .opts { align-items: center; }
+.pf .campus-editor .ghost-button { line-height: 1.2; }
+.pf .campus-editor .opts button.ghost { padding: 7px 14px; line-height: 1.2; }

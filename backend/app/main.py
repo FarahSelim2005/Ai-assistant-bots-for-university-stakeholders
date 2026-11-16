@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import config
 from app.llm.client import warm_up_ollama
 from app.documents.storage import remove_old_files
-from app.routers import admin, billing, chat, console, documents, feedback, session, signup, speech, tenant
+from app.routers import admin, billing, campus, chat, console, documents, feedback, session, signup, speech, tenant
 from app.speech import get_model
 from app.tenants import TenantMiddleware
 
@@ -53,6 +53,7 @@ app.include_router(feedback.router)
 app.include_router(speech.router)
 app.include_router(documents.router)
 app.include_router(admin.router)
+app.include_router(campus.router)
 app.include_router(console.router)
 app.include_router(signup.router)
 app.include_router(billing.router)

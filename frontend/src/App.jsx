@@ -191,7 +191,8 @@ export default function App({ initialAgent }) {
           // "Where is the gym?": the map card already gives the walking directions, so
           // the text answer would only repeat them; show just the card. Other questions
           // about a place ("gym opening hours?") keep their text answer.
-          mapOnly: data.places?.length > 0 && WHERE_QUESTION.test(query),
+          // GIU's map has the directions to each place; another university's keeps the answer too
+          mapOnly: data.places?.length > 0 && WHERE_QUESTION.test(query) && tenant()?.campus?.built_in !== false,
           file: answerFile,
           changes: data.changes,
           messageId: data.message_id,

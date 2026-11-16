@@ -343,6 +343,18 @@ a.choice-card { text-decoration: none; }
 .map-label-small { font-size: 10px; fill: var(--muted); }
 .map-pin { fill: var(--brand-accent); stroke: #9c7410; stroke-width: 1; }
 
+/* Another university's campus (OwnCampusMap.jsx): its own picture, building codes and pins on it */
+.map-body.single { grid-template-columns: 1fr; }
+.own-map { position: relative; align-self: start; }
+.own-map img { display: block; width: 100%; height: auto; border-radius: 10px; }
+.own-map-tag, .own-map-pin { position: absolute; transform: translate(-50%, -50%); }
+.own-map-tag {
+  min-width: 22px; padding: 1px 5px; border-radius: 6px; text-align: center;
+  font-size: 11px; font-weight: 700; background: rgba(255, 255, 255, 0.85); color: #555; border: 1px solid #bbb;
+}
+.own-map-tag.active { background: var(--brand-primary); color: #fff; border-color: var(--brand-primary-dark); }
+.own-map-pin { width: 22px; height: 31px; transform: translate(-50%, -100%); margin-top: -10px; overflow: visible; }
+
 .map-details { display: flex; flex-direction: column; gap: 12px; font-size: 14px; }
 .map-building-info { display: flex; gap: 12px; align-items: flex-start; }
 .directions { margin: 6px 0 0; padding-left: 18px; line-height: 1.5; }
