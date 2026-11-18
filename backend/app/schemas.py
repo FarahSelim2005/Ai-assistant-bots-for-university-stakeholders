@@ -25,7 +25,7 @@ class AttachmentIn(BaseModel):
 
 class ChatRequest(BaseModel):
     conversation_id: int
-    query: str = Field(min_length=1, max_length=1000)
+    query: str = Field(min_length=1, max_length=6000)  # a pasted CV fits
     attachment: AttachmentIn | None = None
     # Several files sent together (the browser sends them here; `attachment` still works).
     attachments: list[AttachmentIn] = Field(default_factory=list, max_length=MAX_FILES)

@@ -54,6 +54,13 @@ CV_FILE_NAME = re.compile(r"cv|resume|résumé|سيرة", re.IGNORECASE)  # "cv1
 CV_HEADING = re.compile(r"^\W*(education|(?:work )?experience|internships|skills|summary|profile|objective|about me|"
                         r"projects|languages|certifications|التعليم|الخبرات|المهارات|الملخص|اللغات|المشاريع)\W*$",
                         re.IGNORECASE | re.MULTILINE)
+# The same headings written as markdown inside a line ("... ## **EDUCATION** ..."): a CV pasted
+# into the chat, whose line breaks may be lost
+INLINE_CV_HEADING = re.compile(r"(?:^|\s)#{1,3}\s*\**\s*(education|(?:work )?experience|internships|skills|summary|"
+                               r"profile|objective|about me|projects|languages|certifications)\b", re.IGNORECASE)
+# With a CV pasted into the chat, "create my CV", "make the CV" also ask for the rewrite
+CV_MAKE_WORDS = re.compile(r"\b(create|make|write|build|generate|prepare|format)\w*|اعمل\w*|اكتب\w*|جهز\w*", re.IGNORECASE)
+MIN_PASTED_CV_CHARS = 200
 CV_REQUEST = "Rewrite my CV in the right GIU template."  # a training request, for "send my CV as pdf"
 # Words that only ask for the conversion itself ("convert it to pdf", "حوله بي دي اف").
 CONVERSION_WORDS = re.compile(r"\b(convert|turn|change|save|export|make|send|give|download)\w*|حول\w*|ابعت\w*|نزل\w*",
@@ -171,6 +178,15 @@ def answer_question(body: ChatRequest) -> Outcome:
                 return restructure_cv(agent, body.query, user_type, history, attachment, name)
             if wants_edit:
                 return edit(body, agent, upload=None, also_pdf=wants_pdf)
+        # A CV pasted into the chat (this message or a recent one) and "create the pdf" / "make
+        # my CV": rewritten like an attached CV, and sent back as PDF + Word.
+        pasted = pasted_cv(body.query, history) if career and not info else None
+        if pasted and (asks_change or (CV_WORDS.search(body.query) and CV_MAKE_WORDS.search(body.query))):
+            text, in_this_message = pasted
+            attachment = read_attachment("CV.txt", base64.b64encode(text.encode("utf-8")).decode())
+            earlier = [m for m in history if m["content"] != text]
+            return restructure_cv(agent, CV_REQUEST if in_this_message else body.query, user_type, earlier,
+                                  attachment, "CV.txt")
         return Outcome(agent.run(body.query, user_type, history, None))
     except ValueError as error:  # a bad attachment or a broken agent rule
         raise HTTPException(400, str(error))
@@ -189,7 +205,27 @@ def looks_like_cv(text: str | None) -> bool:
     """A CV by its content: at least two different CV section headings (spaced-out headings
     such as "S U M M A R Y" count too)."""
     text = re.sub(r"^\w(?: \w)+$", lambda m: m.group().replace(" ", ""), text or "", flags=re.MULTILINE)
-    return len({heading.lower() for heading in CV_HEADING.findall(text)}) >= 2
+    headings = CV_HEADING.findall(text) + INLINE_CV_HEADING.findall(text)
+    return len({heading.lower() for heading in headings}) >= 2
+
+
+def pasted_cv(query: str, history: list[dict]) -> tuple[str, bool] | None:
+    """A CV typed or pasted into the chat: (its text, whether it is in this message), from this
+    message or the latest earlier user message that is one; None if there is none."""
+    candidates = [(query, True)] + [(m["content"], False) for m in reversed(history) if m["role"] == "user"]
+    for text, in_this_message in candidates:
+        if len(text) >= MIN_PASTED_CV_CHARS and looks_like_cv(text):
+            return with_line_breaks(text), in_this_message
+    return None
+
+
+def with_line_breaks(text: str) -> str:
+    """A CV pasted into a one-line box loses its line breaks: put them back before its markdown
+    headings ("## EDUCATION") and list items (" - ...")."""
+    if "\n" in text:
+        return text
+    text = re.sub(r"\s+(#{1,3}\s)", r"\n\n\1", text)
+    return re.sub(r"\s+-\s+(?=\S)", "\n- ", text).strip()
 
 
 def decode(data_base64: str) -> bytes:

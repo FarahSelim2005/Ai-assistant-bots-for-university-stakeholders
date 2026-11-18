@@ -392,15 +392,24 @@ export default function App({ initialAgent }) {
                 </div>
               )}
             </div>}
-            <input
+            {/* A text box that keeps line breaks (a pasted CV keeps its lines): Enter sends,
+                Shift+Enter starts a new line; it grows with the text up to a few lines */}
+            <textarea
               className="composer-input"
+              rows={1}
               value={input}
               onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  event.preventDefault();
+                  event.currentTarget.form.requestSubmit();
+                }
+              }}
               placeholder={attachments.length
                 ? `Ask about your file${attachments.length > 1 ? "s" : ""}, or say what to change (e.g. "restructure my CV")...`
                 : agent.placeholder || `Ask ${agent.name} anything…`}
               aria-label="Your message"
-              maxLength={1000}
+              maxLength={6000}
               dir="auto"
               autoFocus
             />

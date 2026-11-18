@@ -440,7 +440,15 @@ a.choice-card { text-decoration: none; }
   border: none;
   outline: none;
   background: transparent;
+  /* a textarea: one line at first, growing with the text up to about 7 lines */
+  resize: none;
+  line-height: 1.4;
+  field-sizing: content;
+  max-height: 10em;
+  overflow-y: auto;
 }
+/* A message of several lines: the box grows; the buttons stay at the bottom */
+.composer:has(.composer-input) { border-radius: 27px; align-items: flex-end; }
 .composer-area .error { max-width: 920px; margin: 0 auto 8px; }
 
 .composer svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

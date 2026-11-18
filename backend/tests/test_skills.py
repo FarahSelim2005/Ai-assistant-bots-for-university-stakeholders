@@ -135,7 +135,8 @@ class Skills(unittest.TestCase):
 class ChatRouting(unittest.TestCase):
     """POST /chat's choice between answering, editing and CV rewriting follows the skills."""
 
-    def answer(self, agent, query, filename=None, content=b"Education\nB.Sc.\n\nExperience\nIntern\n"):
+    def answer(self, agent, query, filename=None, content=b"Education\nB.Sc.\n\nExperience\nIntern\n", history=()):
+        """The route taken; `history`: earlier (role, content) messages, oldest first."""
         class Conn:
             def __enter__(self): return self
             def __exit__(self, *exc): return False
@@ -143,7 +144,7 @@ class ChatRouting(unittest.TestCase):
             def execute(self, sql, params):
                 result = mock.Mock()
                 result.fetchone.return_value = ("student", agent.id)
-                result.fetchall.return_value = []
+                result.fetchall.return_value = list(reversed(history))  # the route reads newest first
                 return result
 
         body = {"conversation_id": 1, "query": query}
@@ -164,6 +165,25 @@ class ChatRouting(unittest.TestCase):
         self.assertEqual(self.answer(agent_from_template("internship_career", DEMO), "fix my cv", "cv.txt"), ["cv rewrite"])
         without = agent_from_template("internship_career", DEMO, skills=("files", "images", "editor"))
         self.assertEqual(self.answer(without, "fix my cv", "cv.txt"), ["editor"])  # no "cv" skill: an ordinary edit
+
+    def test_cv_pasted_into_the_chat(self):
+        # A CV pasted as text (line breaks lost in the old one-line box), then "create the pdf"
+        cv = ("Here is my CV: # **SARA ALI** ## **CONTACT** - Phone: 01000000000 - Email: sara@example.com "
+              "## **PROFILE** Computer Science student. ## **EDUCATION** **Example University** - B.Sc. 2023-2027 "
+              "## **WORK EXPERIENCE** - Intern at Example Co. ## **SKILLS** - Python")
+        career = agent_from_template("internship_career", DEMO)
+        earlier = [("user", cv), ("assistant", "Your CV is almost complete.")]
+        for query in ["create for me the pdf with these info", "make my cv", "اعملي السي في"]:
+            self.assertEqual(self.answer(career, query, history=earlier), ["cv rewrite"], query)
+        self.assertEqual(self.answer(career, cv + " Please fix my cv and send it as pdf"), ["cv rewrite"])  # in one message
+        self.assertEqual(self.answer(career, cv), ["answer"])                         # only the CV: reviewed, not rewritten
+        self.assertEqual(self.answer(career, "what is a good summary?", history=earlier), ["answer"])
+        self.assertEqual(self.answer(career, "send it as pdf"), ["answer"])           # no CV in the chat
+        labs = agent_from_template("labs_research", DEMO)                             # no "cv" skill
+        self.assertNotIn("cv rewrite", self.answer(labs, "create the pdf", history=earlier))
+        text, _ = chat.pasted_cv("make my cv", [{"role": "user", "content": cv}])
+        self.assertIn("\n## **EDUCATION**", text)                                     # its lines back
+        self.assertIn("\n- Email: sara@example.com", text)
 
     def test_cv_instructions_in_the_universitys_name(self):
         from app.agents.internship_career import cv_instructions

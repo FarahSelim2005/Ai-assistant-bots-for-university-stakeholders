@@ -14,7 +14,7 @@ from app.rag.prompts import ARABIC_LETTERS, build_messages
 from app.rag.transliteration import search_variants, with_english_terms
 from app.rag.retriever import RetrievedChunk, retrieve_best
 
-MAX_QUESTION_LENGTH = 1000
+MAX_QUESTION_LENGTH = 6000  # a pasted CV fits (about 900 words)
 ROOM_FACTS_SOURCE = "Room numbering rules"
 
 
