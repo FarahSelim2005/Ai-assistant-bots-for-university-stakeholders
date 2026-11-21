@@ -1,0 +1,21 @@
+# Caddy: HTTPS for every university address (free certificates from Let's Encrypt), the
+# React app, and /api/... forwarded to the backend. The host name is passed on unchanged,
+# so the backend still finds the university (TenantMiddleware).
+# SITE_HOSTS and ACME_EMAIL come from backend/.env.
+{
+	email {$ACME_EMAIL}
+}
+
+{$SITE_HOSTS} {
+	encode gzip
+
+	handle_path /api/* {
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PLATFORM_DOMAIN, siteUrl } from "../api.js";
 
 const STEPS = ["Name", "Subdomain", "Look", "Assistants", "First admin"];
 
@@ -113,8 +114,8 @@ export default function NewUniversity({ call, plans, templates, onDone, onCancel
           <>
             <h4>Subdomain</h4>
             <label className="field"><span>Subdomain</span><input className="finput" value={slug} onChange={(e) => setValues((v) => ({ ...v, slug: e.target.value.toLowerCase() }))} maxLength={40} /></label>
-            <label className="field"><span>Own address</span><input className="finput" value={values.host} onChange={set("host")} placeholder={`${slug || "name"}.localhost (optional)`} /></label>
-            <p className="note">The chat will be at <code>http://{values.host || `${slug || "name"}.localhost`}:5173</code>.</p>
+            <label className="field"><span>Own address</span><input className="finput" value={values.host} onChange={set("host")} placeholder={`${slug || "name"}.${PLATFORM_DOMAIN} (optional)`} /></label>
+            <p className="note">The chat will be at <code>{siteUrl(values.host || `${slug || "name"}.${PLATFORM_DOMAIN}`)}</code>.</p>
           </>
         )}
         {step === 2 && (
@@ -175,7 +176,7 @@ export default function NewUniversity({ call, plans, templates, onDone, onCancel
               <button type="button" className="ghost" onClick={addTemplate} disabled={!template || full}>Add</button>
             </div>
             {full && <p className="note">The {plan.name} plan allows {limit} assistants. Choose a bigger plan above for more.</p>}
-            <p className="note">A new assistant answers from the documents the university adds for it. Ready-made ones keep their skills: CV rewrites (PDF and Word) for Internship &amp; Career, and the campus map for Labs &amp; Research once the university adds its buildings.</p>
+            <p className="note">A new assistant answers only from the documents the university adds for it (no CV rewrites or campus map yet).</p>
           </>
         )}
         {step === 4 && (

@@ -1,0 +1,73 @@
+# The whole platform on one server: PostgreSQL, the backend, and Caddy with the frontend.
+# Settings come from backend/.env (on the server: ln -s backend/.env .env, see the deployment guide).
+#   docker compose up -d --build              start or update everything
+#   docker compose --profile cv up -d         also the local CV model (Ollama; needs 8 GB RAM)
+
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_ADMIN_USER}
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    # no "ports": only the backend can reach the database
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: backend/.env
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      BACKUP_DIR: /backups
+      # The local CV model: the ollama service below, or OLLAMA_BASE_URL in backend/.env
+      # (for example your laptop through Tailscale: http://100.x.y.z:11434)
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      # Optional: Tahoma for Arabic CV PDFs. Copy tahoma.ttf and tahomabd.ttf from
+      # C:\Windows\Fonts into ./fonts, then uncomment this line and the ./fonts volume below.
+      # WINDIR: /winfonts
+    depends_on:
+      - db
+    volumes:
+      - ./backend/data:/app/data
+      - ./backups:/backups
+      - whisper:/root/.cache/huggingface
+      # - ./fonts:/winfonts/Fonts:ro
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api
+        VITE_PLATFORM_DOMAIN: ${PLATFORM_DOMAIN}
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_HOSTS: ${SITE_HOSTS}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+
+  ollama:
+    image: ollama/ollama
+    profiles: ["cv"]
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+      - ./models:/models
+
+volumes:
+  pgdata:
+  whisper:
+  caddy_data:
+  caddy_config:
+  ollama:

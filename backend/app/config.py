@@ -104,6 +104,17 @@ def is_development() -> bool:
     return APP_ENV == "development"
 
 
+# Addresses on a server (leave both out on your own computer). New universities get the subdomain
+# <slug>.PLATFORM_DOMAIN (default <slug>.localhost), and links to a university's chat use
+# SITE_URL ({host} becomes its address; default http://{host}:5173, the Vite dev server).
+PLATFORM_DOMAIN = os.getenv("PLATFORM_DOMAIN", "") or "localhost"
+SITE_URL = os.getenv("SITE_URL", "") or "http://{host}:5173"
+
+
+def site_url(host: str) -> str:
+    return SITE_URL.replace("{host}", host)
+
+
 # Email (the sign-up's 6-digit code), sent with Python's smtplib. Port 465: SSL; any other
 # port: STARTTLS when the server offers it. Empty SMTP_HOST: no email is sent and the code
 # is printed in the backend's log instead (for trying it on your own computer).

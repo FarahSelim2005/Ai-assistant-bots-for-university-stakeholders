@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { UnauthorizedError, request } from "../admin/api.js";
 import NewUniversity from "./NewUniversity.jsx";
+import { siteUrl } from "../api.js";
 import "../platform.css";
 import "../admin/admin.css";
 
@@ -236,7 +237,7 @@ function Universities({ data, call, reload, notice, setNotice, setError, onNew }
               return (
                 <tr key={u.id}>
                   <td><span className="sw" style={{ background: u.colour }} />{u.name}</td>
-                  <td>{u.hosts[0] ? <a href={`http://${u.hosts[0]}:5173`} target="_blank" rel="noreferrer"><code>{u.hosts[0]}</code></a> : "-"}</td>
+                  <td>{u.hosts[0] ? <a href={siteUrl(u.hosts[0])} target="_blank" rel="noreferrer"><code>{u.hosts[0]}</code></a> : "-"}</td>
                   <td><span className={`pill ${u.status === "active" ? "ok" : "warn"}`}>{u.status === "review" ? "waiting for review" : u.status}</span>
                     {u.subscription && u.subscription !== "active" && <> <span className={`pill ${SUB_PILL[u.subscription]}`}>{SUB_TEXT[u.subscription]}</span></>}
                     {recent(u) && <> <span className="pill acc">new sign-up</span></>}</td>

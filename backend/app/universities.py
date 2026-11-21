@@ -10,7 +10,7 @@ import uuid
 
 from fastapi import HTTPException
 
-from app.agents.templates import skills_for
+from app import config
 
 SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 HOST = re.compile(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$")
@@ -24,7 +24,7 @@ RESERVED_SLUGS = {"www", "console", "api", "admin", "app", "signup", "billing", 
 
 
 def default_host(slug: str) -> str:
-    return f"{slug}.localhost"
+    return f"{slug}.{config.PLATFORM_DOMAIN}"
 
 
 def address_problem(conn, slug: str, host: str | None = None) -> str | None:
@@ -90,10 +90,8 @@ def create(conn, *, name: str, short_name: str, slug: str, host: str | None, pla
          DEFAULT_AUDIENCES, status, email_domain, signed_up)).fetchone()[0]
     conn.execute("INSERT INTO tenant_domains (host, tenant_id, is_primary) VALUES (%s, %s, true)", (host, tenant_id))
     # Its assistants, in the order given: a template's settings with the name (and what it
-    # handles) chosen here, or a new one from just its name and what it handles. A ready-made one
-    # keeps its GIU skills (CV rewrites for Internship & Career, the campus map for Labs & Research:
-    # it works once the university adds its buildings), a new one gets the usual skills. Each
-    # gets its own folder.
+    # handles) chosen here, or a new one from just its name and what it handles. No CV
+    # rewrites or campus map: a new university has neither yet. Each gets its own folder.
     folders: set[str] = set()
     for position, assistant in enumerate(assistants, start=1):
         name_, description, template_key = assistant["name"].strip(), (assistant.get("description") or "").strip(), assistant.get("template_key")
@@ -107,7 +105,7 @@ def create(conn, *, name: str, short_name: str, slug: str, host: str | None, pla
                        CASE WHEN %s = '' THEN summary ELSE %s END, subtitle,
                        CASE WHEN %s = '' THEN description ELSE %s END, audiences, answer_mode, prompt_mode,
                        instructions, fallback_en, fallback_ar, welcome, placeholder, examples,
-                       skills, max_answer_tokens, %s, %s
+                       array_remove(array_remove(skills, 'cv'), 'map'), max_answer_tokens, %s, %s
                 FROM agent_templates WHERE key = %s""",
                          (tenant_id, name_, name_, description, description, description, description, position, folder,
                           template_key))
@@ -116,11 +114,11 @@ def create(conn, *, name: str, short_name: str, slug: str, host: str | None, pla
             conn.execute("""
                 INSERT INTO agents (tenant_id, name, summary, description, audiences, answer_mode, instructions,
                                     fallback_en, welcome, skills, position, folder)
-                VALUES (%s, %s, %s, %s, '{student,staff}', 'docs', %s, %s, %s, %s, %s, %s)""",
+                VALUES (%s, %s, %s, %s, '{student,staff}', 'docs', %s, %s, %s, '{files,images,editor,voice}', %s, %s)""",
                          (tenant_id, name_, what, what,
                           f"You help {{university}} students and staff with {what[0].lower() + what[1:]}",
                           "Sorry, I don't have information about that. Please contact the relevant {university} office.",
-                          "How can I help you? Ask me a question.", skills_for(), position, folder))
+                          "How can I help you? Ask me a question.", position, folder))
     conn.execute("INSERT INTO users (tenant_id, email, name, role, password_hash) VALUES (%s, %s, %s, 'tenant_admin', %s)",
                  (tenant_id, email, admin_name, password_hash))
     return tenant_id, host

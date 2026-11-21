@@ -134,7 +134,7 @@ def list_plans():
 def list_templates():
     with get_admin_connection() as conn:
         rows = conn.execute("SELECT key, name, summary, audiences, skills FROM agent_templates ORDER BY position").fetchall()
-    return [{"key": k, "name": n, "summary": s, "audiences": a, "skills": [x for x in sk if x != "map"]}
+    return [{"key": k, "name": n, "summary": s, "audiences": a, "skills": [x for x in sk if x not in ("cv", "map")]}
             for k, n, s, a, sk in rows]
 
 
@@ -226,8 +226,8 @@ def create_university(body: UniversityIn):
             brand_accent=body.brand_accent, brand_dark=body.brand_dark, logo_url=body.logo_url)
     tenants._by_host.clear()
     log.info("Console: new university %s (%s) with %d assistants", body.name, host, len(assistants))
-    return {"id": str(tenant_id), "slug": body.slug.strip().lower(), "host": host, "url": f"http://{host}:5173",
-            "admin_url": f"http://{host}:5173/admin"}
+    return {"id": str(tenant_id), "slug": body.slug.strip().lower(), "host": host, "url": config.site_url(host),
+            "admin_url": f"{config.site_url(host)}/admin"}
 
 
 @router.put("/universities/{tenant_id}")

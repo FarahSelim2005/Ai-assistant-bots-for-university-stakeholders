@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { checkAddress, egp, getPlans, planFeatures, sendNewCode, signupStatus, startSignup, subscribe, verifyCode } from "./api.js";
+import { PLATFORM_DOMAIN } from "../api.js";
 import "../platform.css";
 import "./signup.css";
 
@@ -378,9 +379,9 @@ export default function SignupPage() {
       <>
         <label className="sfield">Address
           <span className="addr"><input className="sinput" value={form.slug} onChange={(e) => set({ slug: slugFrom(e.target.value) })} aria-label="Address" autoFocus />
-            <span>.localhost</span></span>
+            <span>.{PLATFORM_DOMAIN}</span></span>
           {address && <small style={{ color: address.available ? "var(--ok)" : "var(--crit)", fontWeight: 600 }}>
-            {address.available ? `✓ ${form.slug}.localhost is free` : address.problem}</small>}
+            {address.available ? `✓ ${form.slug}.${PLATFORM_DOMAIN} is free` : address.problem}</small>}
         </label>
         <div className="sfield">Main colour <small>Used for the buttons, the questions and the chosen assistant</small>
           <span className="swatches">
@@ -426,7 +427,7 @@ export default function SignupPage() {
       <>
         <dl className="summary">
           <div><dt>University</dt><dd>{form.uni} ({form.short})</dd></div>
-          <div><dt>Address</dt><dd><code>{form.slug}.localhost</code></dd></div>
+          <div><dt>Address</dt><dd><code>{form.slug}.{PLATFORM_DOMAIN}</code></dd></div>
           <div><dt>Admin</dt><dd>{form.person} · {form.sentTo}</dd></div>
           <div><dt>Assistants</dt><dd>{named.map((a) => a.name).join(", ")}</dd></div>
           <div><dt>Plan</dt><dd>{plan.name} · {planFeatures(plan).slice(0, 2).join(" · ")}</dd></div>
@@ -477,7 +478,7 @@ export default function SignupPage() {
           )}
           <div className="side-card">
             <span className="label">Preview</span>
-            <ChatMock colour={form.primary} short={form.short || "Your uni"} logo={form.logo} address={form.slug ? `${form.slug}.localhost` : undefined}
+            <ChatMock colour={form.primary} short={form.short || "Your uni"} logo={form.logo} address={form.slug ? `${form.slug}.${PLATFORM_DOMAIN}` : undefined}
                       assistants={named.length ? named.map((a) => a.name) : ["Your first assistant"]} />
           </div>
         </aside>

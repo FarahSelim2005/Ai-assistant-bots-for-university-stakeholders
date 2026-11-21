@@ -21,7 +21,9 @@ log = logging.getLogger("uvicorn.error")  # shows up in the backend terminal
 # Shared clients reuse their connections, which saves time on every call.
 _openrouter = httpx.Client(base_url=config.OPENROUTER_BASE_URL, timeout=30.0)
 _groq = httpx.Client(base_url=config.GROQ_BASE_URL, timeout=30.0)
-_ollama = httpx.Client(base_url=config.OLLAMA_BASE_URL, timeout=config.OLLAMA_TIMEOUT)
+# Connecting gives up after 5 s, so an unreachable Ollama (a laptop that is off) falls through to the backup
+# model at once; a running answer may still take OLLAMA_TIMEOUT.
+_ollama = httpx.Client(base_url=config.OLLAMA_BASE_URL, timeout=httpx.Timeout(config.OLLAMA_TIMEOUT, connect=5.0))
 
 
 class LLMError(Exception):

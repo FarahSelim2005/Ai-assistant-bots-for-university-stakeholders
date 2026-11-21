@@ -265,7 +265,7 @@ def status(signup_id: str):
         assistants = conn.execute("SELECT count(*) FROM agents WHERE tenant_id = %s AND deleted_at IS NULL",
                                   (tenant_id,)).fetchone()[0]
         recent = conn.execute("SELECT %s > now() - interval '1 day'", (row[10],)).fetchone()[0]
-    url = f"http://{host}:5173"
+    url = config.site_url(host)
     out.update({"state": "review" if t_status == "review" else "done", "host": host, "url": url,
                 "admin_url": f"{url}/admin", "assistants": assistants})
     if t_status == "active" and user_id and recent:

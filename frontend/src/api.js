@@ -1,7 +1,15 @@
 // All calls to the backend live here. The backend runs on port 8000 of the same host name
 // as this page, so it sees which university is open: giu.localhost:5173 calls
 // giu.localhost:8000, demo.localhost:5173 calls demo.localhost:8000 (plain localhost is GIU).
-export const API_URL = `${window.location.protocol}//${window.location.hostname}:8000`;
+// On a server (built with VITE_API_URL=/api) the backend is behind the same address under /api.
+export const API_URL = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000`;
+
+// The domain new universities get a subdomain of (<slug>.<domain>), and the address of a
+// university's chat. On your own computer: <slug>.localhost and http://<host>:5173.
+export const PLATFORM_DOMAIN = import.meta.env.VITE_PLATFORM_DOMAIN || "localhost";
+export function siteUrl(host) {
+  return import.meta.env.VITE_PLATFORM_DOMAIN ? `https://${host}` : `http://${host}:5173`;
+}
 
 // `signal` (optional) lets the caller cancel the request, e.g. the chat's Stop button.
 async function post(path, body, signal) {
