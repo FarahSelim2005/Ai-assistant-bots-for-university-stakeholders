@@ -10,6 +10,7 @@ through every function. Scripts and tests set it with `using(tenant)`.
 """
 import time
 import uuid
+from urllib.parse import parse_qs
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -26,6 +27,7 @@ from app.db import get_connection
 CACHE_SECONDS = 60     # a new or changed host works after at most a minute
 CACHE_MAX_HOSTS = 1000  # unknown hosts are cached too; this keeps the cache small
 OPEN_PATHS = {"/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"}  # no tenant needed
+TLS_CHECK_PATH = "/tls-check"  # Caddy asks here before it gets a certificate for a host
 
 
 @dataclass(frozen=True)
@@ -160,6 +162,9 @@ class TenantMiddleware:
         self.app = app
 
     async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope["path"] == TLS_CHECK_PATH:
+            await tls_check(scope, receive, send)
+            return
         if scope["type"] != "http" or scope["path"] in OPEN_PATHS:
             await self.app(scope, receive, send)
             return
@@ -179,3 +184,15 @@ class TenantMiddleware:
             return
         with using(tenant):
             await self.app(scope, receive, send)
+
+
+async def tls_check(scope, receive, send):
+    """Caddy's on-demand TLS check (Caddyfile): 200 if ?domain=<host> belongs to a university in
+    tenant_domains, else 404. So a university added in the console or by sign-up gets its HTTPS
+    certificate on its first visit, and nobody can make Caddy fetch certificates for other names."""
+    domain = parse_qs(scope.get("query_string", b"").decode()).get("domain", [""])[0]
+    try:
+        known = bool(domain) and await run_in_threadpool(by_host, host_name(domain)) is not None
+    except psycopg.Error:
+        known = False
+    await JSONResponse({"known": known}, 200 if known else 404)(scope, receive, send)

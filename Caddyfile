@@ -1,12 +1,21 @@
 # Caddy: HTTPS for every university address (free certificates from Let's Encrypt), the
 # React app, and /api/... forwarded to the backend. The host name is passed on unchanged,
 # so the backend still finds the university (TenantMiddleware).
-# SITE_HOSTS and ACME_EMAIL come from backend/.env.
+# Certificates are made on demand: the first visit to a new address asks the backend
+# (/tls-check) whether it belongs to a university, so universities added in the console or
+# by sign-up get HTTPS by themselves. ACME_EMAIL comes from backend/.env.
 {
 	email {$ACME_EMAIL}
+	on_demand_tls {
+		ask http://backend:8000/tls-check
+	}
 }
 
-{$SITE_HOSTS} {
+https:// {
+	tls {
+		on_demand
+	}
+
 	encode gzip
 
 	handle_path /api/* {
@@ -18,4 +27,8 @@
 		try_files {path} /index.html
 		file_server
 	}
+}
+
+http:// {
+	redir https://{host}{uri} permanent
 }
