@@ -29,36 +29,30 @@ function applyBrand(data) {
   style.setProperty("--brand-accent", data.colors.accent);
   style.setProperty("--brand-dark", data.colors.dark);
   document.title = `${data.short_name} Assistants`;
-  if (TAB_ICONS[data.logo_url]) setFavicon(TAB_ICONS[data.logo_url]);
-  else if (data.logo_url) squareIcon(data.logo_url).then(setFavicon, () => setFavicon(data.logo_url));
-  else setFavicon(initialsIcon(initials(data), data.colors.primary));
+  // The tab icon is the logo the university chose (sign-up or admin page), else its initials on
+  // its colour, the same as the page header shows.
+  setFavicon(initialsIcon(initials(data), data.colors.primary));
+  if (data.logo_url) {
+    const logo = new Image();
+    logo.onload = () => setFavicon(squareIcon(logo));
+    logo.src = data.logo_url;
+  }
 }
 
-// Logos that have their own square tab icon: GIU's wide logo would be squeezed into the tab,
-// so its tab shows just the "GIU" letters (made from the logo).
-const TAB_ICONS = { "/giu-logo.jpg": "/giu-icon.png" };
+// The logo fitted whole into a square (a tab icon is square): a wide logo is made smaller, not squashed.
+function squareIcon(image) {
+  const size = 64, canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const scale = size / Math.max(image.width, image.height), w = image.width * scale, h = image.height * scale;
+  canvas.getContext("2d").drawImage(image, (size - w) / 2, (size - h) / 2, w, h);
+  return canvas.toDataURL("image/png");
+}
 
-// The browser tab's icon: the university's logo, instead of the platform's UniBots icon.
+// The browser tab's icon: the university's own, instead of the platform's UniBots icon.
 function setFavicon(href) {
   const link = document.querySelector("link[rel='icon']");
   link.removeAttribute("type");
   link.href = href;
-}
-
-// Any other logo, fitted into a square with its proportions kept (a wide logo is not squeezed).
-function squareIcon(src) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => {
-      const size = 64, scale = size / Math.max(image.naturalWidth, image.naturalHeight);
-      const [w, h] = [image.naturalWidth * scale, image.naturalHeight * scale];
-      const canvas = Object.assign(document.createElement("canvas"), { width: size, height: size });
-      canvas.getContext("2d").drawImage(image, (size - w) / 2, (size - h) / 2, w, h);
-      try { resolve(canvas.toDataURL("image/png")); } catch (error) { reject(error); }  // a logo on another site may not allow it
-    };
-    image.onerror = reject;
-    image.src = src;
-  });
 }
 
 // A university without a logo: its initials on its main colour.
