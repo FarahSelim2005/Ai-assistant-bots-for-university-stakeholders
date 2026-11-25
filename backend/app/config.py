@@ -109,6 +109,13 @@ def is_development() -> bool:
 # SITE_URL ({host} becomes its address; default http://{host}:5173, the Vite dev server).
 PLATFORM_DOMAIN = os.getenv("PLATFORM_DOMAIN", "") or "localhost"
 SITE_URL = os.getenv("SITE_URL", "") or "http://{host}:5173"
+# The platform's own addresses, which belong to no university: console.PLATFORM_DOMAIN (the
+# platform console) and signup.PLATFORM_DOMAIN or PLATFORM_DOMAIN itself (the public sign-up and
+# its payment page; not plain localhost, which is GIU on your own computer). "console" and
+# "signup" are reserved, so no university can take them.
+CONSOLE_HOST = f"console.{PLATFORM_DOMAIN}"
+SIGNUP_HOST = f"signup.{PLATFORM_DOMAIN}"
+PLATFORM_HOSTS = {CONSOLE_HOST, SIGNUP_HOST} | ({PLATFORM_DOMAIN} if PLATFORM_DOMAIN != "localhost" else set())
 
 
 def site_url(host: str) -> str:

@@ -28,6 +28,9 @@ CACHE_SECONDS = 60     # a new or changed host works after at most a minute
 CACHE_MAX_HOSTS = 1000  # unknown hosts are cached too; this keeps the cache small
 OPEN_PATHS = {"/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"}  # no tenant needed
 TLS_CHECK_PATH = "/tls-check"  # Caddy asks here before it gets a certificate for a host
+# What the platform's own addresses (config.PLATFORM_HOSTS) serve: sign-up, payment and console,
+# none of which needs a university
+PLATFORM_PATHS = ("/console", "/signup", "/billing/checkouts/", "/billing/simulated/", "/billing/webhook/")
 
 
 @dataclass(frozen=True)
@@ -169,6 +172,13 @@ class TenantMiddleware:
             await self.app(scope, receive, send)
             return
         headers = Headers(scope=scope)
+        if host_name(headers.get("host", "")) in config.PLATFORM_HOSTS:
+            if scope["path"].startswith(PLATFORM_PATHS):
+                await self.app(scope, receive, send)
+            else:
+                await JSONResponse({"detail": "This address is the platform's sign-up or console, not a university."},
+                                   404)(scope, receive, send)
+            return
         try:
             tenant = await run_in_threadpool(resolve, headers.get("host", ""), headers.get("x-tenant"))
         except psycopg.Error:
@@ -187,12 +197,13 @@ class TenantMiddleware:
 
 
 async def tls_check(scope, receive, send):
-    """Caddy's on-demand TLS check (Caddyfile): 200 if ?domain=<host> belongs to a university in
-    tenant_domains, else 404. So a university added in the console or by sign-up gets its HTTPS
+    """Caddy's on-demand TLS check (Caddyfile): 200 if ?domain=<host> is one of the platform's own
+    addresses or belongs to a university in tenant_domains, else 404. So a university added in the console or by sign-up gets its HTTPS
     certificate on its first visit, and nobody can make Caddy fetch certificates for other names."""
     domain = parse_qs(scope.get("query_string", b"").decode()).get("domain", [""])[0]
     try:
-        known = bool(domain) and await run_in_threadpool(by_host, host_name(domain)) is not None
+        known = bool(domain) and (host_name(domain) in config.PLATFORM_HOSTS
+                                  or await run_in_threadpool(by_host, host_name(domain)) is not None)
     except psycopg.Error:
         known = False
     await JSONResponse({"known": known}, 200 if known else 404)(scope, receive, send)

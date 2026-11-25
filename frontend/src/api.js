@@ -7,6 +7,9 @@ export const API_URL = import.meta.env.VITE_API_URL || `${window.location.protoc
 // The domain new universities get a subdomain of (<slug>.<domain>), and the address of a
 // university's chat. On your own computer: <slug>.localhost and http://<host>:5173.
 export const PLATFORM_DOMAIN = import.meta.env.VITE_PLATFORM_DOMAIN || "localhost";
+// The platform's own addresses (no university): the console, and the sign-up with its payment page
+export const CONSOLE_HOST = `console.${PLATFORM_DOMAIN}`;
+export const SIGNUP_HOST = `signup.${PLATFORM_DOMAIN}`;
 export function siteUrl(host) {
   return import.meta.env.VITE_PLATFORM_DOMAIN ? `https://${host}` : `http://${host}:5173`;
 }

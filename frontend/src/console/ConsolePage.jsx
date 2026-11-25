@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { UnauthorizedError, request } from "../admin/api.js";
 import NewUniversity from "./NewUniversity.jsx";
-import { siteUrl } from "../api.js";
+import { SIGNUP_HOST, siteUrl } from "../api.js";
 import "../platform.css";
 import "../admin/admin.css";
 
@@ -269,7 +269,7 @@ function Universities({ data, call, reload, notice, setNotice, setError, onNew }
         </table>
       </div>
       <div className="panel"><h4>How universities arrive</h4>
-        <p className="note">Universities sign up and pay by themselves at <a href="/signup" target="_blank" rel="noreferrer"><code>/signup</code></a>, and
+        <p className="note">Universities sign up and pay by themselves at <a href={siteUrl(SIGNUP_HOST)} target="_blank" rel="noreferrer"><code>{SIGNUP_HOST}</code></a>, and
           appear here straight away (marked "new sign-up"). Here you can suspend one, change its plan or approve it (with "Require review" on);
           under Subscriptions you can extend a trial or simulate the next month. "Add by hand" is for a university that pays by invoice:
           it has no subscription and is never paused by billing.</p></div>
@@ -321,7 +321,7 @@ function Subscriptions({ call, onChanged }) {
         <table>
           <thead><tr><th>University</th><th>Plan</th><th>Status</th><th>Until</th><th className="num">Paid</th><th>Next month (test)</th><th /></tr></thead>
           <tbody>
-            {data.subscriptions.length === 0 && <tr><td colSpan={7} className="note">No sign-ups yet. Try <a href="/signup" target="_blank" rel="noreferrer">/signup</a>.</td></tr>}
+            {data.subscriptions.length === 0 && <tr><td colSpan={7} className="note">No sign-ups yet. Try <a href={siteUrl(SIGNUP_HOST)} target="_blank" rel="noreferrer">{SIGNUP_HOST}</a>.</td></tr>}
             {data.subscriptions.map((s) => {
               const until = s.status === "trialing" ? `trial ends ${day(s.trial_ends_at)}`
                 : s.status === "past_due" ? `grace ends ${day(s.grace_ends_at)}`
