@@ -29,6 +29,22 @@ function applyBrand(data) {
   style.setProperty("--brand-accent", data.colors.accent);
   style.setProperty("--brand-dark", data.colors.dark);
   document.title = `${data.short_name} Assistants`;
+  setFavicon(data.logo_url || initialsIcon(initials(data), data.colors.primary));
+}
+
+// The browser tab's icon: the university's logo, instead of the platform's UniBots icon.
+function setFavicon(href) {
+  const link = document.querySelector("link[rel='icon']");
+  link.removeAttribute("type");
+  link.href = href;
+}
+
+// A university without a logo: its initials on its main colour.
+function initialsIcon(text, colour) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${colour}"/>`
+    + `<text x="32" y="41" text-anchor="middle" font-family="Arial, sans-serif" font-size="${text.length > 2 ? 22 : 28}" `
+    + `font-weight="700" fill="#ffffff">${text.replace(/[<&>"]/g, "")}</text></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
 // "#c4161c" -> about 20% darker, for hovered buttons.
